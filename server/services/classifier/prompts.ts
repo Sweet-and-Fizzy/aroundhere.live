@@ -43,10 +43,11 @@ EVENT TYPES:
 
 MUSIC CLASSIFICATION RULES:
 - TRUE for: live music, DJ sets, bands, solo artists, karaoke, music-focused open mics
-- FALSE for: comedy, trivia, poetry slams, private events, film screenings, plays (non-musical theater)
+- FALSE for: comedy, trivia, sports/games/leagues, poetry slams, private events, film screenings, plays (non-musical theater)
 - Edge case - Open Mic: If music venue or "open mic music/jam", it's music
 - Edge case - Theater: Musicals = music, plays = not music
 - Edge case - "Private Event" with no details = FALSE (unknown)
+- IMPORTANT: eventType should reflect what the event actually is. A trivia night should be eventType=TRIVIA and isMusic=false, even if it's at a music venue.
 
 AVAILABLE GENRES (use these exact slugs):
 ${CANONICAL_GENRES.map((g) => `- ${g}: ${GENRE_DESCRIPTIONS[g]}`).join('\n')}
