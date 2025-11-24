@@ -25,6 +25,8 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/local_music"
 
       - name: Type check
         run: npx nuxi typecheck
