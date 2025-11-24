@@ -22,7 +22,7 @@ export class EventClassifier {
     try {
       const response = await anthropic.messages.create({
         model: MODEL,
-        max_tokens: 2048,
+        max_tokens: 8192,
         system: CLASSIFICATION_SYSTEM_PROMPT,
         messages: [
           {

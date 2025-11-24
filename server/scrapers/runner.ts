@@ -370,7 +370,7 @@ async function classifyNewEvents(): Promise<void> {
     include: {
       venue: { select: { name: true } },
     },
-    take: 50, // Process up to 50 at a time
+    take: 20, // Process up to 20 at a time to avoid response truncation
   })
 
   if (unclassified.length === 0) {
