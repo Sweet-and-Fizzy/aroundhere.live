@@ -167,11 +167,12 @@ export class MarigoldScraper extends PlaywrightScraper {
   }
 
   // Fallback method to parse from static HTML
-  private parseEventsFromHtml(html: string): ScrapedEvent[] {
+  private async parseEventsFromHtml(html: string): Promise<ScrapedEvent[]> {
     const $ = cheerio.load(html)
     const events: ScrapedEvent[] = []
 
     // Extract from gallery items in HTML
+    const galleryItems: { href: string; dateTitle: string; description: string; imageUrl?: string }[] = []
     $('.wonderplugin-gridgallery-item').each((_, el) => {
       const $item = $(el)
       const link = $item.find('a').first()
@@ -182,18 +183,22 @@ export class MarigoldScraper extends PlaywrightScraper {
       const imageUrl = img.attr('src')
 
       if (href && dataTitle && !href.includes('/wp-content/')) {
-        const galleryEvent = {
+        galleryItems.push({
           href,
           dateTitle: dataTitle,
           description: dataDescription,
           imageUrl,
-        }
-        const event = this.parseGalleryEvent(galleryEvent)
-        if (event) {
-          events.push(event)
-        }
+        })
       }
     })
+
+    // Process items sequentially to await async parseGalleryEvent
+    for (const galleryEvent of galleryItems) {
+      const event = await this.parseGalleryEvent(galleryEvent)
+      if (event) {
+        events.push(event)
+      }
+    }
 
     return events
   }
@@ -313,11 +318,11 @@ export class MarigoldScraper extends PlaywrightScraper {
         .trim()
       
       // Store description for later use
-      let description = galleryEvent.description
+      let description: string | undefined = galleryEvent.description
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
         .trim()
-      
+
       if (!title || title.length < 5) {
         // Try to extract from URL slug
         const urlMatch = galleryEvent.href.match(/\/([^\/]+)\/?$/)

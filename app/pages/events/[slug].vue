@@ -343,7 +343,7 @@ useSeoMeta({
         <UButton
           to="/"
           size="lg"
-          color="gray"
+          color="neutral"
           variant="ghost"
           icon="i-heroicons-arrow-left"
         >

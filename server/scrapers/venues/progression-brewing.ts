@@ -381,7 +381,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
 
   private parseMECEventElement(
     $: cheerio.CheerioAPI,
-    $el: cheerio.Cheerio<cheerio.Element>
+    $el: ReturnType<cheerio.CheerioAPI>
   ): ScrapedEvent | null {
     try {
       // Get title from MEC event title link
@@ -409,7 +409,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
       // Parse end time
       let endsAt: Date | undefined
       if (endTime) {
-        endsAt = this.parseMECDate(dateLabel, endTime)
+        endsAt = this.parseMECDate(dateLabel, endTime) ?? undefined
       }
 
       // Get link
@@ -488,7 +488,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
 
   private parseEventElement(
     $: cheerio.CheerioAPI,
-    $el: cheerio.Cheerio<cheerio.Element>
+    $el: ReturnType<cheerio.CheerioAPI>
   ): ScrapedEvent | null {
     try {
       // Get title

@@ -3,6 +3,15 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  // TypeScript - include DOM types for scrapers that use page.evaluate()
+  typescript: {
+    tsConfig: {
+      compilerOptions: {
+        lib: ['ESNext', 'DOM', 'DOM.Iterable'],
+      },
+    },
+  },
+
   // SSR for SEO
   ssr: true,
 

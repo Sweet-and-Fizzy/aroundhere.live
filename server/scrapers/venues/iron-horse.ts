@@ -41,7 +41,7 @@ export class IronHorseScraper extends PlaywrightScraper {
       const nextButton = await this.page.$('button:has-text("Next Events")')
       if (!nextButton) return false
 
-      const isDisabled = await nextButton.evaluate(el => el.disabled)
+      const isDisabled = await nextButton.evaluate(el => (el as HTMLButtonElement).disabled)
       if (isDisabled) return false
 
       await nextButton.click()
@@ -477,7 +477,7 @@ export class IronHorseScraper extends PlaywrightScraper {
         title,
         description: (item.excerpt as string) || (item.body as string) || undefined,
         startsAt,
-        endAt: item.endDate ? new Date(item.endDate as number) : undefined,
+        endsAt: item.endDate ? new Date(item.endDate as number) : undefined,
         sourceUrl: `https://ironhorse.org${item.fullUrl || item.urlId || ''}`,
         sourceEventId: (item.id as string) || this.generateEventId(title, startsAt),
       }

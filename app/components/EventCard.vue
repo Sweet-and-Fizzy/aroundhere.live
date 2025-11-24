@@ -133,13 +133,13 @@ const truncatedDescription = computed(() => {
 
         <!-- Badges -->
         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
-          <UBadge v-if="event.coverCharge" color="emerald" variant="soft" size="sm">
+          <UBadge v-if="event.coverCharge" color="success" variant="soft" size="sm">
             <UIcon name="i-heroicons-ticket" class="w-3 h-3 mr-1" />
             {{ event.coverCharge }}
           </UBadge>
           <UBadge
             v-if="event.ageRestriction && event.ageRestriction !== 'ALL_AGES'"
-            color="amber"
+            color="warning"
             variant="soft"
             size="sm"
           >
@@ -148,7 +148,7 @@ const truncatedDescription = computed(() => {
           <UBadge
             v-for="genre in displayGenres"
             :key="genre"
-            color="violet"
+            color="primary"
             variant="soft"
             size="sm"
           >

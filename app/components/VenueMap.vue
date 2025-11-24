@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import type { Map as LeafletMap } from 'leaflet'
+
 interface Venue {
   id: string
   name: string
   slug: string
-  latitude?: number
-  longitude?: number
-  city?: string
-  address?: string
+  latitude?: number | null
+  longitude?: number | null
+  city?: string | null
+  address?: string | null
 }
 
 const props = defineProps<{
@@ -14,7 +16,7 @@ const props = defineProps<{
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
-const map = ref<L.Map | null>(null)
+const map = ref<LeafletMap | null>(null)
 
 // Filter venues with valid coordinates
 const mappableVenues = computed(() =>
@@ -39,7 +41,7 @@ onMounted(async () => {
   await import('leaflet/dist/leaflet.css')
 
   // Fix default marker icon issue with bundlers
-  delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl
+  delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -57,13 +59,13 @@ onMounted(async () => {
   // Add OpenStreetMap tiles
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(map.value)
+  }).addTo(map.value as LeafletMap)
 
   // Add markers for each venue
   for (const venue of mappableVenues.value) {
     if (venue.latitude && venue.longitude) {
       const marker = L.marker([venue.latitude, venue.longitude])
-        .addTo(map.value)
+        .addTo(map.value as LeafletMap)
         .bindPopup(`
           <strong>${venue.name}</strong>
           ${venue.address ? `<br>${venue.address}` : ''}

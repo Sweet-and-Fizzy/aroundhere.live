@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
 import type { ScrapedEvent, ScraperResult, BaseScraper } from './types'
@@ -216,14 +216,14 @@ async function saveEvent(
         sourceUrl: scrapedEvent.sourceUrl,
         sourceEventId: scrapedEvent.sourceEventId,
         scrapedAt: new Date(),
-        rawData: scrapedEvent as unknown as Record<string, unknown>,
+        rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
       },
       create: {
         eventId: dedupResult.existingEventId,
         sourceId: source.id,
         sourceUrl: scrapedEvent.sourceUrl,
         sourceEventId: scrapedEvent.sourceEventId,
-        rawData: scrapedEvent as unknown as Record<string, unknown>,
+        rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
       },
     })
 
@@ -302,7 +302,7 @@ async function saveEvent(
       sourceId: source.id,
       sourceUrl: scrapedEvent.sourceUrl,
       sourceEventId: scrapedEvent.sourceEventId,
-      rawData: scrapedEvent as unknown as Record<string, unknown>,
+      rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
     },
   })
 

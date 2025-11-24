@@ -235,7 +235,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
         .trim()
 
       // Store description for later use
-      let description = galleryEvent.description
+      let description: string | undefined = galleryEvent.description
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
         .trim()

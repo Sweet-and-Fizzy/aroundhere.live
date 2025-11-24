@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
+import { today, getLocalTimeZone } from '@internationalized/date'
+import type { DateRange } from 'reka-ui'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CalendarDateRange = DateRange | any
 
 const emit = defineEmits<{
   filter: [filters: Record<string, any>]
@@ -12,13 +16,13 @@ const props = defineProps<{
 
 // Date range state - default to 'month' for more events
 const datePreset = ref('month')
-const customDateRange = ref<{ start: CalendarDate; end: CalendarDate } | undefined>(undefined)
+const customDateRange = ref<CalendarDateRange | undefined>(undefined)
 const showCalendar = ref(false)
 
-const selectedVenue = ref<{ label: string; value: string } | null>(null)
+const selectedVenue = ref<{ label: string; value: string } | undefined>(undefined)
 const searchQuery = ref('')
-const selectedGenre = ref<{ label: string; value: string } | null>(null)
-const selectedEventType = ref<{ label: string; value: string } | null>(null)
+const selectedGenre = ref<{ label: string; value: string } | undefined>(undefined)
+const selectedEventType = ref<{ label: string; value: string } | undefined>(undefined)
 
 // Event type options - includes common non-music events
 const eventTypeItems = [
@@ -61,9 +65,11 @@ const dateDisplayLabel = computed(() => {
   if (datePreset.value === 'custom' && customDateRange.value) {
     const start = customDateRange.value.start
     const end = customDateRange.value.end
-    const startStr = `${start.month}/${start.day}`
-    const endStr = `${end.month}/${end.day}`
-    return `${startStr} - ${endStr}`
+    if (start && end) {
+      const startStr = `${start.month}/${start.day}`
+      const endStr = `${end.month}/${end.day}`
+      return `${startStr} - ${endStr}`
+    }
   }
   return datePresets.find(p => p.value === datePreset.value)?.label || 'Select Date'
 })
@@ -111,9 +117,11 @@ function getDateRange(range: string) {
       if (customDateRange.value) {
         const start = customDateRange.value.start
         const end = customDateRange.value.end
-        return {
-          startDate: new Date(start.year, start.month - 1, start.day).toISOString(),
-          endDate: new Date(end.year, end.month - 1, end.day, 23, 59, 59, 999).toISOString(),
+        if (start && end) {
+          return {
+            startDate: new Date(start.year, start.month - 1, start.day).toISOString(),
+            endDate: new Date(end.year, end.month - 1, end.day, 23, 59, 59, 999).toISOString(),
+          }
         }
       }
       break

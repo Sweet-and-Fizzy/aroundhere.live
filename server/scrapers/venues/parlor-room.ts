@@ -1,5 +1,5 @@
 import { SquarespaceScraper } from '../platforms/squarespace'
-import type { ScraperConfig } from '../types'
+import type { ScraperConfig, ScrapedEvent } from '../types'
 
 export const parlorRoomConfig: ScraperConfig = {
   id: 'parlor-room',
