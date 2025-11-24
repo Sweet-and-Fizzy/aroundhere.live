@@ -352,62 +352,75 @@ export async function runAllScrapers(): Promise<RunnerResult[]> {
     results.push(result)
   }
 
-  // Classify any unclassified events after scraping
-  await classifyNewEvents()
+  // Classify all unclassified events after scraping (loop until done)
+  await classifyAllPendingEvents()
 
   return results
 }
 
 /**
- * Classify any events that haven't been classified yet
+ * Classify all pending events in batches until none remain
  */
-async function classifyNewEvents(): Promise<void> {
-  const unclassified = await prisma.event.findMany({
-    where: {
-      isMusic: null,
-      startsAt: { gte: new Date() },
-    },
-    include: {
-      venue: { select: { name: true } },
-    },
-    take: 20, // Process up to 20 at a time to avoid response truncation
-  })
+async function classifyAllPendingEvents(): Promise<void> {
+  const BATCH_SIZE = 20
+  let totalClassified = 0
+  let totalMusic = 0
 
-  if (unclassified.length === 0) {
-    console.log('[Runner] No unclassified events to process')
-    return
-  }
+  while (true) {
+    const unclassified = await prisma.event.findMany({
+      where: {
+        isMusic: null,
+        startsAt: { gte: new Date() },
+      },
+      include: {
+        venue: { select: { name: true } },
+      },
+      take: BATCH_SIZE,
+    })
 
-  console.log(`[Runner] Classifying ${unclassified.length} new events...`)
-
-  const inputs: ClassificationInput[] = unclassified.map((e) => ({
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    venueName: e.venue?.name,
-    existingTags: e.genres,
-  }))
-
-  try {
-    const results = await classifier.classifyWithFallback(inputs)
-
-    for (const result of results) {
-      await prisma.event.update({
-        where: { id: result.eventId },
-        data: {
-          isMusic: result.isMusic,
-          eventType: result.eventType,
-          canonicalGenres: result.canonicalGenres,
-          classifiedAt: new Date(),
-          classificationConfidence: result.confidence,
-        },
-      })
+    if (unclassified.length === 0) {
+      if (totalClassified === 0) {
+        console.log('[Runner] No unclassified events to process')
+      } else {
+        console.log(`[Runner] Classification complete: ${totalClassified} total (${totalMusic} music, ${totalClassified - totalMusic} non-music)`)
+      }
+      return
     }
 
-    const musicCount = results.filter((r) => r.isMusic).length
-    console.log(`[Runner] Classified ${results.length} events (${musicCount} music, ${results.length - musicCount} non-music)`)
-  } catch (error) {
-    console.error('[Runner] Classification failed:', error)
+    console.log(`[Runner] Classifying batch of ${unclassified.length} events...`)
+
+    const inputs: ClassificationInput[] = unclassified.map((e) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      venueName: e.venue?.name,
+      existingTags: e.genres,
+    }))
+
+    try {
+      const results = await classifier.classifyWithFallback(inputs)
+
+      for (const result of results) {
+        await prisma.event.update({
+          where: { id: result.eventId },
+          data: {
+            isMusic: result.isMusic,
+            eventType: result.eventType,
+            canonicalGenres: result.canonicalGenres,
+            classifiedAt: new Date(),
+            classificationConfidence: result.confidence,
+          },
+        })
+      }
+
+      const musicCount = results.filter((r) => r.isMusic).length
+      totalClassified += results.length
+      totalMusic += musicCount
+      console.log(`[Runner] Batch done: ${results.length} classified (${musicCount} music)`)
+    } catch (error) {
+      console.error('[Runner] Classification batch failed:', error)
+      // Continue with next batch instead of stopping entirely
+    }
   }
 }
 
