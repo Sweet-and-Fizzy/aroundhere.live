@@ -42,7 +42,7 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
+      - name: Build and push production image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -50,6 +50,26 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract scraper metadata
+        id: scraper-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-scraper
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push scraper image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: scraper
+          push: true
+          tags: ${{ steps.scraper-meta.outputs.tags }}
+          labels: ${{ steps.scraper-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

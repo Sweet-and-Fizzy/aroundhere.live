@@ -62,10 +62,13 @@ WORKDIR /app
 
 # Copy from builder
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/server ./server
+COPY --from=builder /app/tsconfig.json ./
+
+# Install tsx for running TypeScript directly
+RUN npm install -g tsx
 
 # Install playwright browsers
 RUN npx playwright install chromium
@@ -73,4 +76,4 @@ RUN npx playwright install chromium
 ENV NODE_ENV=production
 
 # Default command runs all scrapers
-CMD ["node", ".output/server/tasks/scrape.mjs"]
+CMD ["tsx", "server/scrapers/runner.ts"]

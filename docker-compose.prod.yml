@@ -95,6 +95,23 @@ services:
     depends_on:
       - app
 
+  # Scraper service - runs on-demand via cron
+  scraper:
+    image: ghcr.io/${GITHUB_REPOSITORY:-local-music}-scraper:${IMAGE_TAG:-latest}
+    container_name: local-music-scraper
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/local_music?schema=public
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    # Don't start automatically - run via: docker compose run --rm scraper
+    profiles:
+      - scraper
+
 networks:
   internal:
     driver: bridge
