@@ -1,0 +1,289 @@
+// Local Music Listings Service - Database Schema
+// Using PostgreSQL with PostGIS for geo queries
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis]
+}
+
+// Geographic regions (cities, metros)
+model Region {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  slug          String   @unique
+  timezone      String   @default("America/New_York")
+  // bounds stored as GeoJSON in a separate table or raw SQL for PostGIS
+  defaultRadius Int      @default(25) // miles
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  venues Venue[]
+  events Event[]
+
+  @@map("regions")
+}
+
+// Music venues
+model Venue {
+  id         String     @id @default(cuid())
+  regionId   String
+  name       String
+  slug       String
+  address    String?
+  city       String?
+  state      String?
+  postalCode String?
+  latitude   Float?
+  longitude  Float?
+  // PostGIS point will be managed via raw SQL/migrations
+  capacity   Int?
+  venueType  VenueType  @default(OTHER)
+  website    String?
+  phone      String?
+  logoUrl    String?    // Venue logo for display when events lack images
+  imageUrl   String?    // Hero/banner image for venue page
+  description String?   // About the venue
+  verified   Boolean    @default(false)
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  region Region  @relation(fields: [regionId], references: [id])
+  events Event[]
+
+  @@unique([regionId, slug])
+  @@index([regionId])
+  @@index([latitude, longitude])
+  @@map("venues")
+}
+
+enum VenueType {
+  BAR
+  CLUB
+  THEATER
+  CONCERT_HALL
+  OUTDOOR
+  CAFE
+  RESTAURANT
+  HOUSE_SHOW
+  OTHER
+}
+
+// Artists and bands
+model Artist {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  genres       String[] // array of genre slugs
+  description  String?
+  website      String?
+  socialLinks  Json?    // { instagram, facebook, bandcamp, spotify, etc. }
+  musicbrainzId String?
+  spotifyId    String?
+  isLocal      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  eventArtists EventArtist[]
+
+  @@index([name])
+  @@map("artists")
+}
+
+// Events (shows, concerts)
+model Event {
+  id              String       @id @default(cuid())
+  regionId        String
+  venueId         String?
+  title           String
+  slug            String
+  description     String?
+  descriptionHtml String?      // Rich HTML description with images/videos/links
+  imageUrl        String?      // Event/artist image from source
+  startsAt        DateTime
+  endsAt          DateTime?
+  doorsAt         DateTime?
+  coverCharge     String?      // "Free", "$10", "$10-15", "Donation"
+  ageRestriction  AgeRestriction @default(ALL_AGES)
+  ticketUrl       String?
+  genres          String[]     // Genre/category tags from source (raw from scraper)
+
+  // Classification fields (populated by AI classifier)
+  isMusic           Boolean?       // true=music event, false=non-music, null=unclassified
+  eventType         EventType?     // Classified event type
+  canonicalGenres   String[]       // Normalized genre slugs from classifier
+  classifiedAt      DateTime?      // When classification was performed
+  classificationConfidence Float?  // 0-1 confidence score from classifier
+
+  sourceId        String?
+  sourceUrl       String?
+  sourceEventId   String?      // ID from the source for dedup
+  confidenceScore Float        @default(1.0)
+  reviewStatus    ReviewStatus @default(PENDING)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  isCancelled     Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  region       Region        @relation(fields: [regionId], references: [id])
+  venue        Venue?        @relation(fields: [venueId], references: [id])
+  source       Source?       @relation(fields: [sourceId], references: [id]) // Canonical source
+  eventArtists EventArtist[]
+  eventSources EventSource[] // All sources that found this event
+
+  @@unique([sourceId, sourceEventId])
+  @@index([regionId, startsAt])
+  @@index([venueId])
+  @@index([reviewStatus])
+  @@map("events")
+}
+
+enum AgeRestriction {
+  ALL_AGES
+  EIGHTEEN_PLUS
+  TWENTY_ONE_PLUS
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum EventType {
+  MUSIC
+  DJ
+  OPEN_MIC
+  COMEDY
+  THEATER
+  TRIVIA
+  KARAOKE
+  PRIVATE
+  FILM
+  SPOKEN_WORD
+  OTHER
+}
+
+// Junction table for events and artists
+model EventArtist {
+  id        String    @id @default(cuid())
+  eventId   String
+  artistId  String
+  order     Int       @default(1) // 1 = headliner, 2+ = support acts in billing order
+  setTime   DateTime?
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, artistId])
+  @@index([artistId])
+  @@map("event_artists")
+}
+
+// Data sources (scrapers, APIs, manual)
+model Source {
+  id            String     @id @default(cuid())
+  name          String     @unique
+  slug          String     @unique
+  type          SourceType
+  category      SourceCategory @default(OTHER) // For dedup priority
+  priority      Int        @default(50) // Lower = higher priority (venue=10, ticketing=20, band=30, etc.)
+  trustScore    Float      @default(0.5) // 0-1
+  website       String?
+  parserVersion String?
+  config        Json?      // scraper-specific config
+  lastRunAt     DateTime?
+  lastRunStatus String?
+  nextRunAt     DateTime?
+  runFrequency  Int        @default(86400) // seconds between runs
+  consecutiveFailures Int  @default(0) // Track consecutive failures for notifications
+  lastFailureAt DateTime?  // When the last failure occurred
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  events       Event[]       // Events where this is the canonical source
+  eventSources EventSource[] // All events this source has contributed to
+
+  @@map("sources")
+}
+
+enum SourceType {
+  SCRAPER
+  API
+  MANUAL
+  IMPORT
+}
+
+enum SourceCategory {
+  VENUE      // Official venue website - highest priority
+  TICKETING  // Ticketing platforms
+  PROMOTER   // Promoter/booking agency sites
+  ARTIST     // Band/artist websites
+  AGGREGATOR // Other aggregators
+  SOCIAL     // Social media
+  OTHER      // Unknown/other
+}
+
+// Track all sources that mention an event (for dedup and data enrichment)
+model EventSource {
+  id           String   @id @default(cuid())
+  eventId      String
+  sourceId     String
+  sourceUrl    String?  // URL where this source found the event
+  sourceEventId String? // ID from this source
+  scrapedAt    DateTime @default(now())
+  rawData      Json?    // Original scraped data for reference
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  source Source @relation(fields: [sourceId], references: [id])
+
+  @@unique([eventId, sourceId])
+  @@index([sourceId])
+  @@map("event_sources")
+}
+
+// Genre taxonomy (hierarchical)
+model Genre {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  parentId  String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  parent   Genre?  @relation("GenreHierarchy", fields: [parentId], references: [id])
+  children Genre[] @relation("GenreHierarchy")
+
+  @@index([parentId])
+  @@map("genres")
+}
+
+// Users (admin, liaisons)
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  LIAISON
+  USER
+}
