@@ -147,7 +147,7 @@ async function main() {
       latitude: 42.3751,
       longitude: -72.5198,
       capacity: 150,
-      venueType: 'BAR' as const,
+      venueType: 'CLUB' as const,
       website: 'https://www.thedrakeamherst.org',
       logoUrl: 'https://images.squarespace-cdn.com/content/v1/618bdc7a1c0a717b716735c4/bf9cd29b-ef91-4574-b2e3-ff5f2abc83f8/Drake_Primary+Logo_White.png',
       verified: true,
