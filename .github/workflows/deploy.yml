@@ -111,6 +111,6 @@ jobs:
             docker image prune -f
 
             # Run database migrations if needed (using scraper container with tsx for ESM compatibility)
-            docker compose -f docker-compose.prod.yml run --rm scraper tsx node_modules/prisma/build/index.js migrate deploy
+            docker compose -f docker-compose.prod.yml run --rm scraper tsx node_modules/prisma/build/index.js migrate deploy --config prisma/prisma.config.ts
 
             echo "Deployment complete!"
