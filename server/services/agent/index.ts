@@ -106,6 +106,8 @@ export class AgentService {
       }
     }
 
+    console.log(`[Agent] Starting ${sessionType} generation for ${url}`)
+
     addThinking({
       type: 'analysis',
       message: `Starting ${sessionType === 'VENUE_INFO' ? 'venue information' : 'event'} scraper generation for ${url}`,
@@ -113,12 +115,14 @@ export class AgentService {
 
     try {
       // Fetch page HTML for analysis
+      console.log('[Agent] Fetching page HTML...')
       addThinking({
         type: 'analysis',
         message: 'Fetching page HTML to analyze structure...',
       })
 
       const pageHtml = await fetchPageHtml(url)
+      console.log('[Agent] Page HTML fetched:', pageHtml ? `${pageHtml.length} bytes` : 'null')
 
       if (!pageHtml) {
         throw new Error('Failed to fetch page HTML. The URL may be invalid or inaccessible.')
@@ -180,6 +184,7 @@ export class AgentService {
         })
 
         if (!codeResult.success || !codeResult.code) {
+          console.log('[Agent] Code generation failed:', codeResult.error)
           addThinking({
             type: 'code_generation',
             message: `Failed to generate code: ${codeResult.error}`,
@@ -188,6 +193,7 @@ export class AgentService {
         }
 
         const generatedCode = codeResult.code
+        console.log('[Agent] Code generated, length:', generatedCode.length)
 
         addThinking({
           type: 'code_generation',
@@ -207,6 +213,7 @@ export class AgentService {
         )
 
         if (!validation.isValid) {
+          console.log('[Agent] Validation failed:', validation.errors)
           lastError = validation.errors.join(', ')
           // Save the broken code so we can show it to the LLM for fixing
           if (!bestCode) {
@@ -239,12 +246,15 @@ export class AgentService {
           ? this.guessTimezone(venueInfo.state)
           : 'America/New_York'
 
+        console.log('[Agent] Executing scraper code...')
         const execution = await executeScraperCode(generatedCode, url, timezone, 120000)
+        console.log('[Agent] Execution result:', execution.success ? 'success' : 'failed', execution.error || '')
 
         // Save attempt to database
         const codeHash = crypto.createHash('md5').update(generatedCode).digest('hex')
 
         if (!execution.success) {
+          console.log('[Agent] Execution failed:', execution.error)
           addThinking({
             type: 'execution',
             message: `Execution failed: ${execution.error}`,

@@ -152,12 +152,12 @@ export class NotificationService {
     this.channels.push(new ConsoleNotificationChannel())
 
     // Add webhook if configured
-    const webhookUrl = process.env.PARSER_FAILURE_WEBHOOK_URL
+    const webhookUrl = process.env.SLACK_WEBHOOK_URL
     if (webhookUrl) {
       console.log('[Notifications] Webhook channel enabled')
       this.channels.push(new WebhookNotificationChannel(webhookUrl))
     } else {
-      console.log('[Notifications] Webhook channel disabled (PARSER_FAILURE_WEBHOOK_URL not set)')
+      console.log('[Notifications] Webhook channel disabled (SLACK_WEBHOOK_URL not set)')
     }
 
     // Add email if configured
@@ -191,7 +191,7 @@ export const notificationService = new NotificationService()
  * Send a simple Slack notification (for general alerts like scraper approvals)
  */
 export async function sendSlackNotification(message: string, blocks?: any[]): Promise<void> {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL || process.env.PARSER_FAILURE_WEBHOOK_URL
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL
 
   if (!webhookUrl) {
     console.log('[Slack] Webhook not configured, skipping notification')
