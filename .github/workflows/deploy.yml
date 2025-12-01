@@ -110,7 +110,7 @@ jobs:
             # Clean up old images
             docker image prune -f
 
-            # Run database migrations if needed
-            docker compose -f docker-compose.prod.yml exec -T app node node_modules/prisma/build/index.js migrate deploy
+            # Run database migrations if needed (using scraper container which has full node_modules)
+            docker compose -f docker-compose.prod.yml run --rm scraper npx prisma migrate deploy
 
             echo "Deployment complete!"
