@@ -19,6 +19,8 @@ interface Venue {
   latitude?: number
   longitude?: number
   logoUrl?: string
+  imageUrl?: string
+  description?: string
   region?: {
     id: string
     name: string
@@ -74,12 +76,28 @@ const googleMapsUrl = computed(() => {
 
 <template>
   <div v-if="venue">
-    <!-- Header -->
-    <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8">
-      <div class="max-w-4xl mx-auto">
+    <!-- Header with optional banner image -->
+    <div
+      class="relative text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8"
+      :class="venue.imageUrl ? '' : 'bg-gradient-to-br from-primary-600 to-primary-800'"
+    >
+      <!-- Banner image background -->
+      <div
+        v-if="venue.imageUrl"
+        class="absolute inset-0 overflow-hidden"
+      >
+        <img
+          :src="venue.imageUrl"
+          :alt="`${venue.name} banner`"
+          class="w-full h-full object-cover"
+        >
+        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+      </div>
+
+      <div class="relative max-w-4xl mx-auto">
         <NuxtLink
           to="/venues"
-          class="text-primary-200 hover:text-white text-sm mb-2 inline-flex items-center gap-1"
+          class="text-white/70 hover:text-white text-sm mb-4 inline-flex items-center gap-1"
         >
           <UIcon
             name="i-heroicons-arrow-left"
@@ -92,13 +110,22 @@ const googleMapsUrl = computed(() => {
             v-if="venue.logoUrl"
             :src="venue.logoUrl"
             :alt="`${venue.name} logo`"
-            class="h-16 w-auto object-contain bg-black rounded-lg p-2"
+            class="h-20 w-20 object-contain bg-white/10 backdrop-blur rounded-lg p-2 border border-white/20"
           >
-          <h1 class="text-3xl font-bold">
-            {{ venue.name }}
-          </h1>
+          <div>
+            <h1 class="text-3xl md:text-4xl font-bold drop-shadow-lg">
+              {{ venue.name }}
+            </h1>
+            <div
+              v-if="venue.venueType"
+              class="mt-1 text-white/70 text-sm"
+            >
+              {{ venue.venueType.replace('_', ' ') }}
+            </div>
+          </div>
         </div>
-        <div class="mt-2 flex flex-wrap gap-4 text-primary-100">
+
+        <div class="mt-4 flex flex-wrap gap-4 text-white/80">
           <a
             v-if="fullAddress"
             :href="googleMapsUrl"
@@ -125,17 +152,25 @@ const googleMapsUrl = computed(() => {
             />
             Website
           </a>
-          <span
+          <a
             v-if="venue.phone"
-            class="flex items-center gap-1"
+            :href="`tel:${venue.phone.replace(/\D/g, '')}`"
+            class="hover:text-white flex items-center gap-1"
           >
             <UIcon
               name="i-heroicons-phone"
               class="w-4 h-4"
             />
             {{ venue.phone }}
-          </span>
+          </a>
         </div>
+
+        <p
+          v-if="venue.description"
+          class="mt-4 text-white/90 max-w-2xl"
+        >
+          {{ venue.description }}
+        </p>
       </div>
     </div>
 

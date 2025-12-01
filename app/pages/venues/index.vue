@@ -2,7 +2,6 @@
 const { data: response } = await useFetch('/api/venues')
 
 const venues = computed(() => response.value?.venues || [])
-const showMap = ref(true)
 
 useSeoMeta({
   title: 'Venues - Local Music Listings',
@@ -11,33 +10,30 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="venues-page">
-    <header class="page-header">
-      <h1>Venues</h1>
-      <p class="tagline">
-        Music venues in Western Massachusetts
-      </p>
-    </header>
-
-    <main class="page-content">
-      <!-- Map Toggle and Map -->
-      <div
-        v-if="venues.length > 0"
-        class="map-section"
-      >
-        <button
-          class="map-toggle"
-          @click="showMap = !showMap"
-        >
-          {{ showMap ? 'Hide Map' : 'Show Map' }}
-        </button>
-        <ClientOnly>
-          <VenueMap
-            v-if="showMap"
-            :venues="venues"
-          />
-        </ClientOnly>
+  <div>
+    <!-- Hero Header -->
+    <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8">
+      <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl md:text-4xl font-bold">
+          Venues
+        </h1>
+        <p class="mt-2 text-white/80 text-lg">
+          Music venues in Western Massachusetts
+        </p>
+        <p class="mt-1 text-white/60">
+          {{ venues.length }} venue{{ venues.length === 1 ? '' : 's' }} with live music
+        </p>
       </div>
+    </div>
+
+    <main class="venues-page">
+      <!-- Map -->
+      <ClientOnly>
+        <VenueMap
+          v-if="venues.length > 0"
+          :venues="venues"
+        />
+      </ClientOnly>
 
       <div
         v-if="venues.length === 0"
@@ -100,20 +96,6 @@ useSeoMeta({
 .venues-page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 1rem;
-}
-
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  margin: 0 0 0.25rem;
-}
-
-.tagline {
-  color: var(--text-muted, #666);
-  margin: 0;
 }
 
 .empty {
@@ -184,24 +166,5 @@ useSeoMeta({
 .venue-events {
   margin-top: 0.5rem;
   color: var(--primary-color, #3b82f6);
-}
-
-.map-section {
-  margin-bottom: 1.5rem;
-}
-
-.map-toggle {
-  background: var(--primary-color, #3b82f6);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-}
-
-.map-toggle:hover {
-  background: var(--primary-hover, #2563eb);
 }
 </style>

@@ -1,3 +1,4 @@
+/* global require, console */
 const fs = require('fs');
 const data = JSON.parse(fs.readFileSync('scrapers-export.json', 'utf8'));
 
