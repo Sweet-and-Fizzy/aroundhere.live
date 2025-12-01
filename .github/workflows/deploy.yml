@@ -53,26 +53,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Extract scraper metadata
-        id: scraper-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-scraper
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push scraper image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          target: scraper
-          push: true
-          tags: ${{ steps.scraper-meta.outputs.tags }}
-          labels: ${{ steps.scraper-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -100,9 +80,8 @@ jobs:
           script: |
             cd /opt/local-music
 
-            # Pull latest images (including scraper which uses a profile)
+            # Pull latest image
             docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml --profile scraper pull
 
             # Restart services with zero-downtime
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
@@ -110,7 +89,7 @@ jobs:
             # Clean up old images
             docker image prune -f
 
-            # Run database migrations if needed (using scraper container with tsx for ESM compatibility)
-            docker compose -f docker-compose.prod.yml run --rm scraper tsx node_modules/prisma/build/index.js migrate deploy --config prisma/prisma.config.ts
+            # Run database migrations
+            docker compose -f docker-compose.prod.yml exec -T app tsx node_modules/prisma/build/index.js migrate deploy --config prisma/prisma.config.ts
 
             echo "Deployment complete!"
