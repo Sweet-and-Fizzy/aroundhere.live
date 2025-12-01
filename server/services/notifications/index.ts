@@ -187,3 +187,93 @@ export class NotificationService {
 // Singleton instance
 export const notificationService = new NotificationService()
 
+/**
+ * Send a simple Slack notification (for general alerts like scraper approvals)
+ */
+export async function sendSlackNotification(message: string, blocks?: any[]): Promise<void> {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL || process.env.PARSER_FAILURE_WEBHOOK_URL
+
+  if (!webhookUrl) {
+    console.log('[Slack] Webhook not configured, skipping notification')
+    return
+  }
+
+  try {
+    const payload: any = { text: message }
+    if (blocks) {
+      payload.blocks = blocks
+    }
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      console.error('[Slack] Failed to send notification:', response.status)
+    }
+  } catch (error) {
+    console.error('[Slack] Error sending notification:', error)
+  }
+}
+
+/**
+ * Notify when a new venue is approved
+ */
+export async function notifyVenueApproved(params: {
+  venueName: string
+  venueUrl: string
+  city?: string
+  state?: string
+  llmProvider: string
+  llmModel: string
+}): Promise<void> {
+  const { venueName, venueUrl, city, state, llmProvider, llmModel } = params
+
+  const location = [city, state].filter(Boolean).join(', ')
+  const message = `🏢 New Venue: ${venueName}`
+
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `🏢 *New Venue Added*\n\n*Venue:* ${venueName}${location ? `\n*Location:* ${location}` : ''}\n*URL:* <${venueUrl}|View Site>\n*Model:* ${llmProvider}/${llmModel}`,
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+
+/**
+ * Notify when a new scraper is approved
+ */
+export async function notifyScraperApproved(params: {
+  venueName: string
+  venueUrl: string
+  isUpdate: boolean
+  llmProvider: string
+  llmModel: string
+}): Promise<void> {
+  const { venueName, venueUrl, isUpdate, llmProvider, llmModel } = params
+
+  const emoji = isUpdate ? '🔄' : '✅'
+  const action = isUpdate ? 'Updated' : 'New'
+
+  const message = `${emoji} ${action} Scraper: ${venueName}`
+
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `${emoji} *${action} Scraper Approved*\n\n*Venue:* ${venueName}\n*URL:* <${venueUrl}|View Site>\n*Model:* ${llmProvider}/${llmModel}`,
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+

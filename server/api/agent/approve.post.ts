@@ -5,6 +5,7 @@
 
 import prisma from '../../utils/prisma'
 import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
+import { notifyScraperApproved, notifyVenueApproved } from '../../services/notifications'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -238,6 +239,30 @@ export default defineEventHandler(async (event) => {
 
       return { venue, source }
     })
+
+    // Send Slack notifications
+    if (result.venue) {
+      const venueData = session.venueData as any
+      notifyVenueApproved({
+        venueName: result.venue.name,
+        venueUrl: session.url,
+        city: venueData?.city,
+        state: venueData?.state,
+        llmProvider: session.llmProvider,
+        llmModel: session.llmModel,
+      }).catch(err => console.error('[Approve] Failed to send Slack notification:', err))
+    }
+
+    if (result.source) {
+      const venue = await prisma.venue.findUnique({ where: { id: venueId || session.venueId || '' } })
+      notifyScraperApproved({
+        venueName: venue?.name || result.source.name,
+        venueUrl: session.url,
+        isUpdate: !!body.venueId, // If venueId was passed, it's an update
+        llmProvider: session.llmProvider,
+        llmModel: session.llmModel,
+      }).catch(err => console.error('[Approve] Failed to send Slack notification:', err))
+    }
 
     return {
       success: true,
