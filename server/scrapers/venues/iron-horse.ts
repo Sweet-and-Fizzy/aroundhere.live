@@ -38,13 +38,16 @@ export class IronHorseScraper extends PlaywrightScraper {
     if (!this.page) return false
 
     try {
+      // Dismiss popup before clicking (it can reappear between pages)
+      await this.dismissPopup()
+
       const nextButton = await this.page.$('button:has-text("Next Events")')
       if (!nextButton) return false
 
       const isDisabled = await nextButton.evaluate(el => (el as HTMLButtonElement).disabled)
       if (isDisabled) return false
 
-      await nextButton.click()
+      await nextButton.click({ timeout: 5000 })
       await this.page.waitForTimeout(2000)
       return true
     } catch {
@@ -81,6 +84,45 @@ export class IronHorseScraper extends PlaywrightScraper {
     } catch {
       // If specific selectors don't appear, wait for general content
       await this.page.waitForTimeout(5000)
+    }
+
+    // Dismiss promotional popup that blocks pagination clicks
+    await this.dismissPopup()
+  }
+
+  // Dismiss the Squarespace promotional popup overlay
+  private async dismissPopup(): Promise<void> {
+    if (!this.page) return
+
+    try {
+      // Look for common popup close buttons/overlays
+      const closeSelectors = [
+        '.sqs-popup-overlay-close',
+        '.yui-popup-container-node .sqs-modal-lightbox-close',
+        '[data-test="popup-close"]',
+        '.sqs-slide-container [aria-label="Close"]',
+        '.newsletter-form-close',
+      ]
+
+      for (const selector of closeSelectors) {
+        const closeButton = await this.page.$(selector)
+        if (closeButton) {
+          await closeButton.click({ force: true })
+          console.log(`[Iron Horse] Dismissed popup via ${selector}`)
+          await this.page.waitForTimeout(500)
+          return
+        }
+      }
+
+      // If no close button, try clicking outside the popup or pressing Escape
+      const popup = await this.page.$('.yui-popup-container-node')
+      if (popup) {
+        await this.page.keyboard.press('Escape')
+        console.log('[Iron Horse] Dismissed popup via Escape key')
+        await this.page.waitForTimeout(500)
+      }
+    } catch {
+      // Ignore errors - popup may not be present
     }
   }
 

@@ -127,16 +127,6 @@ export class FailureDetectionService {
   }> {
     const source = await this.prisma.source.findUnique({
       where: { slug: sourceSlug },
-      include: {
-        events: {
-          where: {
-            createdAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
-            },
-          },
-          select: { createdAt: true },
-        },
-      },
     })
 
     if (!source) {
@@ -147,21 +137,27 @@ export class FailureDetectionService {
       }
     }
 
-    // Calculate average events per run (rough estimate based on events created)
-    // This is a simplified calculation - in production you might track run history separately
-    const eventsLast30Days = source.events.length
-    const estimatedRuns = source.lastRunAt
-      ? Math.ceil(
-          (Date.now() - source.lastRunAt.getTime()) / (source.runFrequency * 1000)
-        )
-      : 1
-    const averageEvents = estimatedRuns > 0 ? eventsLast30Days / estimatedRuns : 0
+    // Use lastEventCount if available (set on successful runs)
+    // Fall back to counting future events from this source as a rough estimate
+    let averageEvents = source.lastEventCount || 0
 
-    // Get consecutive failures from parser failures table if it exists
-    const consecutiveFailures = await this.getConsecutiveFailures(sourceSlug)
+    if (averageEvents === 0) {
+      // Fallback: count events from this source that are in the future
+      // This gives us a rough idea of how many events this venue typically has
+      const futureEventsCount = await this.prisma.event.count({
+        where: {
+          sourceId: source.id,
+          startsAt: { gte: new Date() },
+        },
+      })
+      averageEvents = futureEventsCount
+    }
+
+    // Get consecutive failures
+    const consecutiveFailures = source.consecutiveFailures || 0
 
     return {
-      averageEvents: Math.round(averageEvents) || 0,
+      averageEvents,
       lastSuccessfulRun: source.lastRunStatus === 'success' ? source.lastRunAt : null,
       consecutiveFailures,
     }

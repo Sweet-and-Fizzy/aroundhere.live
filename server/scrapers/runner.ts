@@ -2,10 +2,11 @@ import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
-import type { ScraperResult, BaseScraper } from './types'
-import { saveEvent } from './save-events'
+import type { ScraperResult, BaseScraper, ScrapedEvent } from './types'
+import { saveEvent, saveScrapedEvents } from './save-events'
 import { classifyPendingEvents } from './classify-events'
 import { FailureDetectionService } from '../services/failure-detection'
+import { executeScraperCode } from '../services/agent/executor'
 
 // Import scrapers
 import { IronHorseScraper } from './venues/iron-horse'
@@ -93,9 +94,9 @@ export async function runScraper(scraper: BaseScraper): Promise<RunnerResult> {
     update: {
       lastRunAt: new Date(),
       lastRunStatus: result.success && !failureDetectionResult.hasFailure ? 'success' : 'failed',
-      // Reset consecutive failures on success (if fields exist in database)
+      // Reset consecutive failures and save event count on success
       ...(result.success && !failureDetectionResult.hasFailure
-        ? { consecutiveFailures: 0, lastFailureAt: null }
+        ? { consecutiveFailures: 0, lastFailureAt: null, lastEventCount: result.events.length }
         : {}),
     },
     create: {
@@ -156,9 +157,130 @@ export async function runScraper(scraper: BaseScraper): Promise<RunnerResult> {
   }
 }
 
+/**
+ * Run AI-generated scrapers from the database
+ */
+export async function runAIScrapers(): Promise<RunnerResult[]> {
+  const results: RunnerResult[] = []
+
+  // Find all active sources with generated code
+  // Note: We filter by isActive and type, then check for generatedCode in the loop
+  // because Prisma's JSON path filtering has type issues
+  const aiSources = await prisma.source.findMany({
+    where: {
+      isActive: true,
+      type: 'SCRAPER',
+    },
+  })
+
+  // Filter to only sources with generatedCode
+  const aiSourcesWithCode = aiSources.filter(s => {
+    const config = s.config as any
+    return config?.generatedCode && config?.venueId
+  })
+
+  console.log(`\n[Runner] Found ${aiSourcesWithCode.length} AI-generated scrapers`)
+
+  for (const source of aiSourcesWithCode) {
+    const config = source.config as any
+
+    console.log(`\n[Runner] Starting AI scraper: ${source.name}`)
+
+    // Get the venue
+    const venue = await prisma.venue.findUnique({
+      where: { id: config.venueId },
+      include: { region: true },
+    })
+
+    if (!venue) {
+      console.error(`[Runner] Venue not found for AI scraper: ${source.name}`)
+      continue
+    }
+
+    try {
+      // Execute the AI-generated scraper code
+      const execResult = await executeScraperCode(
+        config.generatedCode,
+        source.website || config.url || '',
+        venue.region?.timezone || 'America/New_York',
+        180000 // 3 minute timeout
+      )
+
+      const scrapedEvents: ScrapedEvent[] = execResult.data || []
+      let savedEvents = 0
+      let skippedEvents = 0
+
+      if (execResult.success && scrapedEvents.length > 0) {
+        console.log(`[${source.name}] Scraped ${scrapedEvents.length} events`)
+
+        const venueData = { id: venue.id, regionId: venue.regionId }
+        const sourceData = { id: source.id, priority: source.priority }
+
+        const saveResult = await saveScrapedEvents(prisma, scrapedEvents, venueData, sourceData)
+        savedEvents = saveResult.saved
+        skippedEvents = saveResult.skipped
+      } else if (!execResult.success) {
+        console.error(`[${source.name}] Execution failed:`, execResult.error)
+      }
+
+      // Update source status
+      await prisma.source.update({
+        where: { id: source.id },
+        data: {
+          lastRunAt: new Date(),
+          lastRunStatus: execResult.success ? 'success' : 'failed',
+        },
+      })
+
+      console.log(`[Runner] Completed: ${savedEvents} saved, ${skippedEvents} skipped`)
+
+      results.push({
+        scraperId: source.slug,
+        scraperName: source.name,
+        result: {
+          success: execResult.success,
+          events: scrapedEvents,
+          errors: execResult.error ? [execResult.error] : [],
+          scrapedAt: new Date(),
+          duration: execResult.executionTime,
+        },
+        savedEvents,
+        skippedEvents,
+      })
+    } catch (error) {
+      console.error(`[Runner] Error running AI scraper ${source.name}:`, error)
+
+      await prisma.source.update({
+        where: { id: source.id },
+        data: {
+          lastRunAt: new Date(),
+          lastRunStatus: 'failed',
+        },
+      })
+
+      results.push({
+        scraperId: source.slug,
+        scraperName: source.name,
+        result: {
+          success: false,
+          events: [],
+          errors: [error instanceof Error ? error.message : String(error)],
+          scrapedAt: new Date(),
+          duration: 0,
+        },
+        savedEvents: 0,
+        skippedEvents: 0,
+      })
+    }
+  }
+
+  return results
+}
+
 export async function runAllScrapers(): Promise<RunnerResult[]> {
   const results: RunnerResult[] = []
 
+  // Run hardcoded scrapers
   for (const scraper of scrapers) {
     if (!scraper.config.enabled) {
       console.log(`[Runner] Skipping disabled scraper: ${scraper.config.name}`)
@@ -168,6 +290,10 @@ export async function runAllScrapers(): Promise<RunnerResult[]> {
     const result = await runScraper(scraper)
     results.push(result)
   }
+
+  // Run AI-generated scrapers from database
+  const aiResults = await runAIScrapers()
+  results.push(...aiResults)
 
   // Classify all unclassified events after scraping
   await classifyPendingEvents(prisma)
