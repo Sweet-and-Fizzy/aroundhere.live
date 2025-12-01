@@ -77,9 +77,6 @@ useSeoMeta({
               Location
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Type
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -102,13 +99,14 @@ useSeoMeta({
               </div>
               <div
                 v-if="venue.website"
-                class="text-sm text-gray-500"
+                class="text-sm text-gray-500 max-w-48 truncate"
               >
                 <a
                   :href="venue.website"
                   target="_blank"
                   class="hover:underline"
-                >{{ venue.website }}</a>
+                  :title="venue.website"
+                >{{ venue.website.replace(/^https?:\/\//, '') }}</a>
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -125,9 +123,6 @@ useSeoMeta({
               >
                 Not geocoded
               </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ venue.venueType?.replace('_', ' ') }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span
@@ -188,7 +183,7 @@ useSeoMeta({
           </tr>
           <tr v-if="venues.length === 0">
             <td
-              colspan="6"
+              colspan="5"
               class="px-6 py-8 text-center text-gray-500"
             >
               No venues found.
