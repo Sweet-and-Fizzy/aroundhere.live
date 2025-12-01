@@ -28,6 +28,8 @@ export async function executeScraperCode(
   const startTime = Date.now()
 
   try {
+    console.log('[EXECUTOR] Starting execution for URL:', url)
+
     // Create sandbox context with only allowed modules
     const sandbox = {
       chromium,
@@ -35,7 +37,6 @@ export async function executeScraperCode(
       fromZonedTime,
       console: {
         log: (...args: any[]) => {
-          // Capture logs but don't pollute actual console
           console.log('[SCRAPER]', ...args)
         },
         error: (...args: any[]) => {
@@ -54,6 +55,13 @@ export async function executeScraperCode(
       parseInt,
       parseFloat,
       isNaN,
+      // Common globals that LLMs often use
+      URL,
+      URLSearchParams,
+      RegExp,
+      Error,
+      Map,
+      Set,
       // Exports object to capture the function
       exports: {},
       module: { exports: {} },
@@ -126,6 +134,9 @@ export async function executeScraperCode(
     }
 
     const executionTime = Date.now() - startTime
+
+    console.log('[EXECUTOR] Execution succeeded in', executionTime, 'ms')
+    console.log('[EXECUTOR] Result preview:', JSON.stringify(result)?.substring(0, 500))
 
     return {
       success: true,
