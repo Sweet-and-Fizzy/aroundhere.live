@@ -21,7 +21,7 @@ COPY . .
 RUN npm run build
 
 # Production stage - unified image with Playwright for web app and scraping
-FROM mcr.microsoft.com/playwright:v1.48.0-noble AS production
+FROM mcr.microsoft.com/playwright:v1.57.0-noble AS production
 
 WORKDIR /app
 
