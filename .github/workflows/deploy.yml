@@ -111,6 +111,6 @@ jobs:
             docker image prune -f
 
             # Run database migrations if needed
-            docker compose -f docker-compose.prod.yml exec -T app npx prisma migrate deploy || true
+            docker compose -f docker-compose.prod.yml exec -T app node node_modules/prisma/build/index.js migrate deploy
 
             echo "Deployment complete!"

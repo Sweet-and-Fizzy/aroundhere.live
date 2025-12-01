@@ -35,10 +35,11 @@ RUN apt-get update && apt-get install -y \
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nuxt
 
-# Copy Prisma schema and generated client for runtime
+# Copy Prisma schema, generated client, and CLI for migrations
 COPY --from=builder --chown=nuxt:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nuxt:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nuxt:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nuxt:nodejs /app/node_modules/prisma ./node_modules/prisma
 
 # Copy built application
 COPY --from=builder --chown=nuxt:nodejs /app/.output ./.output
