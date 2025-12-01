@@ -29,10 +29,6 @@ export class FailureDetectionService {
       consecutiveFailures: number
     }
   ): Promise<FailureDetectionResult> {
-    const source = await this.prisma.source.findUnique({
-      where: { slug: scraper.config.id },
-    })
-
     // Get historical stats if not provided
     if (!previousRunStats) {
       previousRunStats = await this.getHistoricalStats(scraper.config.id)
@@ -192,10 +188,6 @@ export class FailureDetectionService {
     htmlSnapshot?: string
   ): Promise<void> {
     console.log(`[FailureDetection] notifyFailure called for ${scraper.config.name}`)
-    
-    const source = await this.prisma.source.findUnique({
-      where: { slug: scraper.config.id },
-    })
 
     const previousStats = await this.getHistoricalStats(scraper.config.id)
 

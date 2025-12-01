@@ -2,7 +2,7 @@
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type CalendarDateRange = DateRange | any
 
 const emit = defineEmits<{
@@ -12,6 +12,7 @@ const emit = defineEmits<{
 const props = defineProps<{
   venues?: { id: string; name: string }[]
   genres?: string[]
+  genreLabels?: Record<string, string>
 }>()
 
 // Date range state - default to 'month' for more events
@@ -54,7 +55,10 @@ const venueItems = computed(() => [
 
 const genreItems = computed(() => [
   { label: 'All Genres', value: '' },
-  ...(props.genres?.map(g => ({ label: g, value: g })) ?? []),
+  ...(props.genres?.map(g => ({
+    label: props.genreLabels?.[g] || g.charAt(0).toUpperCase() + g.slice(1),
+    value: g
+  })) ?? []),
 ])
 
 // Get today's CalendarDate
@@ -91,7 +95,7 @@ function getDateRange(range: string) {
       endDate = new Date(startDate)
       endDate.setHours(23, 59, 59, 999)
       break
-    case 'weekend':
+    case 'weekend': {
       const dayOfWeek = now.getDay()
       if (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) {
         // Already weekend
@@ -105,6 +109,7 @@ function getDateRange(range: string) {
       endDate.setDate(startDate.getDate() + daysUntilSunday)
       endDate.setHours(23, 59, 59, 999)
       break
+    }
     case 'week':
       endDate = new Date(startDate)
       endDate.setDate(startDate.getDate() + 7)
@@ -209,14 +214,20 @@ onMounted(() => {
       <!-- Filters - Grid on mobile, flex row on larger screens -->
       <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
         <!-- Date Filter with Popover Calendar -->
-        <UPopover v-model:open="showCalendar" class="col-span-2 sm:col-span-1">
+        <UPopover
+          v-model:open="showCalendar"
+          class="col-span-2 sm:col-span-1"
+        >
           <UButton
             color="neutral"
             variant="outline"
             class="w-full justify-between text-sm sm:text-base"
             trailing-icon="i-heroicons-chevron-down"
           >
-            <UIcon name="i-heroicons-calendar" class="w-4 h-4 mr-1.5 sm:mr-2" />
+            <UIcon
+              name="i-heroicons-calendar"
+              class="w-4 h-4 mr-1.5 sm:mr-2"
+            />
             <span class="truncate">{{ dateDisplayLabel }}</span>
           </UButton>
 
@@ -238,53 +249,82 @@ onMounted(() => {
               </div>
 
               <div class="border-t pt-3">
-                <p class="text-sm text-gray-500 mb-2">Or select a custom date range:</p>
-                <p class="text-xs text-gray-400 mb-2">Click a start date, then click an end date</p>
+                <p class="text-sm text-gray-500 mb-2">
+                  Or select a custom date range:
+                </p>
+                <p class="text-xs text-gray-400 mb-2">
+                  Click a start date, then click an end date
+                </p>
                 <UCalendar
                   v-model="customDateRange"
                   range
                   :min-value="todayDate"
                   :number-of-months="1"
                 />
-                <p v-if="customDateRange?.start && customDateRange?.end" class="text-xs text-primary-600 mt-2 font-medium">
+                <p
+                  v-if="customDateRange?.start && customDateRange?.end"
+                  class="text-xs text-primary-600 mt-2 font-medium"
+                >
                   Selected: {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - {{ customDateRange.end.month }}/{{ customDateRange.end.day }}
                 </p>
-                <p v-else-if="customDateRange?.start" class="text-xs text-gray-500 mt-2">
+                <p
+                  v-else-if="customDateRange?.start"
+                  class="text-xs text-gray-500 mt-2"
+                >
                   Start: {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - now click an end date
                 </p>
               </div>
 
               <div class="flex justify-end">
-                <UButton size="sm" @click="closeCalendar">Done</UButton>
+                <UButton
+                  size="sm"
+                  @click="closeCalendar"
+                >
+                  Done
+                </UButton>
               </div>
             </div>
           </template>
         </UPopover>
 
         <!-- Venue Filter -->
-        <div v-if="venues?.length" class="col-span-1 sm:w-48">
+        <div
+          v-if="venues?.length"
+          class="col-span-1 sm:w-48"
+        >
           <USelectMenu
             v-model="selectedVenue"
             :items="venueItems"
             placeholder="Venue"
             class="w-full"
+            :ui="{ content: 'w-64' }"
           >
             <template #leading>
-              <UIcon name="i-heroicons-map-pin" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-4 h-4"
+              />
             </template>
           </USelectMenu>
         </div>
 
         <!-- Genre Filter -->
-        <div v-if="genres?.length" class="col-span-1 sm:w-44">
+        <div
+          v-if="genres?.length"
+          class="col-span-1 sm:w-48"
+        >
           <USelectMenu
             v-model="selectedGenre"
             :items="genreItems"
             placeholder="Genre"
             class="w-full"
+            :ui="{ content: 'w-64' }"
           >
             <template #leading>
-              <UIcon name="i-heroicons-musical-note" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-musical-note"
+                class="w-4 h-4"
+              />
             </template>
           </USelectMenu>
         </div>
@@ -298,7 +338,10 @@ onMounted(() => {
             class="w-full"
           >
             <template #leading>
-              <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-sparkles"
+                class="w-4 h-4"
+              />
             </template>
           </USelectMenu>
         </div>

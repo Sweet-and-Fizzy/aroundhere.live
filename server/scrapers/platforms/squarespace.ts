@@ -24,7 +24,7 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
 
   protected async parseEvents(html: string): Promise<ScrapedEvent[]> {
     // First, collect all event page URLs from the listing
-    const eventUrls = await this.collectEventUrls()
+    const eventUrls = await this.collectEventUrls(html)
 
     console.log(`[${this.config.name}] Found ${eventUrls.length} event pages to scrape`)
 
@@ -46,25 +46,24 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
   }
 
   /**
-   * Collect all event page URLs from the listing page
+   * Collect all event page URLs from the listing page HTML
    */
-  protected async collectEventUrls(): Promise<string[]> {
-    if (!this.page) return []
+  protected async collectEventUrls(html: string): Promise<string[]> {
+    const $ = this.$(html)
+    const allUrls: string[] = []
 
     // Handle multiple selectors (comma-separated)
     const selectors = this.eventLinkSelector.split(',').map(s => s.trim())
-    const patternStr = this.eventPathPattern.toString().replace(/^\/|\/$/g, '')
-    const allUrls: string[] = []
 
     for (const selector of selectors) {
-      const urls = await this.page.evaluate(({ sel, pattern }: { sel: string; pattern: string }) => {
-        const regex = new RegExp(pattern)
-        return Array.from(document.querySelectorAll(sel))
-          .map(a => (a as HTMLAnchorElement).href)
-          .filter(href => regex.test(href))
-      }, { sel: selector, pattern: patternStr })
-
-      allUrls.push(...urls)
+      $(selector).each((_, el) => {
+        const href = $(el).attr('href')
+        if (href && this.eventPathPattern.test(href)) {
+          // Handle relative URLs
+          const fullUrl = href.startsWith('http') ? href : new URL(href, this.config.url).toString()
+          allUrls.push(fullUrl)
+        }
+      })
     }
 
     // Dedupe URLs
@@ -202,6 +201,11 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
             if (bgDiv) {
               imgSrc = bgDiv.getAttribute('data-image')
             }
+          }
+
+          // Skip logo/stamp images (common patterns in filenames)
+          if (imgSrc && /(?:logo|stamp|badge|icon|watermark)/i.test(imgSrc)) {
+            continue
           }
 
           const caption = block.querySelector('.image-caption')?.textContent?.trim()

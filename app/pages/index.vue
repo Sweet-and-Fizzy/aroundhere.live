@@ -7,6 +7,7 @@ const venues = computed(() => venuesData.value?.venues ?? [])
 
 const { data: genresData } = await useFetch('/api/genres')
 const genres = computed(() => genresData.value?.genres ?? [])
+const genreLabels = computed(() => genresData.value?.genreLabels ?? {})
 
 // Track current filters for pagination
 const currentFilters = ref<Record<string, any>>({})
@@ -39,8 +40,12 @@ useSeoMeta({
     <!-- Hero Section - Smaller on mobile -->
     <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-6 px-4 sm:py-10 sm:px-6 rounded-lg sm:rounded-xl mb-4 sm:mb-8">
       <div class="text-center">
-        <h1 class="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Local Music Listings</h1>
-        <p class="text-sm sm:text-lg text-primary-100">Discover live shows in Western Massachusetts</p>
+        <h1 class="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
+          Local Music Listings
+        </h1>
+        <p class="text-sm sm:text-lg text-primary-100">
+          Discover live shows in Western Massachusetts
+        </p>
       </div>
     </div>
 
@@ -48,6 +53,7 @@ useSeoMeta({
     <EventFilters
       :venues="venues"
       :genres="genres"
+      :genre-labels="genreLabels"
       @filter="handleFilter"
     />
 
@@ -68,7 +74,10 @@ useSeoMeta({
     />
 
     <!-- Load More / Pagination -->
-    <div v-if="pagination.hasMore && !loading" class="mt-4 sm:mt-6 text-center pb-4">
+    <div
+      v-if="pagination.hasMore && !loading"
+      class="mt-4 sm:mt-6 text-center pb-4"
+    >
       <UButton
         color="primary"
         variant="soft"

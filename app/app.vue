@@ -5,7 +5,10 @@
       <nav class="bg-gray-900 text-white">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between items-center h-16">
-            <NuxtLink to="/" class="font-bold text-xl hover:text-primary-400 transition-colors">
+            <NuxtLink
+              to="/"
+              class="font-bold text-xl hover:text-primary-400 transition-colors"
+            >
               Local Music
             </NuxtLink>
             <div class="flex gap-6">

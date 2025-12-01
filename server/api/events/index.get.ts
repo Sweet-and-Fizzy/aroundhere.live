@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
@@ -18,8 +19,8 @@ export default defineEventHandler(async (event) => {
   const musicOnly = query.musicOnly !== 'false'
   const eventType = query.eventType as string | undefined
 
-  // Build where clause
-  const where: any = {
+  // Build where clause with proper Prisma types
+  const where: Prisma.EventWhereInput = {
     startsAt: {
       gte: startDate,
       ...(endDate && { lte: endDate }),
@@ -27,25 +28,15 @@ export default defineEventHandler(async (event) => {
     // Include PENDING events for now until we have a review workflow
     reviewStatus: { in: ['APPROVED', 'PENDING'] },
     isCancelled: false,
-  }
-
-  // Filter by music/non-music
-  if (musicOnly) {
-    // Show music events and unclassified events (isMusic is true or null)
-    where.OR = [{ isMusic: true }, { isMusic: null }]
-  }
-
-  // Filter by specific event type
-  if (eventType) {
-    where.eventType = eventType
-  }
-
-  if (regionId) {
-    where.regionId = regionId
-  }
-
-  if (venueId) {
-    where.venueId = venueId
+    // Always exclude private events
+    eventType: { not: 'PRIVATE' },
+    // Filter by music/non-music
+    ...(musicOnly && { OR: [{ isMusic: true }, { isMusic: null }] }),
+    // Filter by specific event type (overrides the PRIVATE exclusion if explicitly requested)
+    ...(eventType && { eventType: eventType as Prisma.EnumEventTypeNullableFilter }),
+    // Filter by region/venue
+    ...(regionId && { regionId }),
+    ...(venueId && { venueId }),
   }
 
   // Fetch events with related data
@@ -92,14 +83,19 @@ export default defineEventHandler(async (event) => {
   // Filter by genre if specified (post-query filter for now)
   let filteredEvents = events
   if (genres && genres.length > 0) {
+    const genresLower = genres.map(g => g.toLowerCase())
     filteredEvents = events.filter(event => {
-      // Check event-level genres first
-      if (event.genres?.some(g => genres.includes(g))) {
+      // Check canonicalGenres (from classifier) - case insensitive
+      if (event.canonicalGenres?.some(g => genresLower.includes(g.toLowerCase()))) {
+        return true
+      }
+      // Check event-level genres
+      if (event.genres?.some(g => genresLower.includes(g.toLowerCase()))) {
         return true
       }
       // Fallback to artist genres
       return event.eventArtists.some(ea =>
-        ea.artist.genres.some(g => genres.includes(g))
+        ea.artist.genres.some(g => genresLower.includes(g.toLowerCase()))
       )
     })
   }

@@ -1,0 +1,91 @@
+{
+  "exportedAt": "2025-11-30T23:36:28.847Z",
+  "sources": [
+    {
+      "name": "BOMBYX Center for Arts & Equity",
+      "slug": "bombyx-center-for-arts-equity",
+      "type": "SCRAPER",
+      "category": "VENUE",
+      "website": "https://bombyx.live/events/",
+      "config": {
+        "venueId": "cmil6mfdu00024d8oleov3nr6",
+        "llmModel": "claude-sonnet-4-20250514",
+        "sessionId": "cmil9a8ls00024d8ocnjz30ux",
+        "venueSlug": "bombyx-center-for-arts-equity",
+        "llmProvider": "anthropic",
+        "generatedCode": "async function scrapeEvents(url, timezone = 'America/New_York') {\n  const browser = await chromium.launch({ headless: true })\n  const page = await browser.newPage()\n\n  try {\n    await page.goto(url, { waitUntil: 'domcontentloaded' })\n    await page.waitForTimeout(3000)\n\n    const html = await page.content()\n    const $ = cheerio.load(html)\n\n    var events = []\n    var currentYear = new Date().getFullYear()\n\n    // Extract events from the dynamic list\n    $('[data-id=\"div_block-2561-55\"]').each(function(_, el) {\n      var $el = $(el)\n\n      // Extract basic event data\n      var dateText = $el.find('[data-id=\"span-6888-55\"]').text().trim()\n      var timeText = $el.find('[data-id=\"span-2582-55\"]').text().trim()\n      var coverChargeText = $el.find('[data-id=\"span-2595-55\"]').text().trim()\n      var imageUrl = $el.find('[data-id=\"image-2567-55\"]').attr('src')\n      var infoLink = $el.find('a[data-id=\"link-2597-55\"]').attr('href')\n      var ticketLink = $el.find('a[data-id=\"link-2600-55\"]').attr('href')\n\n      // Get title from the flip card back side\n      var title = $el.find('[data-id=\"span-2572-55\"]').text().trim()\n      \n      // If no title found in flip card, extract from info link or use date as fallback\n      if (!title) {\n        if (infoLink) {\n          var urlParts = infoLink.split('/')\n          title = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1]\n          title = title.replace(/-/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase())\n        } else {\n          title = 'Event on ' + dateText\n        }\n      }\n\n      // Parse date and time\n      var startsAt\n      if (dateText && timeText) {\n        var dateTimeStr = dateText + ', ' + currentYear + ' ' + timeText\n        var localDate = new Date(dateTimeStr)\n        startsAt = fromZonedTime(localDate, timezone)\n      } else if (dateText) {\n        var dateStr = dateText + ', ' + currentYear\n        var localDate = new Date(dateStr)\n        startsAt = fromZonedTime(localDate, timezone)\n      }\n\n      // Clean up cover charge\n      var coverCharge = 'Free'\n      if (coverChargeText) {\n        if (coverChargeText.toLowerCase().includes('free')) {\n          coverCharge = 'Free'\n        } else {\n          coverCharge = coverChargeText\n        }\n      }\n\n      // Fix image URL if relative\n      if (imageUrl && imageUrl.startsWith('//')) {\n        imageUrl = 'https:' + imageUrl\n      }\n\n      var event = {\n        title: title,\n        startsAt: startsAt,\n        sourceUrl: infoLink || url,\n        coverCharge: coverCharge\n      }\n\n      if (imageUrl) {\n        event.imageUrl = imageUrl\n      }\n\n      if (ticketLink) {\n        event.ticketUrl = ticketLink\n      }\n\n      events.push(event)\n    })\n\n    // Now visit each event detail page to get descriptions\n    for (var i = 0; i < events.length; i++) {\n      var event = events[i]\n      if (event.sourceUrl && event.sourceUrl !== url) {\n        try {\n          await page.goto(event.sourceUrl, { waitUntil: 'domcontentloaded' })\n          await page.waitForTimeout(2000)\n\n          var detailHtml = await page.content()\n          var $detail = cheerio.load(detailHtml)\n\n          // Check for JSON-LD structured data first\n          var jsonLdScript = $detail('script[type=\"application/ld+json\"]').html()\n          if (jsonLdScript) {\n            try {\n              var jsonData = JSON.parse(jsonLdScript)\n              var eventData = Array.isArray(jsonData) ? jsonData[0] : jsonData\n              if (eventData.description) {\n                event.description = eventData.description\n              }\n              if (eventData.name && !event.title) {\n                event.title = eventData.name\n              }\n            } catch (e) {\n              // JSON parse failed, continue with CSS selectors\n            }\n          }\n\n          // If no description from JSON-LD, try to extract from page content\n          if (!event.description) {\n            // Look for common content areas\n            var description = $detail('.entry-content').text().trim() ||\n                            $detail('.event-description').text().trim() ||\n                            $detail('.content').text().trim() ||\n                            $detail('main p').first().text().trim() ||\n                            $detail('.ct-text-block').first().text().trim()\n\n            if (description && description.length > 20) {\n              event.description = description\n            }\n          }\n\n          // Extract HTML description if available\n          if (!event.descriptionHtml) {\n            var descriptionHtml = $detail('.entry-content').html() ||\n                                $detail('.event-description').html() ||\n                                $detail('.content').html()\n\n            if (descriptionHtml && descriptionHtml.trim().length > 20) {\n              event.descriptionHtml = descriptionHtml.trim()\n            }\n          }\n\n        } catch (detailError) {\n          // Continue if detail page fails to load\n          console.log('Failed to load detail page:', event.sourceUrl)\n        }\n      }\n    }\n\n    await browser.close()\n    return events.filter(event => event.startsAt && !isNaN(event.startsAt.getTime()))\n  } catch (error) {\n    await browser.close()\n    throw error\n  }\n}"
+      },
+      "isActive": true
+    },
+    {
+      "name": "Fort Hill Brewery",
+      "slug": "fort-hill-brewery",
+      "type": "SCRAPER",
+      "category": "VENUE",
+      "website": "https://www.forthillbrewery.com/new-events",
+      "config": {
+        "venueId": "cmil5b07j000c0z8ohg2ufu07",
+        "llmModel": "claude-sonnet-4-20250514",
+        "sessionId": "cmim4tgbh00004d8o73a7vosz",
+        "venueSlug": "fort-hill-brewery",
+        "llmProvider": "anthropic",
+        "generatedCode": "async function scrapeEvents(url, timezone = 'America/New_York') {\n  const browser = await chromium.launch({ headless: true })\n  const page = await browser.newPage()\n\n  try {\n    await page.goto(url, { waitUntil: 'domcontentloaded' })\n    await page.waitForTimeout(3000)\n\n    try {\n      await page.evaluate(function() {\n        var overlay = document.querySelector('.ui-widget-overlay')\n        if (overlay) overlay.remove()\n        var modals = document.querySelectorAll('[class*=\"popup\"], [class*=\"modal-overlay\"]')\n        modals.forEach(function(m) { m.remove() })\n      })\n    } catch (e) { /* ignore */ }\n\n    var allEvents = []\n    var monthsToScrape = 3\n    var currentYear = new Date().getFullYear()\n\n    for (var i = 0; i < monthsToScrape; i++) {\n      var html = await page.content()\n      var $ = cheerio.load(html)\n\n      $('.yui3-calendar-day.has-event').each(function(_, dayEl) {\n        var $day = $(dayEl)\n        var dayNum = $day.find('.marker-daynum').text().trim()\n        \n        var monthHeader = $('.yui3-calendar-header-label').text().trim()\n        var monthMatch = monthHeader.match(/(\\w+)\\s+(\\d{4})/)\n        var month = monthMatch ? monthMatch[1] : ''\n        var year = monthMatch ? parseInt(monthMatch[2]) : currentYear\n\n        $day.find('.item').each(function(_, itemEl) {\n          var $item = $(itemEl)\n          var $link = $item.find('.item-link')\n          \n          var title = $link.find('.item-title').text().trim()\n          var timeStr = $link.find('.item-time--12hr').text().trim().replace(/\\s+/g, ' ')\n          var eventUrl = $link.attr('href')\n          \n          if (title && dayNum && month) {\n            var dateTimeStr = month + ' ' + dayNum + ', ' + year + ' ' + timeStr\n            var localDate = new Date(dateTimeStr)\n            var startsAt = fromZonedTime(localDate, timezone)\n            \n            var event = {\n              title: title,\n              startsAt: startsAt,\n              sourceUrl: eventUrl ? (eventUrl.startsWith('http') ? eventUrl : 'https://www.forthillbrewery.com' + eventUrl) : url\n            }\n\n            var flyoutItem = $day.find('.flyoutitem').filter(function() {\n              return $(this).find('.flyoutitem-title a').attr('href') === eventUrl\n            }).first()\n\n            if (flyoutItem.length) {\n              var timeRange = flyoutItem.find('.flyoutitem-datetime--12hr').text().trim()\n              var endTimeMatch = timeRange.match(/–\\s*(.+)$/)\n              if (endTimeMatch) {\n                var endTimeStr = endTimeMatch[1].trim()\n                var endDateTimeStr = month + ' ' + dayNum + ', ' + year + ' ' + endTimeStr\n                var localEndDate = new Date(endDateTimeStr)\n                event.endsAt = fromZonedTime(localEndDate, timezone)\n              }\n            }\n\n            if (title.toLowerCase().includes('live music') || title.toLowerCase().includes('music')) {\n              var artistMatch = title.match(/live music:\\s*(.+)/i)\n              if (artistMatch) {\n                event.artists = [{ name: artistMatch[1].trim(), isHeadliner: true }]\n                event.genres = ['Live Music']\n              }\n            }\n\n            allEvents.push(event)\n          }\n        })\n      })\n\n      if (i < monthsToScrape - 1) {\n        var nextBtn = await page.$('.yui3-calendarnav-nextmonth')\n        if (nextBtn) {\n          await nextBtn.click()\n          await page.waitForTimeout(1000)\n        } else {\n          break\n        }\n      }\n    }\n\n    await browser.close()\n    return allEvents\n  } catch (error) {\n    await browser.close()\n    throw error\n  }\n}"
+      },
+      "isActive": true
+    },
+    {
+      "name": "Hope Center for the Arts",
+      "slug": "hope-center-for-the-arts",
+      "type": "SCRAPER",
+      "category": "VENUE",
+      "website": "https://hopecenterforthearts.org/upcoming/",
+      "config": {
+        "venueId": "cmil9mknv00034d8o91dw2vn6",
+        "llmModel": "claude-sonnet-4-20250514",
+        "sessionId": "cmim5z0fc00004d8odorc1u8o",
+        "venueSlug": "hope-center-for-the-arts",
+        "llmProvider": "anthropic",
+        "generatedCode": "async function scrapeEvents(url, timezone = 'America/New_York') {\n  const browser = await chromium.launch({ headless: true })\n  const page = await browser.newPage()\n\n  try {\n    await page.goto(url, { waitUntil: 'domcontentloaded' })\n    await page.waitForTimeout(3000)\n\n    try {\n      await page.evaluate(function() {\n        var overlay = document.querySelector('.ui-widget-overlay')\n        if (overlay) overlay.remove()\n        var modals = document.querySelectorAll('[class*=\"popup\"], [class*=\"modal-overlay\"]')\n        modals.forEach(function(m) { m.remove() })\n      })\n    } catch (e) { /* ignore */ }\n\n    const html = await page.content()\n    const $ = cheerio.load(html)\n\n    var events = []\n    var currentYear = new Date().getFullYear()\n\n    $('.bde-loop-item').each(function(_, el) {\n      var $el = $(el)\n      \n      var title = $el.find('.bde-text-201-106').text().trim()\n      var dateStr = $el.find('.bde-code-block-201-116').text().trim()\n      var eventLink = $el.find('a.bde-container-link').attr('href')\n      var imageUrl = $el.find('.bde-image2').attr('src')\n\n      if (title && dateStr && eventLink) {\n        var cleanDateStr = dateStr.replace(/^\\s+|\\s+$/g, '')\n        \n        var dateWithYear = cleanDateStr + ', ' + currentYear\n        if (cleanDateStr.includes('Jan ') || cleanDateStr.includes('Feb ') || cleanDateStr.includes('Mar ')) {\n          dateWithYear = cleanDateStr + ', ' + (currentYear + 1)\n        }\n\n        try {\n          var localDate = new Date(dateWithYear)\n          if (!isNaN(localDate.getTime())) {\n            var startsAt = fromZonedTime(localDate, timezone)\n            \n            events.push({\n              title: title,\n              startsAt: startsAt,\n              sourceUrl: eventLink,\n              imageUrl: imageUrl || undefined\n            })\n          }\n        } catch (e) {\n          console.log('Date parsing error:', e)\n        }\n      }\n    })\n\n    for (var i = 0; i < events.length; i++) {\n      try {\n        await page.goto(events[i].sourceUrl, { waitUntil: 'domcontentloaded' })\n        await page.waitForTimeout(2000)\n\n        var detailHtml = await page.content()\n        var $detail = cheerio.load(detailHtml)\n\n        var jsonLdScript = $detail('script[type=\"application/ld+json\"]').html()\n        if (jsonLdScript) {\n          try {\n            var jsonData = JSON.parse(jsonLdScript)\n            var eventData = Array.isArray(jsonData) ? jsonData[0] : jsonData\n            if (eventData.description) {\n              events[i].description = eventData.description\n            }\n            if (eventData.startDate) {\n              var eventDate = new Date(eventData.startDate)\n              if (!isNaN(eventDate.getTime())) {\n                events[i].startsAt = eventDate\n              }\n            }\n            if (eventData.offers && eventData.offers.price) {\n              events[i].coverCharge = '$' + eventData.offers.price\n            }\n          } catch (e) {\n            console.log('JSON-LD parsing error:', e)\n          }\n        }\n\n        var description = $detail('.bde-text p').first().text().trim()\n        if (!description) {\n          description = $detail('.entry-content p').first().text().trim()\n        }\n        if (!description) {\n          description = $detail('p').first().text().trim()\n        }\n        if (description && !events[i].description) {\n          events[i].description = description\n        }\n\n        var ticketLink = $detail('a[href*=\"ticket\"], a[href*=\"buy\"], a:contains(\"Tickets\"), a:contains(\"Buy\")').attr('href')\n        if (ticketLink) {\n          events[i].ticketUrl = ticketLink\n        }\n\n        var priceText = $detail('*:contains(\"$\")').text()\n        if (priceText && !events[i].coverCharge) {\n          var priceMatch = priceText.match(/\\$\\d+(?:\\.\\d{2})?/)\n          if (priceMatch) {\n            events[i].coverCharge = priceMatch[0]\n          }\n        }\n\n        var timeText = $detail('*:contains(\"PM\"), *:contains(\"AM\")').text()\n        if (timeText) {\n          var timeMatch = timeText.match(/(\\d{1,2}):?(\\d{2})?\\s*(AM|PM)/i)\n          if (timeMatch) {\n            var hour = parseInt(timeMatch[1])\n            var minute = parseInt(timeMatch[2] || '0')\n            var ampm = timeMatch[3].toUpperCase()\n            \n            if (ampm === 'PM' && hour !== 12) hour += 12\n            if (ampm === 'AM' && hour === 12) hour = 0\n            \n            var eventDate = new Date(events[i].startsAt)\n            eventDate.setHours(hour, minute, 0, 0)\n            events[i].startsAt = fromZonedTime(eventDate, timezone)\n          }\n        }\n\n      } catch (e) {\n        console.log('Error fetching event details:', e)\n      }\n    }\n\n    await browser.close()\n    return events\n  } catch (error) {\n    await browser.close()\n    throw error\n  }\n}"
+      },
+      "isActive": true
+    }
+  ],
+  "venues": [
+    {
+      "name": "BOMBYX Center for Arts & Equity",
+      "slug": "bombyx-center-for-arts-equity",
+      "address": "130 Pine St",
+      "city": "Florence",
+      "state": "MA",
+      "postalCode": "01062",
+      "website": "https://bombyx.live/events/",
+      "latitude": 42.3315031,
+      "longitude": -72.67449979999999,
+      "venueType": "CONCERT_HALL"
+    },
+    {
+      "name": "Fort Hill Brewery",
+      "slug": "fort-hill-brewery",
+      "address": "30 Fort Hill Road",
+      "city": "Easthampton",
+      "state": "MA",
+      "postalCode": "01027",
+      "website": "https://www.forthillbrewery.com/new-events",
+      "latitude": 42.2812738,
+      "longitude": -72.64012810000001,
+      "venueType": "BAR"
+    },
+    {
+      "name": "Hope Center for the Arts",
+      "slug": "hope-center-for-the-arts",
+      "address": "150 Bridge Street",
+      "city": "Springfield",
+      "state": "MA",
+      "postalCode": "01103",
+      "website": "https://hopecenterforthearts.org/upcoming/",
+      "latitude": 42.1027806,
+      "longitude": -72.5929175,
+      "venueType": "THEATER"
+    }
+  ]
+}

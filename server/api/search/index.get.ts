@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Build where clause for events
-  const eventWhere: any = {
+  const eventWhere: Prisma.EventWhereInput = {
     startsAt: {
       gte: startDate,
       ...(endDate && { lte: endDate }),
@@ -109,28 +110,26 @@ export default defineEventHandler(async (event) => {
   }
 
   // Also search artists directly if there's a text query
-  let artists: any[] = []
-  if (q) {
-    artists = await prisma.artist.findMany({
-      where: {
-        name: { contains: q, mode: 'insensitive' },
-      },
-      take: 5,
-    })
-  }
+  const artists = q
+    ? await prisma.artist.findMany({
+        where: {
+          name: { contains: q, mode: 'insensitive' },
+        },
+        take: 5,
+      })
+    : []
 
   // Search venues if there's a text query
-  let venues: any[] = []
-  if (q) {
-    venues = await prisma.venue.findMany({
-      where: {
-        isActive: true,
-        ...(regionId && { regionId }),
-        name: { contains: q, mode: 'insensitive' },
-      },
-      take: 5,
-    })
-  }
+  const venues = q
+    ? await prisma.venue.findMany({
+        where: {
+          isActive: true,
+          ...(regionId && { regionId }),
+          name: { contains: q, mode: 'insensitive' },
+        },
+        take: 5,
+      })
+    : []
 
   return {
     events: filteredEvents,

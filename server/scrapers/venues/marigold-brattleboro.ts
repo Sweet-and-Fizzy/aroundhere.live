@@ -352,7 +352,6 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
           // Find paragraphs with emoji-structured data
           $('p').each((_, el) => {
             const html = $(el).html() || ''
-            const text = $(el).text().trim()
 
             // Split by <br> tags to get individual lines
             const lines = html.split(/<br\s*\/?>/i).map(line =>
@@ -360,12 +359,12 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
             )
 
             for (const line of lines) {
-              if (line.startsWith('📅') || line.match(/^🗓️/)) {
-                structuredData.date = line.replace(/^[📅🗓️]\s*/, '').trim()
+              if (line.startsWith('📅') || line.startsWith('🗓️')) {
+                structuredData.date = line.replace(/^(📅|🗓️)\s*/u, '').trim()
               } else if (line.startsWith('📍')) {
-                structuredData.location = line.replace(/^📍\s*/, '').trim()
+                structuredData.location = line.replace(/^📍\s*/u, '').trim()
               } else if (line.startsWith('🍸') || line.startsWith('☕')) {
-                structuredData.barHours = line.replace(/^[🍸☕]\s*/, '').trim()
+                structuredData.barHours = line.replace(/^(🍸|☕)\s*/u, '').trim()
               } else if (line.startsWith('🎶') || line.match(/doors?:/i)) {
                 // Parse "Doors: 7pm | Music: 8pm" or similar
                 const doorMatch = line.match(/doors?:?\s*(\d+(?::\d+)?\s*(?:am|pm)?)/i)

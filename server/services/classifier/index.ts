@@ -2,7 +2,6 @@ import anthropic from '../../utils/anthropic'
 import type {
   ClassificationInput,
   ClassificationResult,
-  BatchClassificationResult,
   CanonicalGenre,
   EventType,
 } from './types'
@@ -10,7 +9,6 @@ import { CANONICAL_GENRES, EVENT_TYPES } from './types'
 import { CLASSIFICATION_SYSTEM_PROMPT, buildClassificationPrompt } from './prompts'
 
 const MODEL = process.env.CLASSIFIER_MODEL || 'claude-3-5-haiku-20241022'
-const BATCH_SIZE = parseInt(process.env.CLASSIFIER_BATCH_SIZE || '10')
 
 export class EventClassifier {
   /**
@@ -85,7 +83,7 @@ export class EventClassifier {
   async classifyWithFallback(events: ClassificationInput[]): Promise<ClassificationResult[]> {
     try {
       return await this.classifyBatch(events)
-    } catch (error) {
+    } catch {
       console.error('[Classifier] API error, using fallback classification')
       // Fallback: assume music, use any matching tags
       return events.map((e) => ({

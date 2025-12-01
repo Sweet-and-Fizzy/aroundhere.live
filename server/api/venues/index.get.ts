@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
@@ -8,16 +9,10 @@ export default defineEventHandler(async (event) => {
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
   const offset = parseInt(query.offset as string) || 0
 
-  const where: any = {
+  const where: Prisma.VenueWhereInput = {
     isActive: true,
-  }
-
-  if (regionId) {
-    where.regionId = regionId
-  }
-
-  if (venueType) {
-    where.venueType = venueType
+    ...(regionId && { regionId }),
+    ...(venueType && { venueType: venueType as Prisma.EnumVenueTypeFilter }),
   }
 
   const [venues, total] = await Promise.all([

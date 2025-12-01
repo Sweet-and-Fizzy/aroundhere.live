@@ -4,10 +4,11 @@ A service to aggregate local music events from multiple sources, making it easy 
 
 ## Tech Stack
 
-- **Frontend**: Nuxt 3 (Vue 3 + SSR)
+- **Frontend**: Nuxt 4 (Vue 3 + SSR)
 - **Backend**: Nuxt server routes
 - **Database**: PostgreSQL + PostGIS
 - **ORM**: Prisma
+- **Scrapers**: Playwright + Cheerio
 - **Deployment**: Docker + DigitalOcean VPS
 
 ## Local Development
@@ -158,7 +159,7 @@ Backups run automatically at 2am daily. Manual commands:
 │   └── pages/          # Nuxt pages
 ├── server/
 │   ├── api/            # API routes
-│   ├── scrapers/       # Scraper implementations (coming soon)
+│   ├── scrapers/       # Scraper implementations
 │   └── utils/          # Server utilities
 ├── prisma/
 │   ├── schema.prisma   # Database schema

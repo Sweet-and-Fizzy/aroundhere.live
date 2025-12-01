@@ -1,11 +1,10 @@
 import 'dotenv/config'
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
-import type { ScrapedEvent, ScraperResult, BaseScraper } from './types'
-import { findDuplicate, mergeEventData } from './dedup'
-import { classifier } from '../services/classifier'
-import type { ClassificationInput } from '../services/classifier/types'
+import type { ScraperResult, BaseScraper } from './types'
+import { saveEvent } from './save-events'
+import { classifyPendingEvents } from './classify-events'
 import { FailureDetectionService } from '../services/failure-detection'
 
 // Import scrapers
@@ -20,9 +19,12 @@ import { ProgressionBrewingScraper } from './venues/progression-brewing'
 import { StoneChurchScraper } from './venues/stone-church'
 import { MarigoldBrattleboroScraper } from './venues/marigold-brattleboro'
 
-// Initialize Prisma
+// Initialize Prisma with its own pool for CLI usage
+// (CLI scripts need explicit cleanup, unlike long-running server processes)
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/local_music'
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
+  max: 10,
 })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
@@ -129,7 +131,7 @@ export async function runScraper(scraper: BaseScraper): Promise<RunnerResult> {
       // Process each event
       for (const scrapedEvent of result.events) {
         try {
-          const saved = await saveEvent(scrapedEvent, venue, sourceWithPriority, scraper.config.defaultAgeRestriction)
+          const saved = await saveEvent(prisma, scrapedEvent, venue, sourceWithPriority, scraper.config.defaultAgeRestriction)
           if (saved) {
             savedEvents++
           } else {
@@ -154,191 +156,6 @@ export async function runScraper(scraper: BaseScraper): Promise<RunnerResult> {
   }
 }
 
-async function saveEvent(
-  scrapedEvent: ScrapedEvent,
-  venue: { id: string; regionId: string },
-  source: { id: string; priority: number },
-  defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
-): Promise<boolean> {
-  // First, check if this exact source already has this event (by source + sourceEventId)
-  if (scrapedEvent.sourceEventId) {
-    const existingFromSameSource = await prisma.event.findFirst({
-      where: {
-        sourceId: source.id,
-        sourceEventId: scrapedEvent.sourceEventId,
-      },
-    })
-
-    if (existingFromSameSource) {
-      // Update existing event from same source
-      await prisma.event.update({
-        where: { id: existingFromSameSource.id },
-        data: {
-          title: cleanHtmlEntities(scrapedEvent.title),
-          description: scrapedEvent.description ? cleanHtmlEntities(scrapedEvent.description) : null,
-          descriptionHtml: scrapedEvent.descriptionHtml || null,
-          imageUrl: scrapedEvent.imageUrl,
-          startsAt: scrapedEvent.startsAt,
-          endsAt: scrapedEvent.endsAt,
-          doorsAt: scrapedEvent.doorsAt,
-          coverCharge: scrapedEvent.coverCharge,
-          ticketUrl: scrapedEvent.ticketUrl,
-          sourceUrl: scrapedEvent.sourceUrl,
-          genres: scrapedEvent.genres || [],
-          updatedAt: new Date(),
-        },
-      })
-      return false // Not a new event
-    }
-  }
-
-  // Check for duplicates from other sources using fuzzy matching
-  const dedupResult = await findDuplicate(
-    prisma,
-    scrapedEvent,
-    venue.id,
-    source.id,
-    source.priority
-  )
-
-  if (dedupResult.isDuplicate && dedupResult.existingEventId) {
-    console.log(`[Runner] Found duplicate: "${scrapedEvent.title}" matches existing event (similarity: ${dedupResult.similarity.toFixed(2)})`)
-
-    // Record this source as having found this event
-    await prisma.eventSource.upsert({
-      where: {
-        eventId_sourceId: {
-          eventId: dedupResult.existingEventId,
-          sourceId: source.id,
-        },
-      },
-      update: {
-        sourceUrl: scrapedEvent.sourceUrl,
-        sourceEventId: scrapedEvent.sourceEventId,
-        scrapedAt: new Date(),
-        rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
-      },
-      create: {
-        eventId: dedupResult.existingEventId,
-        sourceId: source.id,
-        sourceUrl: scrapedEvent.sourceUrl,
-        sourceEventId: scrapedEvent.sourceEventId,
-        rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
-      },
-    })
-
-    if (dedupResult.shouldUpdateCanonical) {
-      // This source has higher priority, update the canonical event
-      console.log(`[Runner] Updating canonical source (higher priority)`)
-      await prisma.event.update({
-        where: { id: dedupResult.existingEventId },
-        data: {
-          sourceId: source.id,
-          sourceEventId: scrapedEvent.sourceEventId,
-          sourceUrl: scrapedEvent.sourceUrl,
-          title: cleanHtmlEntities(scrapedEvent.title),
-          description: scrapedEvent.description ? cleanHtmlEntities(scrapedEvent.description) : undefined,
-          imageUrl: scrapedEvent.imageUrl,
-          coverCharge: scrapedEvent.coverCharge,
-          ticketUrl: scrapedEvent.ticketUrl,
-          genres: scrapedEvent.genres || [],
-          updatedAt: new Date(),
-        },
-      })
-    } else {
-      // Lower priority source - only fill in missing data
-      const existing = await prisma.event.findUnique({
-        where: { id: dedupResult.existingEventId },
-      })
-      if (existing) {
-        const updates = mergeEventData(existing, scrapedEvent)
-        if (Object.keys(updates).length > 0) {
-          await prisma.event.update({
-            where: { id: dedupResult.existingEventId },
-            data: {
-              ...updates,
-              updatedAt: new Date(),
-            },
-          })
-        }
-      }
-    }
-
-    return false // Duplicate, not a new event
-  }
-
-  // Generate slug
-  const slug = generateSlug(scrapedEvent.title, scrapedEvent.startsAt)
-
-  // Create new event
-  const event = await prisma.event.create({
-    data: {
-      regionId: venue.regionId,
-      venueId: venue.id,
-      title: cleanHtmlEntities(scrapedEvent.title),
-      slug,
-      description: scrapedEvent.description ? cleanHtmlEntities(scrapedEvent.description) : null,
-      descriptionHtml: scrapedEvent.descriptionHtml || null,
-      imageUrl: scrapedEvent.imageUrl,
-      startsAt: scrapedEvent.startsAt,
-      endsAt: scrapedEvent.endsAt,
-      doorsAt: scrapedEvent.doorsAt,
-      coverCharge: scrapedEvent.coverCharge,
-      ageRestriction: scrapedEvent.ageRestriction || defaultAgeRestriction || 'ALL_AGES',
-      ticketUrl: scrapedEvent.ticketUrl,
-      genres: scrapedEvent.genres || [],
-      sourceId: source.id,
-      sourceUrl: scrapedEvent.sourceUrl,
-      sourceEventId: scrapedEvent.sourceEventId,
-      confidenceScore: 0.8,
-      reviewStatus: 'PENDING', // New events need review
-    },
-  })
-
-  // Also record in EventSource for tracking all sources
-  await prisma.eventSource.create({
-    data: {
-      eventId: event.id,
-      sourceId: source.id,
-      sourceUrl: scrapedEvent.sourceUrl,
-      sourceEventId: scrapedEvent.sourceEventId,
-      rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
-    },
-  })
-
-  // Note: Artist associations are handled manually via admin curation
-  // The scraped title contains artist info which is displayed as-is
-
-  return true // New event created
-}
-
-function generateSlug(text: string, date?: Date): string {
-  let slug = text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80)
-
-  if (date) {
-    const dateStr = date.toISOString().split('T')[0]
-    slug = `${slug}-${dateStr}`
-  }
-
-  return slug
-}
-
-function cleanHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/')
-}
-
 export async function runAllScrapers(): Promise<RunnerResult[]> {
   const results: RunnerResult[] = []
 
@@ -352,76 +169,10 @@ export async function runAllScrapers(): Promise<RunnerResult[]> {
     results.push(result)
   }
 
-  // Classify all unclassified events after scraping (loop until done)
-  await classifyAllPendingEvents()
+  // Classify all unclassified events after scraping
+  await classifyPendingEvents(prisma)
 
   return results
-}
-
-/**
- * Classify all pending events in batches until none remain
- */
-async function classifyAllPendingEvents(): Promise<void> {
-  const BATCH_SIZE = 20
-  let totalClassified = 0
-  let totalMusic = 0
-
-  while (true) {
-    const unclassified = await prisma.event.findMany({
-      where: {
-        isMusic: null,
-        startsAt: { gte: new Date() },
-      },
-      include: {
-        venue: { select: { name: true } },
-      },
-      take: BATCH_SIZE,
-    })
-
-    if (unclassified.length === 0) {
-      if (totalClassified === 0) {
-        console.log('[Runner] No unclassified events to process')
-      } else {
-        console.log(`[Runner] Classification complete: ${totalClassified} total (${totalMusic} music, ${totalClassified - totalMusic} non-music)`)
-      }
-      return
-    }
-
-    console.log(`[Runner] Classifying batch of ${unclassified.length} events...`)
-
-    const inputs: ClassificationInput[] = unclassified.map((e) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      venueName: e.venue?.name,
-      existingTags: e.genres,
-    }))
-
-    try {
-      const results = await classifier.classifyWithFallback(inputs)
-
-      for (const result of results) {
-        await prisma.event.update({
-          where: { id: result.eventId },
-          data: {
-            isMusic: result.isMusic,
-            eventType: result.eventType,
-            canonicalGenres: result.canonicalGenres,
-            classifiedAt: new Date(),
-            classificationConfidence: result.confidence,
-          },
-        })
-      }
-
-      const musicCount = results.filter((r) => r.isMusic).length
-      totalClassified += results.length
-      totalMusic += musicCount
-      console.log(`[Runner] Batch done: ${results.length} classified (${musicCount} music)`)
-    } catch (error) {
-      console.error('[Runner] Classification batch failed:', error)
-      // Continue with next batch instead of stopping entirely
-    }
-  }
 }
 
 export async function cleanup(): Promise<void> {

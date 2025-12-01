@@ -14,41 +14,77 @@ useSeoMeta({
   <div class="venues-page">
     <header class="page-header">
       <h1>Venues</h1>
-      <p class="tagline">Music venues in Western Massachusetts</p>
+      <p class="tagline">
+        Music venues in Western Massachusetts
+      </p>
     </header>
 
     <main class="page-content">
       <!-- Map Toggle and Map -->
-      <div v-if="venues.length > 0" class="map-section">
-        <button class="map-toggle" @click="showMap = !showMap">
+      <div
+        v-if="venues.length > 0"
+        class="map-section"
+      >
+        <button
+          class="map-toggle"
+          @click="showMap = !showMap"
+        >
           {{ showMap ? 'Hide Map' : 'Show Map' }}
         </button>
         <ClientOnly>
-          <VenueMap v-if="showMap" :venues="venues" />
+          <VenueMap
+            v-if="showMap"
+            :venues="venues"
+          />
         </ClientOnly>
       </div>
 
-      <div v-if="venues.length === 0" class="empty">
+      <div
+        v-if="venues.length === 0"
+        class="empty"
+      >
         No venues found.
       </div>
 
-      <ul v-else class="venue-list">
-        <li v-for="venue in venues" :key="venue.id" class="venue-item">
-          <NuxtLink :to="`/venues/${venue.slug}`" class="venue-link">
+      <ul
+        v-else
+        class="venue-list"
+      >
+        <li
+          v-for="venue in venues"
+          :key="venue.id"
+          class="venue-item"
+        >
+          <NuxtLink
+            :to="`/venues/${venue.slug}`"
+            class="venue-link"
+          >
             <div class="venue-content">
               <img
                 v-if="venue.logoUrl"
                 :src="venue.logoUrl"
                 :alt="`${venue.name} logo`"
                 class="venue-logo"
-              />
+              >
               <div class="venue-info">
-                <h2 class="venue-name">{{ venue.name }}</h2>
-                <p v-if="venue.city" class="venue-location">
-                  {{ venue.city }}<template v-if="venue.region">, {{ venue.region.name }}</template>
+                <h2 class="venue-name">
+                  {{ venue.name }}
+                </h2>
+                <p
+                  v-if="venue.city"
+                  class="venue-location"
+                >
+                  {{ venue.city }}<template v-if="venue.region">
+                    , {{ venue.region.name }}
+                  </template>
                 </p>
-                <p class="venue-type">{{ venue.venueType.replace('_', ' ') }}</p>
-                <p v-if="venue._count?.events" class="venue-events">
+                <p class="venue-type">
+                  {{ venue.venueType.replace('_', ' ') }}
+                </p>
+                <p
+                  v-if="venue._count?.events"
+                  class="venue-events"
+                >
                   {{ venue._count.events }} upcoming event{{ venue._count.events === 1 ? '' : 's' }}
                 </p>
               </div>

@@ -287,3 +287,100 @@ enum UserRole {
   LIAISON
   USER
 }
+
+// AI Agent Sessions for scraper generation
+model AgentSession {
+  id              String            @id @default(cuid())
+  url             String            // Target venue URL
+  sessionType     AgentSessionType  // VENUE_INFO or EVENT_SCRAPER
+  status          AgentSessionStatus @default(IN_PROGRESS)
+  llmProvider     String            // anthropic, openai, google, deepseek
+  llmModel        String            // model identifier
+  currentIteration Int             @default(0)
+  maxIterations   Int              @default(5)
+
+  // Results
+  venueData       Json?            // Scraped venue information
+  eventData       Json?            // Array of scraped events
+  generatedCode   String?          // Final working scraper code
+  completenessScore Float?         // 0-1 score of field coverage
+
+  // Metadata
+  errorMessage    String?
+  thinking        Json?            // Array of thinking steps for display
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  completedAt     DateTime?
+
+  // Relations
+  venueId         String?          // Linked after approval
+  sourceId        String?          // Linked after approval
+
+  attempts        ScraperAttempt[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("agent_sessions")
+}
+
+enum AgentSessionType {
+  VENUE_INFO      // First pass: scrape venue details
+  EVENT_SCRAPER   // Second pass: generate event scraper
+}
+
+enum AgentSessionStatus {
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+  APPROVED        // User approved and records created
+  REJECTED        // User rejected
+}
+
+// Individual scraper generation attempts within a session
+model ScraperAttempt {
+  id              String        @id @default(cuid())
+  sessionId       String
+  attemptNumber   Int
+
+  // Agent thinking
+  reasoning       String?       // Why this approach
+  planDescription String?       // What the agent plans to do
+
+  // Generated code
+  generatedCode   String        // The scraper code generated
+  codeHash        String?       // Hash to detect duplicate attempts
+
+  // Execution results
+  executionStatus String        // PENDING, RUNNING, SUCCESS, ERROR, TIMEOUT
+  executionError  String?
+  executionTime   Int?          // milliseconds
+  scrapedData     Json?         // Results from execution
+
+  // Evaluation
+  fieldsFound     String[]      // Which fields were successfully extracted
+  fieldsMissing   String[]      // Which required fields are missing
+  completenessScore Float?      // 0-1 score
+
+  createdAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  session         AgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, attemptNumber])
+  @@index([sessionId])
+  @@map("scraper_attempts")
+}
+
+// LLM Provider Configuration
+model LLMConfig {
+  id              String   @id @default(cuid())
+  provider        String   @unique // anthropic, openai, google, deepseek
+  apiKey          String   // Encrypted
+  isEnabled       Boolean  @default(true)
+  models          Json     // Available models for this provider
+  defaultModel    String?  // Default model to use
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("llm_configs")
+}

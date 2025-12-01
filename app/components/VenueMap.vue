@@ -64,7 +64,7 @@ onMounted(async () => {
   // Add markers for each venue
   for (const venue of mappableVenues.value) {
     if (venue.latitude && venue.longitude) {
-      const marker = L.marker([venue.latitude, venue.longitude])
+      L.marker([venue.latitude, venue.longitude])
         .addTo(map.value as LeafletMap)
         .bindPopup(`
           <strong>${venue.name}</strong>
@@ -92,10 +92,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="mappableVenues.length > 0" class="venue-map-container">
-    <div ref="mapContainer" class="venue-map" />
+  <div
+    v-if="mappableVenues.length > 0"
+    class="venue-map-container"
+  >
+    <div
+      ref="mapContainer"
+      class="venue-map"
+    />
   </div>
-  <div v-else class="no-map">
+  <div
+    v-else
+    class="no-map"
+  >
     <p>No venue locations available to display.</p>
   </div>
 </template>

@@ -4,6 +4,74 @@ import typescriptParser from '@typescript-eslint/parser'
 import vue from 'eslint-plugin-vue'
 import prettier from 'eslint-config-prettier'
 
+// Nuxt auto-imports these globals
+const nuxtGlobals = {
+  // Vue
+  ref: 'readonly',
+  computed: 'readonly',
+  watch: 'readonly',
+  watchEffect: 'readonly',
+  onMounted: 'readonly',
+  onUnmounted: 'readonly',
+  onBeforeMount: 'readonly',
+  onBeforeUnmount: 'readonly',
+  reactive: 'readonly',
+  toRef: 'readonly',
+  toRefs: 'readonly',
+  defineProps: 'readonly',
+  defineEmits: 'readonly',
+  defineExpose: 'readonly',
+  withDefaults: 'readonly',
+  // Nuxt client
+  useRoute: 'readonly',
+  useRouter: 'readonly',
+  useFetch: 'readonly',
+  useAsyncData: 'readonly',
+  useLazyFetch: 'readonly',
+  useLazyAsyncData: 'readonly',
+  useHead: 'readonly',
+  useSeoMeta: 'readonly',
+  useRuntimeConfig: 'readonly',
+  useState: 'readonly',
+  navigateTo: 'readonly',
+  $fetch: 'readonly',
+  useEvents: 'readonly',
+  // Nuxt server
+  defineEventHandler: 'readonly',
+  defineNuxtConfig: 'readonly',
+  readBody: 'readonly',
+  getRouterParam: 'readonly',
+  createError: 'readonly',
+  setResponseHeaders: 'readonly',
+  getQuery: 'readonly',
+  // Browser globals
+  setTimeout: 'readonly',
+  clearTimeout: 'readonly',
+  setInterval: 'readonly',
+  clearInterval: 'readonly',
+  console: 'readonly',
+  window: 'readonly',
+  document: 'readonly',
+  EventSource: 'readonly',
+  alert: 'readonly',
+  confirm: 'readonly',
+  fetch: 'readonly',
+  URLSearchParams: 'readonly',
+  HTMLElement: 'readonly',
+  HTMLAnchorElement: 'readonly',
+  HTMLButtonElement: 'readonly',
+  sessionStorage: 'readonly',
+  requestAnimationFrame: 'readonly',
+  // Node.js globals (for server files)
+  process: 'readonly',
+  NodeJS: 'readonly',
+  URL: 'readonly',
+  // Nuxt server utilities
+  setHeader: 'readonly',
+  // Auto-imported utilities
+  stripHtmlAndClean: 'readonly',
+}
+
 export default [
   js.configs.recommended,
   prettier,
@@ -25,6 +93,7 @@ export default [
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
+      globals: nuxtGlobals,
     },
     plugins: {
       '@typescript-eslint': typescript,
@@ -38,23 +107,20 @@ export default [
       'no-unused-vars': 'off', // Use TypeScript's version
     },
   },
-  // Vue files
+  // Vue files - use flat config from eslint-plugin-vue
+  ...vue.configs['flat/recommended'],
   {
     files: ['**/*.vue'],
     languageOptions: {
-      parser: (await import('vue-eslint-parser')).default,
       parserOptions: {
         parser: typescriptParser,
-        ecmaVersion: 'latest',
-        sourceType: 'module',
       },
+      globals: nuxtGlobals,
     },
     plugins: {
-      vue: vue,
       '@typescript-eslint': typescript,
     },
     rules: {
-      ...vue.configs['vue3-recommended'].rules,
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'warn',
       'vue/require-default-prop': 'off',

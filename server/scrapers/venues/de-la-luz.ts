@@ -81,7 +81,7 @@ export class DeLaLuzScraper extends HttpScraper {
       const href = $(el).attr('href')
       if (href && !href.endsWith('/events/') && !href.includes('/page/') && !href.includes('/category/')) {
         // Check if it looks like an event URL
-        if (href.match(/\/events\/[^\/]+/) || href.match(/\/event\/[^\/]+/)) {
+        if (href.match(/\/events\/[^/]+/) || href.match(/\/event\/[^/]+/)) {
           eventLinks.push(href)
         }
       }
@@ -91,7 +91,6 @@ export class DeLaLuzScraper extends HttpScraper {
     const uniqueLinks = [...new Set(eventLinks)]
 
     // Normalize URLs (convert relative to absolute)
-    const baseUrlObj = new URL(this.config.url)
     const normalizedLinks = uniqueLinks.map((link) => {
       try {
         // If already absolute, return as-is
@@ -177,7 +176,6 @@ export class DeLaLuzScraper extends HttpScraper {
 
       // Try to extract from LD+JSON first (most reliable)
       let eventData: ScrapedEvent | null = null
-      let foundStructuredData = false
 
       $('script[type="application/ld+json"]').each((_, el) => {
         if (eventData) return // Already found one
@@ -185,7 +183,6 @@ export class DeLaLuzScraper extends HttpScraper {
         try {
           const jsonText = $(el).html() || ''
           const data = JSON.parse(jsonText)
-          foundStructuredData = true
 
           // Handle array of schema objects
           const items = Array.isArray(data) ? data : (data['@graph'] || [data])
@@ -205,7 +202,7 @@ export class DeLaLuzScraper extends HttpScraper {
               if (eventData) break
             }
           }
-        } catch (error) {
+        } catch {
           // JSON parse failed - try to extract just the event part
           console.log(`[${this.config.name}] JSON parse error for ${url}, trying fallback`)
         }

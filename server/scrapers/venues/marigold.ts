@@ -66,7 +66,7 @@ export class MarigoldScraper extends PlaywrightScraper {
           await this.page.waitForTimeout(1000) // Wait for gallery to filter
         }
       }
-    } catch (error) {
+    } catch {
       console.log(`[${this.config.name}] Could not select theater category, continuing anyway`)
     }
     
@@ -325,7 +325,7 @@ export class MarigoldScraper extends PlaywrightScraper {
 
       if (!title || title.length < 5) {
         // Try to extract from URL slug
-        const urlMatch = galleryEvent.href.match(/\/([^\/]+)\/?$/)
+        const urlMatch = galleryEvent.href.match(/\/([^/]+)\/?$/)
         if (urlMatch) {
           title = urlMatch[1]
             .split('-')
@@ -429,7 +429,7 @@ export class MarigoldScraper extends PlaywrightScraper {
       // Ensure title is not undefined or empty
       if (!title || title.length < 2) {
         // Final fallback - use URL slug
-        const urlMatch = galleryEvent.href.match(/\/([^\/]+)\/?$/)
+        const urlMatch = galleryEvent.href.match(/\/([^/]+)\/?$/)
         if (urlMatch) {
           title = urlMatch[1]
             .split('-')
@@ -653,7 +653,6 @@ export class MarigoldScraper extends PlaywrightScraper {
       // Also try looking in the content for date patterns
       if (!startsAt || isNaN(startsAt.getTime())) {
         const content = $('body').text()
-        const htmlContent = $('body').html() || ''
         
         // Match patterns like "🗓️ Saturday, November 22nd" or "Saturday, November 22nd"
         const dateMatch = content.match(

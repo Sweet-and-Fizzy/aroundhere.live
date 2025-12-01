@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.1",
+    "@google/generative-ai": "^0.24.1",
     "@internationalized/date": "^3.10.0",
     "@nuxt/ui": "^4.2.1",
     "@prisma/adapter-pg": "^7.0.0",
@@ -30,6 +31,7 @@
     "date-fns-tz": "^3.2.0",
     "leaflet": "^1.9.4",
     "nuxt": "^4.2.1",
+    "openai": "^6.9.1",
     "pg": "^8.16.3",
     "playwright": "^1.56.1",
     "vue": "^3.5.24",

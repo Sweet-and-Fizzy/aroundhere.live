@@ -77,8 +77,14 @@ const googleMapsUrl = computed(() => {
     <!-- Header -->
     <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8">
       <div class="max-w-4xl mx-auto">
-        <NuxtLink to="/venues" class="text-primary-200 hover:text-white text-sm mb-2 inline-flex items-center gap-1">
-          <UIcon name="i-heroicons-arrow-left" class="w-4 h-4" />
+        <NuxtLink
+          to="/venues"
+          class="text-primary-200 hover:text-white text-sm mb-2 inline-flex items-center gap-1"
+        >
+          <UIcon
+            name="i-heroicons-arrow-left"
+            class="w-4 h-4"
+          />
           Back to all venues
         </NuxtLink>
         <div class="flex items-center gap-4 mt-2">
@@ -87,8 +93,10 @@ const googleMapsUrl = computed(() => {
             :src="venue.logoUrl"
             :alt="`${venue.name} logo`"
             class="h-16 w-auto object-contain bg-black rounded-lg p-2"
-          />
-          <h1 class="text-3xl font-bold">{{ venue.name }}</h1>
+          >
+          <h1 class="text-3xl font-bold">
+            {{ venue.name }}
+          </h1>
         </div>
         <div class="mt-2 flex flex-wrap gap-4 text-primary-100">
           <a
@@ -98,7 +106,10 @@ const googleMapsUrl = computed(() => {
             rel="noopener noreferrer"
             class="hover:text-white flex items-center gap-1"
           >
-            <UIcon name="i-heroicons-map-pin" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-map-pin"
+              class="w-4 h-4"
+            />
             {{ fullAddress }}
           </a>
           <a
@@ -108,11 +119,20 @@ const googleMapsUrl = computed(() => {
             rel="noopener noreferrer"
             class="hover:text-white flex items-center gap-1"
           >
-            <UIcon name="i-heroicons-globe-alt" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-globe-alt"
+              class="w-4 h-4"
+            />
             Website
           </a>
-          <span v-if="venue.phone" class="flex items-center gap-1">
-            <UIcon name="i-heroicons-phone" class="w-4 h-4" />
+          <span
+            v-if="venue.phone"
+            class="flex items-center gap-1"
+          >
+            <UIcon
+              name="i-heroicons-phone"
+              class="w-4 h-4"
+            />
             {{ venue.phone }}
           </span>
         </div>
@@ -125,13 +145,26 @@ const googleMapsUrl = computed(() => {
         Upcoming Events ({{ events.length }})
       </h2>
 
-      <div v-if="events.length === 0" class="text-center py-12">
-        <UIcon name="i-heroicons-calendar-days" class="w-12 h-12 mx-auto text-gray-400" />
-        <h3 class="mt-4 text-lg font-medium text-gray-900">No upcoming events</h3>
-        <p class="mt-2 text-gray-500">Check back later for new shows at this venue.</p>
+      <div
+        v-if="events.length === 0"
+        class="text-center py-12"
+      >
+        <UIcon
+          name="i-heroicons-calendar-days"
+          class="w-12 h-12 mx-auto text-gray-400"
+        />
+        <h3 class="mt-4 text-lg font-medium text-gray-900">
+          No upcoming events
+        </h3>
+        <p class="mt-2 text-gray-500">
+          Check back later for new shows at this venue.
+        </p>
       </div>
 
-      <div v-else class="space-y-3">
+      <div
+        v-else
+        class="space-y-3"
+      >
         <EventCard
           v-for="event in events"
           :key="event.id"

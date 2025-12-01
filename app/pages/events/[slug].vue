@@ -162,12 +162,15 @@ useSeoMeta({
   <div class="max-w-3xl mx-auto">
     <div v-if="event">
       <!-- Hero Image -->
-      <div v-if="event.imageUrl" class="mb-6 rounded-xl overflow-hidden shadow-lg">
+      <div
+        v-if="event.imageUrl"
+        class="mb-6 rounded-xl overflow-hidden shadow-lg"
+      >
         <img
           :src="event.imageUrl"
           :alt="event.title"
           class="w-full h-80 sm:h-96 md:h-[28rem] object-cover"
-        />
+        >
       </div>
 
       <!-- Header -->
@@ -178,15 +181,27 @@ useSeoMeta({
 
         <div class="flex flex-wrap items-center gap-3 text-gray-600">
           <div class="flex items-center gap-2">
-            <UIcon name="i-heroicons-calendar" class="w-5 h-5 text-primary-500" />
-            <time :datetime="event.startsAt" class="font-medium">
+            <UIcon
+              name="i-heroicons-calendar"
+              class="w-5 h-5 text-primary-500"
+            />
+            <time
+              :datetime="event.startsAt"
+              class="font-medium"
+            >
               {{ formattedDate }}
             </time>
           </div>
           <div class="flex items-center gap-2">
-            <UIcon name="i-heroicons-clock" class="w-5 h-5 text-primary-500" />
+            <UIcon
+              name="i-heroicons-clock"
+              class="w-5 h-5 text-primary-500"
+            />
             <span>{{ formattedTime }}</span>
-            <span v-if="doorsTime" class="text-gray-400">(Doors: {{ doorsTime }})</span>
+            <span
+              v-if="doorsTime"
+              class="text-gray-400"
+            >(Doors: {{ doorsTime }})</span>
           </div>
         </div>
       </header>
@@ -197,7 +212,10 @@ useSeoMeta({
         <UCard v-if="event.venue">
           <template #header>
             <div class="flex items-center gap-2">
-              <UIcon name="i-heroicons-map-pin" class="w-5 h-5 text-primary-500" />
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-5 h-5 text-primary-500"
+              />
               <span class="font-semibold">Venue</span>
             </div>
           </template>
@@ -208,16 +226,29 @@ useSeoMeta({
           >
             {{ event.venue.name }}
           </NuxtLink>
-          <p v-if="event.venue.address" class="text-gray-600 mt-1">
-            {{ event.venue.address }}<template v-if="event.venue.city">, {{ event.venue.city }}</template><template v-if="event.venue.state || event.venue.postalCode">, {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}</template>
+          <p
+            v-if="event.venue.address"
+            class="text-gray-600 mt-1"
+          >
+            {{ event.venue.address }}<template v-if="event.venue.city">
+              , {{ event.venue.city }}
+            </template><template v-if="event.venue.state || event.venue.postalCode">
+              , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
+            </template>
           </p>
-          <div v-if="mapUrl" class="mt-2 flex gap-2">
+          <div
+            v-if="mapUrl"
+            class="mt-2 flex gap-2"
+          >
             <a
               :href="mapUrl"
               target="_blank"
               class="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
             >
-              <UIcon name="i-heroicons-map" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-map"
+                class="w-4 h-4"
+              />
               View on Map
             </a>
           </div>
@@ -227,24 +258,46 @@ useSeoMeta({
         <UCard v-if="event.descriptionHtml || event.description">
           <template #header>
             <div class="flex items-center gap-2">
-              <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-primary-500" />
+              <UIcon
+                name="i-heroicons-information-circle"
+                class="w-5 h-5 text-primary-500"
+              />
               <span class="font-semibold">About</span>
             </div>
           </template>
           <!-- Rich HTML description with images/videos -->
-          <div v-if="event.descriptionHtml" class="prose prose-gray max-w-none">
+          <div
+            v-if="event.descriptionHtml"
+            class="prose prose-gray max-w-none"
+          >
             <div v-html="event.descriptionHtml" />
           </div>
           <!-- Fallback to plain text description -->
-          <div v-else class="text-gray-700">
-            <p v-if="!descriptionExpanded" class="whitespace-pre-line">{{ truncatedDescription }}</p>
-            <p v-else class="whitespace-pre-line">{{ event.description }}</p>
+          <div
+            v-else
+            class="text-gray-700"
+          >
+            <p
+              v-if="!descriptionExpanded"
+              class="whitespace-pre-line"
+            >
+              {{ truncatedDescription }}
+            </p>
+            <p
+              v-else
+              class="whitespace-pre-line"
+            >
+              {{ event.description }}
+            </p>
             <button
               v-if="hasLongDescription"
               class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1"
               @click="descriptionExpanded = !descriptionExpanded"
             >
-              <UIcon :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'" class="w-4 h-4" />
+              <UIcon
+                :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                class="w-4 h-4"
+              />
               {{ descriptionExpanded ? 'Show less' : 'Show more' }}
             </button>
           </div>
@@ -254,31 +307,46 @@ useSeoMeta({
         <UCard>
           <template #header>
             <div class="flex items-center gap-2">
-              <UIcon name="i-heroicons-ticket" class="w-5 h-5 text-primary-500" />
+              <UIcon
+                name="i-heroicons-ticket"
+                class="w-5 h-5 text-primary-500"
+              />
               <span class="font-semibold">Details</span>
             </div>
           </template>
 
           <dl class="grid grid-cols-2 gap-4">
             <div v-if="event.coverCharge">
-              <dt class="text-sm text-gray-500">Cover</dt>
-              <dd class="font-medium">{{ event.coverCharge }}</dd>
+              <dt class="text-sm text-gray-500">
+                Cover
+              </dt>
+              <dd class="font-medium">
+                {{ event.coverCharge }}
+              </dd>
             </div>
 
             <div>
-              <dt class="text-sm text-gray-500">Age</dt>
+              <dt class="text-sm text-gray-500">
+                Age
+              </dt>
               <dd class="font-medium">
-                {{ event.ageRestriction === 'ALL_AGES' ? 'All Ages' : event.ageRestriction.replace('_', ' ').replace('PLUS', '+') }}
+                {{ event.ageRestriction === 'ALL_AGES' ? 'All Ages' : event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
               </dd>
             </div>
 
             <div v-if="event.source">
-              <dt class="text-sm text-gray-500">Source</dt>
-              <dd class="font-medium">{{ event.source.name }}</dd>
+              <dt class="text-sm text-gray-500">
+                Source
+              </dt>
+              <dd class="font-medium">
+                {{ event.source.name }}
+              </dd>
             </div>
 
             <div v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl">
-              <dt class="text-sm text-gray-500">Calendar</dt>
+              <dt class="text-sm text-gray-500">
+                Calendar
+              </dt>
               <dd class="font-medium">
                 <div class="flex flex-wrap gap-2">
                   <a
@@ -287,7 +355,10 @@ useSeoMeta({
                     target="_blank"
                     class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
                   >
-                    <UIcon name="i-heroicons-calendar-days" class="w-4 h-4" />
+                    <UIcon
+                      name="i-heroicons-calendar-days"
+                      class="w-4 h-4"
+                    />
                     Google Calendar
                   </a>
                   <a
@@ -296,7 +367,10 @@ useSeoMeta({
                     target="_blank"
                     class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
                   >
-                    <UIcon name="i-heroicons-calendar-days" class="w-4 h-4" />
+                    <UIcon
+                      name="i-heroicons-calendar-days"
+                      class="w-4 h-4"
+                    />
                     Outlook
                   </a>
                   <a
@@ -304,7 +378,10 @@ useSeoMeta({
                     :href="icsUrl"
                     class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
                   >
-                    <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4" />
+                    <UIcon
+                      name="i-heroicons-arrow-down-tray"
+                      class="w-4 h-4"
+                    />
                     Download .ics
                   </a>
                 </div>

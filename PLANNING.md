@@ -157,10 +157,10 @@ The system includes automatic failure detection and developer notifications:
 
 ## Open Questions
 
-- [ ] Initial venue list for scrapers
+- [x] Initial venue list for scrapers
 - [ ] Genre taxonomy (start with top 10-15?)
 - [ ] Admin UI detail (what actions, what views?)
-- [ ] Deployment target and CI/CD setup
+- [x] Deployment target and CI/CD setup
 - [x] Monitoring and alerting approach
 
 ## Project Structure (Planned)

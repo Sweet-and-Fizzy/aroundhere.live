@@ -70,10 +70,14 @@ export default defineEventHandler(async () => {
     }
   }
 
-  // Return sorted list with display labels
+  // Return sorted list alphabetically by display label
   const genres = Array.from(genreSet)
-    .sort((a, b) => CANONICAL_GENRES.indexOf(a) - CANONICAL_GENRES.indexOf(b))
-    .map(g => GENRE_LABELS[g] || g)
+    .sort((a, b) => (GENRE_LABELS[a] || a).localeCompare(GENRE_LABELS[b] || b))
 
-  return { genres }
+  return {
+    // Return slugs for filtering (used as values)
+    genres,
+    // Also return a map for display purposes if needed
+    genreLabels: GENRE_LABELS,
+  }
 })

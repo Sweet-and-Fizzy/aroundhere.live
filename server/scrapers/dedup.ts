@@ -1,10 +1,11 @@
 import type { PrismaClient } from '@prisma/client'
 import type { ScrapedEvent } from './types'
+import { normalizeForComparison } from '../utils/html'
 
 // Fuzzy string matching for titles
 export function similarityScore(str1: string, str2: string): number {
-  const s1 = normalizeTitle(str1)
-  const s2 = normalizeTitle(str2)
+  const s1 = normalizeForComparison(str1)
+  const s2 = normalizeForComparison(str2)
 
   if (s1 === s2) return 1.0
 
@@ -18,34 +19,32 @@ export function similarityScore(str1: string, str2: string): number {
   return (longer.length - distance) / longer.length
 }
 
-function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/&amp;/g, '&')
-    .replace(/[^\w\s]/g, '') // Remove punctuation
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 function levenshteinDistance(s1: string, s2: string): number {
   const m = s1.length
   const n = s2.length
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+  const dp: number[][] = []
 
-  for (let i = 0; i <= m; i++) dp[i][0] = i
-  for (let j = 0; j <= n; j++) dp[0][j] = j
+  for (let i = 0; i <= m; i++) {
+    dp[i] = []
+    for (let j = 0; j <= n; j++) {
+      dp[i]![j] = 0
+    }
+  }
+
+  for (let i = 0; i <= m; i++) dp[i]![0] = i
+  for (let j = 0; j <= n; j++) dp[0]![j] = j
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       if (s1[i - 1] === s2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1]
+        dp[i]![j] = dp[i - 1]![j - 1]!
       } else {
-        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+        dp[i]![j] = 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!)
       }
     }
   }
 
-  return dp[m][n]
+  return dp[m]![n]!
 }
 
 // Check if two dates are the same day
