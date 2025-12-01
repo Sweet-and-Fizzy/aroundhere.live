@@ -65,18 +65,9 @@ export function validateScraperCode(code: string, scraperType: 'venue' | 'event'
     return { isValid: false, errors, warnings }
   }
 
-  // Check for balanced braces/brackets (catches some truncation issues)
-  const openBraces = (code.match(/{/g) || []).length
-  const closeBraces = (code.match(/}/g) || []).length
-  if (openBraces !== closeBraces) {
-    errors.push(`Unbalanced braces: ${openBraces} opening, ${closeBraces} closing`)
-  }
-
-  const openParens = (code.match(/\(/g) || []).length
-  const closeParens = (code.match(/\)/g) || []).length
-  if (openParens !== closeParens) {
-    errors.push(`Unbalanced parentheses: ${openParens} opening, ${closeParens} closing`)
-  }
+  // Note: We don't check brace/paren balance here because:
+  // 1. new Function() above already catches real syntax errors
+  // 2. Naive counting produces false positives from parens in strings/regexes
 
   // Check for dangerous patterns
   for (const { pattern, message } of DANGEROUS_PATTERNS) {
