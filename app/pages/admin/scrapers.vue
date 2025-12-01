@@ -1238,7 +1238,7 @@ useSeoMeta({
           </div>
         </div>
 
-        <!-- No Data Message -->
+        <!-- Failed State with Retry Option -->
         <div
           v-else-if="status === 'failed'"
           class="text-center py-8"
@@ -1246,9 +1246,59 @@ useSeoMeta({
           <p class="text-red-600 font-semibold mb-2">
             Unable to scrape this website
           </p>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-gray-600 mb-6">
             {{ errorMessage }}
           </p>
+
+          <!-- Retry with feedback for failed attempts -->
+          <div class="max-w-lg mx-auto">
+            <div
+              v-if="!showFeedbackInput"
+              class="space-y-3"
+            >
+              <button
+                class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+                @click="showFeedbackInput = true"
+              >
+                Retry with Feedback
+              </button>
+              <button
+                class="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 border border-gray-300"
+                @click="sessionType === 'VENUE_INFO' ? startVenueInfoScraper() : startEventScraper()"
+              >
+                Retry Without Changes
+              </button>
+            </div>
+            <div
+              v-else
+              class="border border-blue-200 bg-blue-50 rounded-lg p-4 text-left"
+            >
+              <label class="block text-sm font-medium text-blue-900 mb-2">
+                What should the scraper do differently?
+              </label>
+              <textarea
+                v-model="feedbackText"
+                placeholder="e.g., The events are loaded dynamically - try waiting for the calendar to load. Or: Click the 'See All Events' button first."
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+              <div class="flex gap-2 mt-3">
+                <button
+                  :disabled="!feedbackText.trim()"
+                  class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+                  @click="retryWithFeedback"
+                >
+                  Retry
+                </button>
+                <button
+                  class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  @click="showFeedbackInput = false; feedbackText = ''"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div
