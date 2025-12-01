@@ -162,15 +162,12 @@ useSeoMeta({
   <div class="max-w-3xl mx-auto">
     <div v-if="event">
       <!-- Hero Image -->
-      <div
-        v-if="event.imageUrl"
-        class="mb-6 rounded-xl overflow-hidden shadow-lg"
-      >
+      <div v-if="event.imageUrl" class="mb-6">
         <img
           :src="event.imageUrl"
           :alt="event.title"
-          class="w-full h-80 sm:h-96 md:h-[28rem] object-cover"
-        >
+          class="w-full max-h-[28rem] object-contain mx-auto rounded-xl"
+        />
       </div>
 
       <!-- Header -->

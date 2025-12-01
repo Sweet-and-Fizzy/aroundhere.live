@@ -74,23 +74,16 @@ const truncatedDescription = computed(() => {
 </script>
 
 <template>
-  <UCard
-    class="hover:shadow-lg transition-all duration-200 border-l-4 border-l-primary-500 overflow-hidden"
-    :ui="{ body: displayImage ? 'p-0 sm:p-0' : undefined }"
-  >
+  <UCard class="hover:shadow-lg transition-all duration-200 border-l-4 border-l-black overflow-hidden" :ui="{ body: displayImage ? 'p-0 sm:p-0' : undefined }">
     <!-- Mobile-first: Stacked layout, horizontal on md+ -->
     <div class="flex flex-col md:flex-row">
       <!-- Image - Full width edge-to-edge on mobile, fixed width on desktop -->
       <!-- Shows event image or venue logo as fallback -->
-      <div
-        v-if="displayImage"
-        class="flex-shrink-0 w-full md:w-48 lg:w-56 overflow-hidden bg-gray-100"
-        :class="isVenueLogo ? 'aspect-video md:aspect-square flex items-center justify-center p-4' : 'aspect-square'"
-      >
+      <div v-if="displayImage" class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-black flex items-center justify-center" :class="isVenueLogo ? 'aspect-video md:aspect-square p-4' : 'aspect-square'">
         <img
           :src="displayImage"
           :alt="event.title"
-          :class="isVenueLogo ? 'max-w-full max-h-full object-contain' : 'w-full h-full object-cover object-center'"
+          :class="isVenueLogo ? 'max-w-full max-h-full object-contain' : 'max-w-full max-h-full object-contain'"
           loading="lazy"
         >
       </div>
