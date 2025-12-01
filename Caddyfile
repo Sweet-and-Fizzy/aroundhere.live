@@ -1,7 +1,7 @@
 # Production Caddyfile
-# Replace YOUR_DOMAIN with your actual domain
+# Set DOMAIN env var for HTTPS, otherwise serves HTTP on port 80
 
-{$DOMAIN:localhost} {
+{$DOMAIN::80} {
     # Automatic HTTPS with Let's Encrypt
     # (only works with real domain, not localhost)
 
