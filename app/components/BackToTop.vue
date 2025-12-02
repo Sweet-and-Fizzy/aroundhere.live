@@ -1,0 +1,48 @@
+<script setup lang="ts">
+const isVisible = ref(false)
+
+function checkScroll() {
+  isVisible.value = window.scrollY > 300
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', checkScroll)
+  checkScroll()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', checkScroll)
+})
+</script>
+
+<template>
+  <Transition name="fade">
+    <button
+      v-if="isVisible"
+      class="fixed bottom-6 right-6 w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors z-50"
+      title="Back to top"
+      @click="scrollToTop"
+    >
+      <UIcon
+        name="i-heroicons-arrow-up"
+        class="w-4 h-4"
+      />
+    </button>
+  </Transition>
+</template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

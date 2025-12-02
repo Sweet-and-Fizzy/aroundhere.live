@@ -2,7 +2,6 @@
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
- 
 type CalendarDateRange = DateRange | any
 
 const emit = defineEmits<{
@@ -15,20 +14,57 @@ const props = defineProps<{
   genreLabels?: Record<string, string>
 }>()
 
+// LocalStorage key for persisting filters
+const STORAGE_KEY = 'eventFilters'
+
+// Load saved filters from localStorage
+function loadSavedFilters() {
+  if (import.meta.client) {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  return null
+}
+
+// Save filters to localStorage
+function saveFilters() {
+  if (import.meta.client) {
+    const filters = {
+      datePreset: datePreset.value,
+      selectedVenues: selectedVenues.value,
+      selectedGenre: selectedGenre.value,
+      selectedEventTypes: selectedEventTypes.value,
+      searchQuery: searchQuery.value,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
+  }
+}
+
+const savedFilters = loadSavedFilters()
+
 // Date range state - default to 'month' for more events
-const datePreset = ref('month')
+const datePreset = ref(savedFilters?.datePreset || 'month')
 const customDateRange = ref<CalendarDateRange | undefined>(undefined)
 const showCalendar = ref(false)
 
-const selectedVenue = ref<{ label: string; value: string } | undefined>(undefined)
-const searchQuery = ref('')
-const selectedGenre = ref<{ label: string; value: string } | undefined>(undefined)
-const selectedEventType = ref<{ label: string; value: string } | undefined>(undefined)
+// Multi-select for venues
+const selectedVenues = ref<{ label: string; value: string }[]>(savedFilters?.selectedVenues || [])
+const searchQuery = ref(savedFilters?.searchQuery || '')
+const selectedGenre = ref<{ label: string; value: string } | undefined>(savedFilters?.selectedGenre || undefined)
+// Multi-select for event types - default to Music
+const selectedEventTypes = ref<{ label: string; value: string }[]>(
+  savedFilters?.selectedEventTypes || [{ label: 'Music', value: 'MUSIC' }]
+)
 
 // Event type options - includes common non-music events
 const eventTypeItems = [
-  { label: 'All Events', value: '' },
-  { label: 'Music Only', value: 'MUSIC' },
+  { label: 'Music', value: 'MUSIC' },
   { label: 'DJ Sets', value: 'DJ' },
   { label: 'Open Mic', value: 'OPEN_MIC' },
   { label: 'Comedy', value: 'COMEDY' },
@@ -46,12 +82,11 @@ const datePresets = [
   { label: 'All Upcoming', value: 'all' },
 ]
 
-const venueItems = computed(() => [
-  { label: 'All Venues', value: '' },
-  ...(props.venues
+const venueItems = computed(() =>
+  (props.venues
     ?.map(v => ({ label: v.name, value: v.id }))
-    .sort((a, b) => a.label.localeCompare(b.label)) ?? []),
-])
+    .sort((a, b) => a.label.localeCompare(b.label)) ?? [])
+)
 
 const genreItems = computed(() => [
   { label: 'All Genres', value: '' },
@@ -144,21 +179,27 @@ function getDateRange(range: string) {
 function applyFilters() {
   const { startDate, endDate } = getDateRange(datePreset.value)
 
-  // Determine musicOnly based on event type selection
-  // If "All Events" is selected (empty value), show all including non-music
-  // Otherwise, the API defaults to music-only
-  const eventTypeValue = selectedEventType.value?.value
-  const musicOnly = eventTypeValue === '' ? false : undefined
+  // Get venue IDs from multi-select
+  const venueIds = selectedVenues.value.map(v => v.value).filter(Boolean)
+
+  // Get event types from multi-select
+  const eventTypes = selectedEventTypes.value.map(e => e.value).filter(Boolean)
+
+  // If no event types selected, show all events (including non-music)
+  const musicOnly = eventTypes.length === 0 ? false : undefined
 
   emit('filter', {
     startDate,
     endDate,
-    venueId: selectedVenue.value?.value || undefined,
+    venueIds: venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
     genres: selectedGenre.value?.value ? [selectedGenre.value.value] : undefined,
-    eventType: eventTypeValue || undefined,
+    eventTypes: eventTypes.length > 0 ? eventTypes : undefined,
     musicOnly,
   })
+
+  // Save filters to localStorage
+  saveFilters()
 }
 
 // Watch for complete range selection (both start and end dates selected)
@@ -180,9 +221,9 @@ function closeCalendar() {
 }
 
 // Auto-apply on changes
-watch([selectedVenue, selectedGenre, selectedEventType], () => {
+watch([selectedVenues, selectedGenre, selectedEventTypes], () => {
   applyFilters()
-})
+}, { deep: true })
 
 // Debounce search input
 let searchTimeout: ReturnType<typeof setTimeout>
@@ -200,23 +241,68 @@ onMounted(() => {
 <template>
   <UCard class="mb-4 sm:mb-6">
     <div class="flex flex-col gap-3 sm:gap-4">
-      <!-- Search -->
-      <div class="w-full">
-        <UInput
-          v-model="searchQuery"
-          placeholder="Search events, artists..."
-          icon="i-heroicons-magnifying-glass"
-          size="md"
-          class="sm:text-base"
-        />
+      <!-- Row 1: Search + Venue + Event Type -->
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
+        <!-- Search -->
+        <div class="col-span-2 sm:flex-1">
+          <UInput
+            v-model="searchQuery"
+            placeholder="Search events, artists..."
+            icon="i-heroicons-magnifying-glass"
+            size="md"
+            class="w-full sm:text-base"
+            :ui="{ base: 'text-gray-900 border-gray-400' }"
+          />
+        </div>
+
+        <!-- Venue Filter (Multi-select) -->
+        <div
+          v-if="venues?.length"
+          class="col-span-1 sm:w-44"
+        >
+          <USelectMenu
+            v-model="selectedVenues"
+            :items="venueItems"
+            multiple
+            :placeholder="selectedVenues.length ? `${selectedVenues.length} venues` : 'Venues'"
+            class="w-full filter-select"
+            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
+          >
+            <template #leading>
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-4 h-4 text-gray-700"
+              />
+            </template>
+          </USelectMenu>
+        </div>
+
+        <!-- Event Type Filter (Multi-select) -->
+        <div class="col-span-1 sm:w-40">
+          <USelectMenu
+            v-model="selectedEventTypes"
+            :items="eventTypeItems"
+            multiple
+            :placeholder="selectedEventTypes.length ? `${selectedEventTypes.length} types` : 'Event Types'"
+            class="w-full filter-select"
+            :ui="{ base: 'text-gray-900 border-gray-400' }"
+          >
+            <template #leading>
+              <UIcon
+                name="i-heroicons-sparkles"
+                class="w-4 h-4 text-gray-700"
+              />
+            </template>
+          </USelectMenu>
+        </div>
       </div>
 
-      <!-- Filters - Grid on mobile, flex row on larger screens -->
+      <!-- Row 2: Date + Genre -->
       <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
         <!-- Date Filter with Popover Calendar -->
         <UPopover
           v-model:open="showCalendar"
-          class="col-span-2 sm:col-span-1"
+          class="col-span-1"
         >
           <UButton
             color="neutral"
@@ -287,27 +373,6 @@ onMounted(() => {
           </template>
         </UPopover>
 
-        <!-- Venue Filter -->
-        <div
-          v-if="venues?.length"
-          class="col-span-1 sm:w-48"
-        >
-          <USelectMenu
-            v-model="selectedVenue"
-            :items="venueItems"
-            placeholder="Venue"
-            class="w-full"
-            :ui="{ content: 'w-64' }"
-          >
-            <template #leading>
-              <UIcon
-                name="i-heroicons-map-pin"
-                class="w-4 h-4"
-              />
-            </template>
-          </USelectMenu>
-        </div>
-
         <!-- Genre Filter -->
         <div
           v-if="genres?.length"
@@ -317,30 +382,13 @@ onMounted(() => {
             v-model="selectedGenre"
             :items="genreItems"
             placeholder="Genre"
-            class="w-full"
-            :ui="{ content: 'w-64' }"
+            class="w-full filter-select"
+            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
           >
             <template #leading>
               <UIcon
                 name="i-heroicons-musical-note"
-                class="w-4 h-4"
-              />
-            </template>
-          </USelectMenu>
-        </div>
-
-        <!-- Event Type Filter -->
-        <div class="col-span-1 sm:w-40">
-          <USelectMenu
-            v-model="selectedEventType"
-            :items="eventTypeItems"
-            placeholder="Event Type"
-            class="w-full"
-          >
-            <template #leading>
-              <UIcon
-                name="i-heroicons-sparkles"
-                class="w-4 h-4"
+                class="w-4 h-4 text-gray-700"
               />
             </template>
           </USelectMenu>
@@ -349,3 +397,22 @@ onMounted(() => {
     </div>
   </UCard>
 </template>
+
+<style scoped>
+/* Force darker text and borders on form controls */
+:deep(input),
+:deep(button[role="combobox"]),
+:deep([data-part="trigger"]) {
+  color: #111827 !important;
+  border-color: #9ca3af !important;
+}
+
+:deep(input::placeholder) {
+  color: #111827 !important;
+}
+
+/* Make select trigger text darker */
+:deep(.filter-select button span) {
+  color: #111827 !important;
+}
+</style>

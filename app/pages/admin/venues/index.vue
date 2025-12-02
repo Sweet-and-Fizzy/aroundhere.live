@@ -22,7 +22,7 @@ function getScraperStatusClass(venue: any) {
 }
 
 function getScraperStatusText(venue: any) {
-  if (!venue.scraper) return 'No scraper'
+  if (!venue.scraper) return '+ Scraper'
   if (!venue.scraper.isActive) return 'Disabled'
   if (venue.scraper.consecutiveFailures > 0) {
     return `Failed (${venue.scraper.consecutiveFailures}x)`
@@ -133,12 +133,17 @@ useSeoMeta({
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <span
-                class="px-2 py-1 text-xs font-medium rounded"
-                :class="getScraperStatusClass(venue)"
+              <NuxtLink
+                :to="`/admin/scrapers?venueId=${venue.id}`"
+                class="inline-block"
               >
-                {{ getScraperStatusText(venue) }}
-              </span>
+                <span
+                  class="px-2 py-1 text-xs font-medium rounded hover:opacity-80 cursor-pointer"
+                  :class="getScraperStatusClass(venue)"
+                >
+                  {{ getScraperStatusText(venue) }}
+                </span>
+              </NuxtLink>
               <div
                 v-if="venue.scraper?.lastRunAt"
                 class="text-xs text-gray-500 mt-1"

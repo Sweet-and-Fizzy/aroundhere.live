@@ -44,6 +44,28 @@ const selectedExistingVenue = ref<any>(null)
 const existingScraperData = ref<ScraperData | null>(null) // Existing scraper code for update mode
 const loadingScraperData = ref(false)
 
+// For 'new' mode - start with manual form, optionally scrape
+const showManualForm = ref(true) // Default to showing manual form
+const manualVenueData = ref<VenueInfo>({
+  name: '',
+  website: '',
+  address: '',
+  city: '',
+  state: '',
+  postalCode: '',
+  phone: '',
+  description: '',
+  venueType: undefined,
+  capacity: undefined,
+  imageUrl: '',
+})
+
+// Computed: Check if required fields are valid
+const isVenueFormValid = computed(() => {
+  const data = sessionType.value === 'VENUE_INFO' && venueData.value ? venueData.value : manualVenueData.value
+  return !!(data.name?.trim() && data.website?.trim())
+})
+
 // Agent session state
 const sessionId = ref<string | null>(null)
 const sessionType = ref<'VENUE_INFO' | 'EVENT_SCRAPER'>('VENUE_INFO')
@@ -81,6 +103,20 @@ function resetForNewVenue() {
   feedbackText.value = ''
   selectedExistingVenue.value = null
   existingScraperData.value = null
+  showManualForm.value = true
+  manualVenueData.value = {
+    name: '',
+    website: '',
+    address: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    phone: '',
+    description: '',
+    venueType: undefined,
+    capacity: undefined,
+    imageUrl: '',
+  }
 }
 
 // Handle existing venue selection in update mode
@@ -161,6 +197,33 @@ const providers = computed(() => modelsData.value?.providers ?? [])
 // Available venues for linking
 const { data: venuesData } = await useFetch('/api/venues?limit=100')
 const availableVenues = computed(() => venuesData.value?.venues ?? [])
+
+// Check for venueId in query params and auto-select that venue
+const route = useRoute()
+onMounted(() => {
+  const venueId = route.query.venueId as string
+  if (venueId && availableVenues.value.length > 0) {
+    const venue = availableVenues.value.find((v: any) => v.id === venueId)
+    if (venue) {
+      mode.value = 'update'
+      selectedExistingVenue.value = venue
+      onExistingVenueSelected()
+    }
+  }
+})
+
+// Also watch for when venues load after mount
+watch(availableVenues, (venues) => {
+  const venueId = route.query.venueId as string
+  if (venueId && venues.length > 0 && !selectedExistingVenue.value) {
+    const venue = venues.find((v: any) => v.id === venueId)
+    if (venue) {
+      mode.value = 'update'
+      selectedExistingVenue.value = venue
+      onExistingVenueSelected()
+    }
+  }
+}, { once: true })
 
 // Recent sessions
 const { data: sessionsData, refresh: refreshSessions } = await useFetch('/api/agent/sessions?limit=5')
@@ -649,6 +712,39 @@ async function approveVenue() {
   }
 }
 
+// Create venue from manual form (without AI scraping)
+async function createVenueFromForm() {
+  if (!isVenueFormValid.value) {
+    alert('Please fill in the required fields (Name and Website)')
+    return
+  }
+
+  try {
+    // Create venue directly via API
+    const response = await $fetch('/api/agent/create-venue', {
+      method: 'POST',
+      body: {
+        venueData: manualVenueData.value,
+      },
+    }) as any
+
+    // Set up for event scraper phase
+    existingVenueId.value = response.venue?.id
+    venueData.value = {
+      name: response.venue?.name,
+      website: response.venue?.website || manualVenueData.value.website,
+    }
+    url.value = manualVenueData.value.website || ''
+    showEventScraper.value = true
+    showManualForm.value = false
+    status.value = 'idle'
+
+    alert(`Venue "${response.venue?.name}" created successfully! Now set up the event scraper.`)
+  } catch (error: any) {
+    alert(`Failed to create venue: ${error.message}`)
+  }
+}
+
 // Approve event scraper and create source
 async function approveScraper() {
   if (!sessionId.value) {
@@ -835,102 +931,383 @@ useSeoMeta({
         </p>
       </div>
 
-      <!-- URL Input -->
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          {{ mode === 'new' ? 'Venue URL' : 'Events Page URL' }}
-        </label>
-        <input
-          v-model="url"
-          type="url"
-          placeholder="https://example.com/events"
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          :disabled="status === 'running'"
-        >
+      <!-- New Venue Mode: Manual Form -->
+      <div
+        v-if="mode === 'new' && showManualForm && !showEventScraper"
+        class="mb-6 p-4 bg-gray-50 rounded-lg border"
+      >
+        <h3 class="font-semibold text-gray-900 mb-4">
+          Venue Information
+        </h3>
+
+        <div class="space-y-4">
+          <!-- Required Fields -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Name <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model="manualVenueData.name"
+                type="text"
+                placeholder="Venue name"
+                class="w-full px-3 py-2 border rounded-lg"
+                :class="manualVenueData.name ? 'border-gray-300' : 'border-red-300'"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Website <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model="manualVenueData.website"
+                type="url"
+                placeholder="https://..."
+                class="w-full px-3 py-2 border rounded-lg"
+                :class="manualVenueData.website ? 'border-gray-300' : 'border-red-300'"
+              >
+            </div>
+          </div>
+
+          <!-- Address -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <input
+              v-model="manualVenueData.address"
+              type="text"
+              placeholder="Street address"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            >
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input
+                v-model="manualVenueData.city"
+                type="text"
+                placeholder="City"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input
+                v-model="manualVenueData.state"
+                type="text"
+                placeholder="State"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Zip</label>
+              <input
+                v-model="manualVenueData.postalCode"
+                type="text"
+                placeholder="Zip"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                v-model="manualVenueData.phone"
+                type="tel"
+                placeholder="Phone"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Venue Type</label>
+              <select
+                v-model="manualVenueData.venueType"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+                <option :value="undefined">
+                  Select type...
+                </option>
+                <option value="BAR">
+                  Bar
+                </option>
+                <option value="BREWERY">
+                  Brewery
+                </option>
+                <option value="CLUB">
+                  Club
+                </option>
+                <option value="THEATER">
+                  Theater
+                </option>
+                <option value="CONCERT_HALL">
+                  Concert Hall
+                </option>
+                <option value="OUTDOOR">
+                  Outdoor
+                </option>
+                <option value="CAFE">
+                  Cafe
+                </option>
+                <option value="RESTAURANT">
+                  Restaurant
+                </option>
+                <option value="OTHER">
+                  Other
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+              <input
+                v-model.number="manualVenueData.capacity"
+                type="number"
+                placeholder="Capacity"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              v-model="manualVenueData.description"
+              placeholder="Description"
+              rows="2"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-6 flex flex-col sm:flex-row gap-3">
+          <button
+            :disabled="!isVenueFormValid"
+            class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            @click="createVenueFromForm"
+          >
+            Create Venue & Continue to Scraper
+          </button>
+          <div class="text-center text-gray-500 text-sm py-2">
+            or
+          </div>
+          <button
+            class="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 border border-gray-300"
+            @click="showManualForm = false"
+          >
+            Auto-fill from URL
+          </button>
+        </div>
       </div>
 
-      <!-- Provider Selection -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            AI Provider
-          </label>
-          <select
-            v-model="selectedProvider"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+      <!-- URL Scraping Mode (for new venues when not showing manual form, or for update mode) -->
+      <div v-if="(mode === 'new' && !showManualForm && !showEventScraper) || (mode === 'update' && showEventScraper)">
+        <!-- URL Input -->
+        <div class="mb-4">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-sm font-medium text-gray-700">
+              Venue URL to scrape
+            </label>
+            <button
+              v-if="mode === 'new'"
+              class="text-sm text-primary-600 hover:underline"
+              @click="showManualForm = true"
+            >
+              Back to manual form
+            </button>
+          </div>
+          <input
+            v-model="url"
+            type="url"
+            placeholder="https://example.com/events"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             :disabled="status === 'running'"
           >
-            <option
-              v-for="provider in providers"
-              :key="provider.provider"
-              :value="provider.provider"
-            >
-              {{ provider.provider }}
-            </option>
-          </select>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Model
-          </label>
-          <select
-            v-model="selectedModel"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-            :disabled="status === 'running'"
+        <!-- Provider Selection -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              AI Provider
+            </label>
+            <select
+              v-model="selectedProvider"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              :disabled="status === 'running'"
+            >
+              <option
+                v-for="provider in providers"
+                :key="provider.provider"
+                :value="provider.provider"
+              >
+                {{ provider.provider }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Model
+            </label>
+            <select
+              v-model="selectedModel"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              :disabled="status === 'running'"
+            >
+              <option
+                v-for="model in availableModels"
+                :key="model.id"
+                :value="model.id"
+              >
+                {{ model.name }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Max Iterations
+            </label>
+            <input
+              v-model.number="maxIterations"
+              type="number"
+              min="1"
+              max="10"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              :disabled="status === 'running'"
+            >
+          </div>
+        </div>
+
+        <!-- Start Button for URL scraping -->
+        <div class="flex gap-3">
+          <!-- New venue mode (URL scraping): start with venue info scraper -->
+          <button
+            v-if="mode === 'new' && !showEventScraper && status !== 'running'"
+            :disabled="!url"
+            class="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            @click="startVenueInfoScraper"
           >
-            <option
-              v-for="model in availableModels"
-              :key="model.id"
-              :value="model.id"
-            >
-              {{ model.name }}
-            </option>
-          </select>
-        </div>
+            Scrape Venue Info from URL
+          </button>
 
-        <div>
+          <!-- Cancel button when running -->
+          <button
+            v-if="status === 'running'"
+            class="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
+            @click="cancelScraping"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Event Scraper Section (shown after venue created) -->
+      <div v-if="showEventScraper && !showManualForm">
+        <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-2">
-            Max Iterations
+            Events Page URL
           </label>
           <input
-            v-model.number="maxIterations"
-            type="number"
-            min="1"
-            max="10"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+            v-model="url"
+            type="url"
+            placeholder="https://example.com/events"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             :disabled="status === 'running'"
           >
         </div>
+
+        <!-- Provider Selection for Event Scraper -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">AI Provider</label>
+            <select
+              v-model="selectedProvider"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              :disabled="status === 'running'"
+            >
+              <option
+                v-for="provider in providers"
+                :key="provider.provider"
+                :value="provider.provider"
+              >
+                {{ provider.provider }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+            <select
+              v-model="selectedModel"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              :disabled="status === 'running'"
+            >
+              <option
+                v-for="model in availableModels"
+                :key="model.id"
+                :value="model.id"
+              >
+                {{ model.name }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Max Iterations</label>
+            <input
+              v-model.number="maxIterations"
+              type="number"
+              min="1"
+              max="10"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              :disabled="status === 'running'"
+            >
+          </div>
+        </div>
+
+        <!-- Start Event Scraper Button -->
+        <div class="flex gap-3">
+          <button
+            v-if="status === 'idle'"
+            :disabled="!url"
+            class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            @click="startEventScraper"
+          >
+            Start Event Scraper for {{ venueData?.name || 'Venue' }}
+          </button>
+
+          <button
+            v-else-if="status === 'success' && sessionType === 'VENUE_INFO'"
+            class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700"
+            @click="startEventScraper"
+          >
+            Continue to Event Scraper
+          </button>
+
+          <!-- Cancel button when running -->
+          <button
+            v-if="status === 'running'"
+            class="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
+            @click="cancelScraping"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
-      <!-- Start Button -->
-      <div class="flex gap-3">
-        <!-- New venue mode: start with venue info scraper -->
-        <button
-          v-if="mode === 'new' && !showEventScraper && status !== 'running'"
-          :disabled="!url"
-          class="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          @click="startVenueInfoScraper"
-        >
-          Start Venue Info Scraper
-        </button>
-
+      <!-- Update Mode Start Button -->
+      <div
+        v-if="mode === 'update'"
+        class="flex gap-3"
+      >
         <!-- Update mode: prompt to select venue first -->
         <button
-          v-else-if="mode === 'update' && !selectedExistingVenue && status !== 'running'"
+          v-if="!selectedExistingVenue && status !== 'running'"
           disabled
           class="flex-1 bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold cursor-not-allowed"
         >
           Select a venue above to update its scraper
-        </button>
-
-        <button
-          v-else-if="status === 'success' && sessionType === 'VENUE_INFO'"
-          class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700"
-          @click="startEventScraper"
-        >
-          Continue to Event Scraper
         </button>
 
         <button

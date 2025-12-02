@@ -38,12 +38,21 @@ useSeoMeta({
 <template>
   <div class="px-2 sm:px-0">
     <!-- Hero Section - Smaller on mobile -->
-    <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-6 px-4 sm:py-10 sm:px-6 rounded-lg sm:rounded-xl mb-4 sm:mb-8">
-      <div class="text-center">
+    <div class="relative text-white py-6 px-4 sm:py-10 sm:px-6 rounded-lg sm:rounded-xl mb-4 sm:mb-8 overflow-hidden">
+      <!-- Background image -->
+      <img
+        src="/img/rainbow-vector-background-illusration-template_598213-6210.avif"
+        alt=""
+        class="absolute inset-0 w-full h-full object-cover"
+      >
+      <!-- Gradient overlay - solid at center fading to edges -->
+      <div class="absolute inset-0 bg-gradient-to-r from-transparent via-black/60 to-transparent" />
+      <!-- Content -->
+      <div class="relative text-center">
         <h1 class="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
           Local Music Listings
         </h1>
-        <p class="text-sm sm:text-lg text-primary-100">
+        <p class="text-sm sm:text-lg text-white/90">
           Discover live shows in Western Massachusetts
         </p>
       </div>
@@ -91,5 +100,8 @@ useSeoMeta({
         Showing {{ events.length }} of {{ pagination.total }} events
       </p>
     </div>
+
+    <BackToTop />
   </div>
 </template>
+

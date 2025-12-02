@@ -44,12 +44,17 @@ onMounted(async () => {
   // Check if component was unmounted during async imports
   if (!isMounted.value || !mapContainer.value) return
 
-  // Fix default marker icon issue with bundlers
-  delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  // Create custom icon with proper anchor points
+  const customIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    tooltipAnchor: [12, -28],
+    shadowSize: [41, 41],
+    shadowAnchor: [12, 41],
   })
 
   // Initialize map
@@ -121,6 +126,13 @@ onMounted(async () => {
     )
     map.value.fitBounds(bounds, { padding: [30, 30] })
   }
+
+  // Invalidate size after a brief delay to ensure container is fully rendered
+  setTimeout(() => {
+    if (map.value && isMounted.value) {
+      map.value.invalidateSize()
+    }
+  }, 100)
 })
 
 onUnmounted(() => {

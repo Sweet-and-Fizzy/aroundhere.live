@@ -50,4 +50,42 @@
 <style>
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* Apply Nunito Sans font */
+@theme {
+  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Override Nuxt UI CSS variables for darker text */
+:root {
+  --ui-text: #111827;
+  --ui-text-dimmed: #111827;
+  --ui-text-muted: #374151;
+  --ui-text-highlighted: #111827;
+  --ui-border: #9ca3af;
+  --ui-border-accented: #6b7280;
+}
+
+/* Form control overrides for better contrast */
+input,
+textarea,
+select,
+button[role="combobox"],
+[data-radix-collection-item] {
+  color: #111827 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #111827 !important;
+}
+
+/* Force ring/border color on inputs */
+.ring-inset {
+  --tw-ring-color: #111827 !important;
+}
+
+:root {
+  --ui-border-inset: #111827;
+}
 </style>

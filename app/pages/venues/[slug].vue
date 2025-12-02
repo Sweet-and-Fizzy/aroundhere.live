@@ -79,7 +79,7 @@ const googleMapsUrl = computed(() => {
     <!-- Header with optional banner image -->
     <div
       class="relative text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8"
-      :class="venue.imageUrl ? '' : 'bg-gradient-to-br from-primary-600 to-primary-800'"
+      :class="venue.imageUrl ? '' : 'bg-gray-900'"
     >
       <!-- Banner image background -->
       <div

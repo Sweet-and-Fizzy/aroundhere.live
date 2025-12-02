@@ -39,6 +39,7 @@ const nuxtGlobals = {
   // Nuxt server
   defineEventHandler: 'readonly',
   defineNuxtConfig: 'readonly',
+  defineAppConfig: 'readonly',
   readBody: 'readonly',
   getRouterParam: 'readonly',
   createError: 'readonly',
@@ -61,6 +62,7 @@ const nuxtGlobals = {
   HTMLAnchorElement: 'readonly',
   HTMLButtonElement: 'readonly',
   sessionStorage: 'readonly',
+  localStorage: 'readonly',
   requestAnimationFrame: 'readonly',
   // Node.js globals (for server files)
   process: 'readonly',

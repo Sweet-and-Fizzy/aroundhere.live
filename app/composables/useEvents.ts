@@ -1,6 +1,7 @@
 export interface EventFilters {
   regionId?: string
   venueId?: string
+  venueIds?: string[]
   startDate?: string
   endDate?: string
   genres?: string[]
@@ -9,6 +10,7 @@ export interface EventFilters {
   limit?: number
   musicOnly?: boolean
   eventType?: string
+  eventTypes?: string[]
 }
 
 export type EventType =
@@ -82,6 +84,7 @@ export function useEvents() {
 
       if (filters.regionId) params.set('regionId', filters.regionId)
       if (filters.venueId) params.set('venueId', filters.venueId)
+      if (filters.venueIds?.length) params.set('venueIds', filters.venueIds.join(','))
       if (filters.startDate) params.set('startDate', filters.startDate)
       if (filters.endDate) params.set('endDate', filters.endDate)
       if (filters.genres?.length) params.set('genres', filters.genres.join(','))
@@ -89,6 +92,7 @@ export function useEvents() {
       if (filters.limit) params.set('limit', filters.limit.toString())
       if (filters.musicOnly === false) params.set('musicOnly', 'false')
       if (filters.eventType) params.set('eventType', filters.eventType)
+      if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
 
       const response = await $fetch<{
         events: Event[]

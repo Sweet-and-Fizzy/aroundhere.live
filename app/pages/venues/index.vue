@@ -12,7 +12,7 @@ useSeoMeta({
 <template>
   <div>
     <!-- Hero Header -->
-    <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8">
+    <div class="bg-gray-900 text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8">
       <div class="max-w-4xl mx-auto">
         <h1 class="text-3xl md:text-4xl font-bold">
           Venues
@@ -89,6 +89,8 @@ useSeoMeta({
         </li>
       </ul>
     </main>
+
+    <BackToTop />
   </div>
 </template>
 
