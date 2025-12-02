@@ -23,28 +23,29 @@ useSeoMeta({
 </script>
 
 <template>
-  <div>
+  <div class="px-2 sm:px-0">
     <!-- Hero Header -->
-    <div class="bg-gray-900 text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8">
-      <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-bold">
+    <div
+      class="text-white py-6 px-4 sm:py-10 sm:px-6 rounded-lg sm:rounded-xl mb-4 sm:mb-8"
+      style="background: radial-gradient(ellipse at center, #374151 0%, #1f2937 60%, #111827 100%);"
+    >
+      <div class="text-center">
+        <h1 class="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
           Venues
         </h1>
-        <p class="mt-2 text-white/80 text-lg">
-          Music venues in Western Massachusetts
-        </p>
-        <p class="mt-1 text-white/60">
+        <p class="text-sm sm:text-lg text-white/90">
           {{ allVenues.length }} venue{{ allVenues.length === 1 ? '' : 's' }} with live music
         </p>
       </div>
     </div>
 
-    <main class="venues-page">
+    <main>
       <!-- Map -->
       <ClientOnly>
         <VenueMap
           v-if="allVenues.length > 0"
           :venues="allVenues"
+          persist-key="mapBounds"
           @visible-venues="onVisibleVenues"
         />
       </ClientOnly>
@@ -117,11 +118,6 @@ useSeoMeta({
 </template>
 
 <style scoped>
-.venues-page {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
 .empty {
   padding: 2rem;
   text-align: center;

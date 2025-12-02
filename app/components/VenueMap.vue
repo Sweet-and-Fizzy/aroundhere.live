@@ -11,13 +11,40 @@ interface Venue {
   address?: string | null
 }
 
+interface MapBounds {
+  north: number
+  south: number
+  east: number
+  west: number
+}
+
 const props = defineProps<{
   venues: Venue[]
+  persistKey?: string // localStorage key for persisting map bounds
 }>()
 
 const emit = defineEmits<{
   visibleVenues: [venueIds: string[]]
 }>()
+
+// Load saved bounds from localStorage
+const savedBounds = ref<MapBounds | null>(null)
+if (import.meta.client && props.persistKey) {
+  try {
+    const saved = localStorage.getItem(props.persistKey)
+    if (saved) {
+      savedBounds.value = JSON.parse(saved)
+    }
+  } catch {
+    // Ignore parse errors
+  }
+}
+
+function saveBounds(bounds: MapBounds) {
+  if (import.meta.client && props.persistKey) {
+    localStorage.setItem(props.persistKey, JSON.stringify(bounds))
+  }
+}
 
 const mapContainer = ref<HTMLElement | null>(null)
 const map = ref<LeafletMap | null>(null)
@@ -54,11 +81,19 @@ onMounted(async () => {
 
   if (!mapContainer.value) return
 
-  // Initialize map
-  map.value = L.map(mapContainer.value).setView(
-    mapCenter.value as [number, number],
-    mappableVenues.value.length > 1 ? 10 : 13
-  )
+  // Initialize map - use saved bounds if available to avoid pan animation
+  if (savedBounds.value) {
+    const savedBoundsObj = L.latLngBounds(
+      [savedBounds.value.south, savedBounds.value.west],
+      [savedBounds.value.north, savedBounds.value.east]
+    )
+    map.value = L.map(mapContainer.value).fitBounds(savedBoundsObj)
+  } else {
+    map.value = L.map(mapContainer.value).setView(
+      mapCenter.value as [number, number],
+      mappableVenues.value.length > 1 ? 10 : 13
+    )
+  }
 
   // Add OpenStreetMap tiles
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -85,12 +120,52 @@ onMounted(async () => {
     }
   }
 
-  // Fit bounds to show all markers if multiple venues
-  if (mappableVenues.value.length > 1) {
+  // If no saved bounds, fit to venues or user location
+  if (!savedBounds.value && mappableVenues.value.length > 1) {
+    // Fit bounds to show all markers if multiple venues
     const bounds = L.latLngBounds(
       mappableVenues.value.map(v => [v.latitude!, v.longitude!] as [number, number])
     )
     map.value.fitBounds(bounds, { padding: [30, 30] })
+
+    // Try to center on user's approximate location via IP geolocation (no permissions needed)
+    const currentMap = map.value
+    try {
+      const response = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.latitude && data.longitude) {
+          const userLat = data.latitude
+          const userLng = data.longitude
+
+          // Find the closest venue to the user
+          let closestVenue: typeof mappableVenues.value[0] | null = null
+          let closestDistance = Infinity
+          for (const v of mappableVenues.value) {
+            if (!v.latitude || !v.longitude) continue
+            const latDiff = v.latitude - userLat
+            const lngDiff = v.longitude - userLng
+            const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff)
+            if (distance < closestDistance) {
+              closestDistance = distance
+              closestVenue = v
+            }
+          }
+
+          // Only recenter if user is reasonably close to any venue (within ~100 miles / ~1.5 degrees)
+          if (closestVenue && closestDistance < 1.5 && currentMap) {
+            // Create bounds that include user location and closest venue
+            const bounds = L.latLngBounds([
+              [userLat, userLng],
+              [closestVenue.latitude!, closestVenue.longitude!],
+            ])
+            currentMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 })
+          }
+        }
+      }
+    } catch {
+      // IP geolocation failed - keep default view
+    }
   }
 
   // Show/hide labels based on zoom level using CSS class
@@ -103,7 +178,7 @@ onMounted(async () => {
     mapEl.classList.toggle('show-labels', showLabels)
   }
 
-  // Emit visible venues when map bounds change
+  // Emit visible venues and bounds when map bounds change
   function emitVisibleVenues() {
     if (!map.value) return
     const bounds = map.value.getBounds()
@@ -113,14 +188,29 @@ onMounted(async () => {
     emit('visibleVenues', visibleIds)
   }
 
+  function handleBoundsChange() {
+    if (!map.value) return
+    const bounds = map.value.getBounds()
+    saveBounds({
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest(),
+    })
+  }
+
   updateLabelVisibility()
   emitVisibleVenues()
 
   map.value.on('zoomend', () => {
     updateLabelVisibility()
     emitVisibleVenues()
+    handleBoundsChange()
   })
-  map.value.on('moveend', emitVisibleVenues)
+  map.value.on('moveend', () => {
+    emitVisibleVenues()
+    handleBoundsChange()
+  })
 })
 
 onUnmounted(() => {

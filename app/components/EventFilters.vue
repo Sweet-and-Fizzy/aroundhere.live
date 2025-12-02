@@ -9,7 +9,7 @@ const emit = defineEmits<{
 }>()
 
 const props = defineProps<{
-  venues?: { id: string; name: string }[]
+  venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null }[]
   genres?: string[]
   genreLabels?: Record<string, string>
 }>()
@@ -38,7 +38,7 @@ function saveFilters() {
     const filters = {
       datePreset: datePreset.value,
       selectedVenues: selectedVenues.value,
-      selectedGenre: selectedGenre.value,
+      selectedGenres: selectedGenres.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
     }
@@ -56,11 +56,62 @@ const showCalendar = ref(false)
 // Multi-select for venues
 const selectedVenues = ref<{ label: string; value: string }[]>(savedFilters?.selectedVenues || [])
 const searchQuery = ref(savedFilters?.searchQuery || '')
-const selectedGenre = ref<{ label: string; value: string } | undefined>(savedFilters?.selectedGenre || undefined)
+const selectedGenres = ref<{ label: string; value: string }[]>(savedFilters?.selectedGenres || [])
 // Multi-select for event types - default to Music
 const selectedEventTypes = ref<{ label: string; value: string }[]>(
   savedFilters?.selectedEventTypes || [{ label: 'Music', value: 'MUSIC' }]
 )
+
+// Map filter state
+const mapFilteredVenueIds = ref<string[] | null>(null)
+const mapAccordionOpen = ref<string | undefined>(undefined)
+
+// Shared localStorage key for map bounds (used across all pages)
+const MAP_BOUNDS_KEY = 'mapBounds'
+
+// Venues with coordinates for the map
+const venuesWithCoords = computed(() =>
+  props.venues?.filter(v => v.latitude && v.longitude) || []
+)
+
+function onMapVisibleVenues(venueIds: string[]) {
+  mapFilteredVenueIds.value = venueIds
+  applyFilters()
+}
+
+function clearMapFilter() {
+  mapFilteredVenueIds.value = null
+  applyFilters()
+}
+
+// Check if any filters are active (different from defaults)
+const hasActiveFilters = computed(() => {
+  return (
+    searchQuery.value !== '' ||
+    selectedVenues.value.length > 0 ||
+    selectedGenres.value.length > 0 ||
+    selectedEventTypes.value.length !== 1 ||
+    selectedEventTypes.value[0]?.value !== 'MUSIC' ||
+    datePreset.value !== 'month' ||
+    mapFilteredVenueIds.value !== null
+  )
+})
+
+// Reset all filters to defaults
+function resetFilters() {
+  searchQuery.value = ''
+  selectedVenues.value = []
+  selectedGenres.value = []
+  selectedEventTypes.value = [{ label: 'Music', value: 'MUSIC' }]
+  datePreset.value = 'month'
+  customDateRange.value = undefined
+  mapFilteredVenueIds.value = null
+  if (import.meta.client) {
+    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(MAP_BOUNDS_KEY)
+  }
+  applyFilters()
+}
 
 // Event type options - includes common non-music events
 const eventTypeItems = [
@@ -88,13 +139,31 @@ const venueItems = computed(() =>
     .sort((a, b) => a.label.localeCompare(b.label)) ?? [])
 )
 
-const genreItems = computed(() => [
-  { label: 'All Genres', value: '' },
-  ...(props.genres?.map(g => ({
+const genreItems = computed(() =>
+  (props.genres?.map(g => ({
     label: props.genreLabels?.[g] || g.charAt(0).toUpperCase() + g.slice(1),
     value: g
-  })) ?? []),
-])
+  })) ?? [])
+)
+
+// Custom labels for multi-selects
+const venueLabel = computed(() => {
+  if (selectedVenues.value.length === 0) return 'Venues'
+  if (selectedVenues.value.length === 1) return selectedVenues.value[0]?.label ?? 'Venues'
+  return `${selectedVenues.value.length} venues`
+})
+
+const genreLabel = computed(() => {
+  if (selectedGenres.value.length === 0) return 'Genres'
+  if (selectedGenres.value.length === 1) return selectedGenres.value[0]?.label ?? 'Genres'
+  return `${selectedGenres.value.length} genres`
+})
+
+const eventTypeLabel = computed(() => {
+  if (selectedEventTypes.value.length === 0) return 'Types'
+  if (selectedEventTypes.value.length === 1) return selectedEventTypes.value[0]?.label ?? 'Types'
+  return `${selectedEventTypes.value.length} types`
+})
 
 // Get today's CalendarDate
 const todayDate = computed(() => today(getLocalTimeZone()))
@@ -179,8 +248,20 @@ function getDateRange(range: string) {
 function applyFilters() {
   const { startDate, endDate } = getDateRange(datePreset.value)
 
-  // Get venue IDs from multi-select
-  const venueIds = selectedVenues.value.map(v => v.value).filter(Boolean)
+  // Get venue IDs from multi-select dropdown
+  const dropdownVenueIds = selectedVenues.value.map(v => v.value).filter(Boolean)
+
+  // Combine dropdown and map filters
+  // If both are set, use intersection; if only one, use that one
+  let venueIds: string[] | undefined
+  if (dropdownVenueIds.length > 0 && mapFilteredVenueIds.value !== null) {
+    // Intersection of both filters
+    venueIds = dropdownVenueIds.filter(id => mapFilteredVenueIds.value!.includes(id))
+  } else if (dropdownVenueIds.length > 0) {
+    venueIds = dropdownVenueIds
+  } else if (mapFilteredVenueIds.value !== null) {
+    venueIds = mapFilteredVenueIds.value
+  }
 
   // Get event types from multi-select
   const eventTypes = selectedEventTypes.value.map(e => e.value).filter(Boolean)
@@ -191,9 +272,9 @@ function applyFilters() {
   emit('filter', {
     startDate,
     endDate,
-    venueIds: venueIds.length > 0 ? venueIds : undefined,
+    venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
-    genres: selectedGenre.value?.value ? [selectedGenre.value.value] : undefined,
+    genres: selectedGenres.value.length > 0 ? selectedGenres.value.map(g => g.value) : undefined,
     eventTypes: eventTypes.length > 0 ? eventTypes : undefined,
     musicOnly,
   })
@@ -221,7 +302,7 @@ function closeCalendar() {
 }
 
 // Auto-apply on changes
-watch([selectedVenues, selectedGenre, selectedEventTypes], () => {
+watch([selectedVenues, selectedGenres, selectedEventTypes], () => {
   applyFilters()
 }, { deep: true })
 
@@ -240,165 +321,219 @@ onMounted(() => {
 
 <template>
   <UCard class="mb-4 sm:mb-6">
-    <div class="flex flex-col gap-3 sm:gap-4">
-      <!-- Row 1: Search + Venue + Event Type -->
-      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
+    <div class="flex flex-col gap-3">
+      <!-- Row 1: Search, Venues, Genre, Type -->
+      <div class="filter-grid">
         <!-- Search -->
-        <div class="col-span-2 sm:flex-1">
+        <div class="search-col">
           <UInput
             v-model="searchQuery"
             placeholder="Search events, artists..."
             icon="i-heroicons-magnifying-glass"
             size="md"
-            class="w-full sm:text-base"
+            class="w-full"
             :ui="{ base: 'text-gray-900 border-gray-400' }"
           />
         </div>
 
-        <!-- Venue Filter (Multi-select) -->
-        <div
-          v-if="venues?.length"
-          class="col-span-1 sm:w-44"
-        >
+        <!-- Venue Filter -->
+        <div v-if="venues?.length">
           <USelectMenu
             v-model="selectedVenues"
             :items="venueItems"
             multiple
-            :placeholder="selectedVenues.length ? `${selectedVenues.length} venues` : 'Venues'"
             class="w-full filter-select"
             :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
           >
+            <template #default>
+              <span>{{ venueLabel }}</span>
+            </template>
             <template #leading>
-              <UIcon
-                name="i-heroicons-map-pin"
-                class="w-4 h-4 text-gray-700"
-              />
+              <UIcon name="i-heroicons-map-pin" class="w-4 h-4" />
             </template>
           </USelectMenu>
         </div>
 
-        <!-- Event Type Filter (Multi-select) -->
-        <div class="col-span-1 sm:w-40">
+        <!-- Genre Filter -->
+        <div v-if="genres?.length">
+          <USelectMenu
+            v-model="selectedGenres"
+            :items="genreItems"
+            multiple
+            class="w-full filter-select"
+            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
+          >
+            <template #default>
+              <span>{{ genreLabel }}</span>
+            </template>
+            <template #leading>
+              <UIcon name="i-heroicons-musical-note" class="w-4 h-4" />
+            </template>
+          </USelectMenu>
+        </div>
+
+        <!-- Event Type Filter -->
+        <div>
           <USelectMenu
             v-model="selectedEventTypes"
             :items="eventTypeItems"
             multiple
-            :placeholder="selectedEventTypes.length ? `${selectedEventTypes.length} types` : 'Event Types'"
             class="w-full filter-select"
             :ui="{ base: 'text-gray-900 border-gray-400' }"
           >
+            <template #default>
+              <span>{{ eventTypeLabel }}</span>
+            </template>
             <template #leading>
-              <UIcon
-                name="i-heroicons-sparkles"
-                class="w-4 h-4 text-gray-700"
-              />
+              <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
             </template>
           </USelectMenu>
         </div>
       </div>
 
-      <!-- Row 2: Date + Genre -->
-      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
-        <!-- Date Filter with Popover Calendar -->
-        <UPopover
-          v-model:open="showCalendar"
-          class="col-span-1"
-        >
+      <!-- Row 2: Date filter and Reset button -->
+      <div class="flex gap-2">
+        <UPopover v-model:open="showCalendar" class="flex-1">
           <UButton
             color="neutral"
             variant="outline"
-            class="w-full justify-between text-sm sm:text-base"
+            class="w-full justify-between"
             trailing-icon="i-heroicons-chevron-down"
           >
             <UIcon
               name="i-heroicons-calendar"
-              class="w-4 h-4 mr-1.5 sm:mr-2"
+              class="w-4 h-4 mr-1.5"
             />
-            <span class="truncate">{{ dateDisplayLabel }}</span>
+            <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
           </UButton>
 
-          <template #content>
-            <div class="p-3 space-y-3 w-[calc(100vw-2rem)] max-w-80">
-              <!-- Quick presets -->
-              <div class="flex flex-wrap gap-1.5 sm:gap-2">
-                <button
-                  v-for="preset in datePresets"
-                  :key="preset.value"
-                  class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors"
-                  :class="datePreset === preset.value
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'"
-                  @click="selectDatePreset(preset.value)"
-                >
-                  {{ preset.label }}
-                </button>
-              </div>
-
-              <div class="border-t pt-3">
-                <p class="text-sm text-gray-500 mb-2">
-                  Or select a custom date range:
-                </p>
-                <p class="text-xs text-gray-400 mb-2">
-                  Click a start date, then click an end date
-                </p>
-                <UCalendar
-                  v-model="customDateRange"
-                  range
-                  :min-value="todayDate"
-                  :number-of-months="1"
-                />
-                <p
-                  v-if="customDateRange?.start && customDateRange?.end"
-                  class="text-xs text-primary-600 mt-2 font-medium"
-                >
-                  Selected: {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - {{ customDateRange.end.month }}/{{ customDateRange.end.day }}
-                </p>
-                <p
-                  v-else-if="customDateRange?.start"
-                  class="text-xs text-gray-500 mt-2"
-                >
-                  Start: {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - now click an end date
-                </p>
-              </div>
-
-              <div class="flex justify-end">
-                <UButton
-                  size="sm"
-                  @click="closeCalendar"
-                >
-                  Done
-                </UButton>
-              </div>
+        <template #content>
+          <div class="p-3 space-y-3 w-[calc(100vw-2rem)] max-w-80">
+            <div class="flex flex-wrap gap-1.5 sm:gap-2">
+              <button
+                v-for="preset in datePresets"
+                :key="preset.value"
+                class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors"
+                :class="datePreset === preset.value
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'"
+                @click="selectDatePreset(preset.value)"
+              >
+                {{ preset.label }}
+              </button>
             </div>
-          </template>
+
+            <div class="border-t pt-3">
+              <p class="text-sm text-gray-500 mb-2">
+                Or select a custom range:
+              </p>
+              <UCalendar
+                v-model="customDateRange"
+                range
+                :min-value="todayDate"
+                :number-of-months="1"
+              />
+              <p
+                v-if="customDateRange?.start && customDateRange?.end"
+                class="text-xs text-primary-600 mt-2 font-medium"
+              >
+                {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - {{ customDateRange.end.month }}/{{ customDateRange.end.day }}
+              </p>
+            </div>
+
+            <div class="flex justify-end">
+              <UButton
+                size="sm"
+                @click="closeCalendar"
+              >
+                Done
+              </UButton>
+            </div>
+          </div>
+        </template>
         </UPopover>
 
-        <!-- Genre Filter -->
-        <div
-          v-if="genres?.length"
-          class="col-span-1 sm:w-48"
+        <UButton
+          v-if="hasActiveFilters"
+          color="neutral"
+          variant="outline"
+          size="md"
+          class="flex-shrink-0"
+          @click="resetFilters"
         >
-          <USelectMenu
-            v-model="selectedGenre"
-            :items="genreItems"
-            placeholder="Genre"
-            class="w-full filter-select"
-            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
-          >
-            <template #leading>
-              <UIcon
-                name="i-heroicons-musical-note"
-                class="w-4 h-4 text-gray-700"
-              />
-            </template>
-          </USelectMenu>
-        </div>
+          <UIcon name="i-heroicons-x-mark" class="w-4 h-4 mr-1" />
+          Reset
+        </UButton>
       </div>
+
+      <!-- Row 3: Map Filter (Accordion) -->
+      <UAccordion
+        v-if="venues?.length"
+        v-model="mapAccordionOpen"
+        :items="[{ label: 'Filter by Map', icon: 'i-heroicons-map', slot: 'map' }]"
+        class="map-accordion"
+      >
+        <template #map>
+          <div class="p-2">
+            <ClientOnly>
+              <VenueMap
+                :venues="venuesWithCoords"
+                :persist-key="MAP_BOUNDS_KEY"
+                @visible-venues="onMapVisibleVenues"
+              />
+            </ClientOnly>
+            <p
+              v-if="mapFilteredVenueIds !== null"
+              class="text-xs text-gray-500 mt-2"
+            >
+              Showing events from {{ mapFilteredVenueIds.length }} venue{{ mapFilteredVenueIds.length === 1 ? '' : 's' }} in view
+              <button
+                class="text-primary-600 hover:underline ml-2"
+                @click="clearMapFilter"
+              >
+                Clear
+              </button>
+            </p>
+          </div>
+        </template>
+      </UAccordion>
     </div>
   </UCard>
 </template>
 
 <style scoped>
+/* Ensure grid layout works */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .filter-grid {
+    /* Search (3) + Venue (1) + Types (1) + Genres (1) = 6 columns */
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* Search spans full width on mobile, 2 on tablet, 3 on desktop */
+.filter-grid .search-col {
+  grid-column: span 2;
+}
+
+@media (min-width: 1024px) {
+  .filter-grid .search-col {
+    grid-column: span 3;
+  }
+}
+
 /* Force darker text and borders on form controls */
 :deep(input),
 :deep(button[role="combobox"]),
@@ -414,5 +549,22 @@ onMounted(() => {
 /* Make select trigger text darker */
 :deep(.filter-select button span) {
   color: #111827 !important;
+}
+
+/* Fix map accordion trigger height and border to match other controls */
+.map-accordion {
+  border: 1px solid #111827 !important;
+  border-radius: 0.375rem;
+}
+
+.map-accordion :deep(button[data-state]) {
+  padding: 0.5rem 0.75rem;
+  min-height: 2.5rem;
+  border-color: #111827 !important;
+}
+
+.map-accordion :deep(button[data-state] span) {
+  font-size: 0.875rem;
+  color: #111827;
 }
 </style>

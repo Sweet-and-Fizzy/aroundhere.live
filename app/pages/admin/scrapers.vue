@@ -1318,15 +1318,6 @@ useSeoMeta({
         >
           {{ mode === 'update' ? 'Regenerate' : 'Start' }} Event Scraper for {{ venueData?.name || 'Existing Venue' }}
         </button>
-
-        <!-- Cancel button when running -->
-        <button
-          v-if="status === 'running'"
-          class="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
-          @click="cancelScraping"
-        >
-          Cancel
-        </button>
       </div>
     </div>
 
