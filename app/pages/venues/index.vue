@@ -1,7 +1,20 @@
 <script setup lang="ts">
 const { data: response } = await useFetch('/api/venues')
 
-const venues = computed(() => response.value?.venues || [])
+const allVenues = computed(() => response.value?.venues || [])
+
+// Track which venues are visible on the map
+const visibleVenueIds = ref<string[] | null>(null)
+
+// Filter venues to only those visible on map (or all if map hasn't emitted yet)
+const venues = computed(() => {
+  if (visibleVenueIds.value === null) return allVenues.value
+  return allVenues.value.filter(v => visibleVenueIds.value!.includes(v.id))
+})
+
+function onVisibleVenues(ids: string[]) {
+  visibleVenueIds.value = ids
+}
 
 useSeoMeta({
   title: 'Venues - Local Music Listings',
@@ -21,7 +34,7 @@ useSeoMeta({
           Music venues in Western Massachusetts
         </p>
         <p class="mt-1 text-white/60">
-          {{ venues.length }} venue{{ venues.length === 1 ? '' : 's' }} with live music
+          {{ allVenues.length }} venue{{ allVenues.length === 1 ? '' : 's' }} with live music
         </p>
       </div>
     </div>
@@ -30,10 +43,19 @@ useSeoMeta({
       <!-- Map -->
       <ClientOnly>
         <VenueMap
-          v-if="venues.length > 0"
-          :venues="venues"
+          v-if="allVenues.length > 0"
+          :venues="allVenues"
+          @visible-venues="onVisibleVenues"
         />
       </ClientOnly>
+
+      <!-- Showing count when filtered by map -->
+      <p
+        v-if="visibleVenueIds !== null && venues.length !== allVenues.length"
+        class="text-sm text-gray-600 mb-4"
+      >
+        Showing {{ venues.length }} of {{ allVenues.length }} venues in view
+      </p>
 
       <div
         v-if="venues.length === 0"
