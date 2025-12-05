@@ -1,47 +1,44 @@
 import type { RouterConfig } from '@nuxt/schema'
 
-const SCROLL_KEY = 'eventListScrollPosition'
-
-function saveScrollPosition(position: number) {
+// Save scroll position per path
+function saveScrollPosition(path: string, position: number) {
   if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem(SCROLL_KEY, position.toString())
+    sessionStorage.setItem(`scroll:${path}`, position.toString())
   }
 }
 
-function getScrollPosition(): number | null {
+function getScrollPosition(path: string): number | null {
   if (typeof sessionStorage !== 'undefined') {
-    const saved = sessionStorage.getItem(SCROLL_KEY)
+    const saved = sessionStorage.getItem(`scroll:${path}`)
     return saved ? parseInt(saved, 10) : null
   }
   return null
 }
 
-function clearScrollPosition() {
+function clearScrollPosition(path: string) {
   if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.removeItem(SCROLL_KEY)
+    sessionStorage.removeItem(`scroll:${path}`)
   }
 }
 
+// Pages where we want to preserve scroll position when navigating to detail pages
+const LIST_PAGES = ['/', '/venues']
+
 export default <RouterConfig>{
   scrollBehavior(to, from, savedPosition) {
+    // If navigating away from a list page to a detail page, save scroll position
+    if (LIST_PAGES.includes(from.path) && !LIST_PAGES.includes(to.path)) {
+      saveScrollPosition(from.path, window.scrollY)
+    }
+
     // If browser has saved position (back/forward navigation), use it
-    if (savedPosition) {
-      return savedPosition
-    }
-
-    // If navigating away from the home page, save scroll position
-    if (from.path === '/' && to.path !== '/') {
-      saveScrollPosition(window.scrollY)
-    }
-
-    // If navigating back to home page, restore scroll position
-    if (to.path === '/') {
-      const scrollY = getScrollPosition()
+    // But prefer our saved position for list pages
+    if (LIST_PAGES.includes(to.path)) {
+      const scrollY = getScrollPosition(to.path)
       if (scrollY) {
-        clearScrollPosition()
+        clearScrollPosition(to.path)
         // Wait for content to render before scrolling
         return new Promise((resolve) => {
-          // Use requestAnimationFrame + longer delay to ensure content is rendered
           requestAnimationFrame(() => {
             setTimeout(() => {
               resolve({ top: scrollY, behavior: 'instant' })
@@ -49,6 +46,11 @@ export default <RouterConfig>{
           })
         })
       }
+    }
+
+    // For other back/forward navigation, use browser's saved position
+    if (savedPosition) {
+      return savedPosition
     }
 
     // For hash links, scroll to element
