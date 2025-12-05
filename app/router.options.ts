@@ -21,19 +21,27 @@ function clearScrollPosition(path: string) {
   }
 }
 
-// Pages where we want to preserve scroll position when navigating to detail pages
-const LIST_PAGES = ['/', '/venues']
+// Check if a path is a list page where we want to preserve scroll
+function isListPage(path: string): boolean {
+  // Home (events list), venues list, or venue detail page (has event list)
+  return path === '/' || path === '/venues' || path.startsWith('/venues/')
+}
+
+// Check if navigating to a detail page (event pages)
+function isEventDetailPage(path: string): boolean {
+  return path.startsWith('/events/')
+}
 
 export default <RouterConfig>{
   scrollBehavior(to, from, savedPosition) {
-    // If navigating away from a list page to a detail page, save scroll position
-    if (LIST_PAGES.includes(from.path) && !LIST_PAGES.includes(to.path)) {
+    // If navigating away from a list page to an event detail page, save scroll position
+    if (isListPage(from.path) && isEventDetailPage(to.path)) {
       saveScrollPosition(from.path, window.scrollY)
     }
 
     // If browser has saved position (back/forward navigation), use it
     // But prefer our saved position for list pages
-    if (LIST_PAGES.includes(to.path)) {
+    if (isListPage(to.path)) {
       const scrollY = getScrollPosition(to.path)
       if (scrollY) {
         clearScrollPosition(to.path)

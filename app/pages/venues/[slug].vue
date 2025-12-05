@@ -95,16 +95,10 @@ const googleMapsUrl = computed(() => {
       </div>
 
       <div class="relative max-w-4xl mx-auto">
-        <NuxtLink
-          to="/venues"
-          class="text-white/70 hover:text-white text-sm mb-4 inline-flex items-center gap-1"
-        >
-          <UIcon
-            name="i-heroicons-arrow-left"
-            class="w-4 h-4"
-          />
-          Back to all venues
-        </NuxtLink>
+        <BackButton
+          variant="light"
+          class="mb-4"
+        />
         <div class="flex items-center gap-4 mt-2">
           <img
             v-if="venue.logoUrl"
