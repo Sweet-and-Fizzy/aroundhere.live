@@ -20,6 +20,7 @@ interface LdJsonEvent {
   image?: string | string[]
   description?: string
   offers?: { price?: string; priceCurrency?: string; url?: string }
+  [key: string]: unknown
 }
 import * as cheerio from 'cheerio'
 
@@ -135,7 +136,7 @@ export class MarigoldScraper extends PlaywrightScraper {
             dateTitle: finalDateTitle,
             description: dataDescription,
             imageUrl,
-            category,
+            category: category || undefined,
           })
         }
       })

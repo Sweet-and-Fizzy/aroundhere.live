@@ -188,7 +188,7 @@ export async function runAIScrapers(): Promise<RunnerResult[]> {
 
     // Get the venue
     const venue = await prisma.venue.findUnique({
-      where: { id: config.venueId },
+      where: { id: config.venueId as string },
       include: { region: true },
     })
 
@@ -200,8 +200,8 @@ export async function runAIScrapers(): Promise<RunnerResult[]> {
     try {
       // Execute the AI-generated scraper code
       const execResult = await executeScraperCode(
-        config.generatedCode,
-        source.website || config.url || '',
+        config.generatedCode as string,
+        source.website || (config.url as string) || '',
         venue.region?.timezone || 'America/New_York',
         180000 // 3 minute timeout
       )

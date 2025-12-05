@@ -14,6 +14,7 @@ interface TribeEventData {
   description?: string
   excerpt?: string
   url?: string
+  permalink?: string
   id?: string | number
   image?: { url?: string }
   featured_image?: string
