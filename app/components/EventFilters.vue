@@ -349,7 +349,10 @@ onMounted(() => {
               <span>{{ venueLabel }}</span>
             </template>
             <template #leading>
-              <UIcon name="i-heroicons-map-pin" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-4 h-4"
+              />
             </template>
           </USelectMenu>
         </div>
@@ -367,7 +370,10 @@ onMounted(() => {
               <span>{{ genreLabel }}</span>
             </template>
             <template #leading>
-              <UIcon name="i-heroicons-musical-note" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-musical-note"
+                class="w-4 h-4"
+              />
             </template>
           </USelectMenu>
         </div>
@@ -385,7 +391,10 @@ onMounted(() => {
               <span>{{ eventTypeLabel }}</span>
             </template>
             <template #leading>
-              <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-sparkles"
+                class="w-4 h-4"
+              />
             </template>
           </USelectMenu>
         </div>
@@ -393,7 +402,10 @@ onMounted(() => {
 
       <!-- Row 2: Date filter and Reset button -->
       <div class="flex gap-2">
-        <UPopover v-model:open="showCalendar" class="flex-1">
+        <UPopover
+          v-model:open="showCalendar"
+          class="flex-1"
+        >
           <UButton
             color="neutral"
             variant="outline"
@@ -407,50 +419,50 @@ onMounted(() => {
             <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
           </UButton>
 
-        <template #content>
-          <div class="p-3 space-y-3 w-[calc(100vw-2rem)] max-w-80">
-            <div class="flex flex-wrap gap-1.5 sm:gap-2">
-              <button
-                v-for="preset in datePresets"
-                :key="preset.value"
-                class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors"
-                :class="datePreset === preset.value
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'"
-                @click="selectDatePreset(preset.value)"
-              >
-                {{ preset.label }}
-              </button>
-            </div>
+          <template #content>
+            <div class="p-3 space-y-3 w-[calc(100vw-2rem)] max-w-80">
+              <div class="flex flex-wrap gap-1.5 sm:gap-2">
+                <button
+                  v-for="preset in datePresets"
+                  :key="preset.value"
+                  class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors"
+                  :class="datePreset === preset.value
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'"
+                  @click="selectDatePreset(preset.value)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
 
-            <div class="border-t pt-3">
-              <p class="text-sm text-gray-500 mb-2">
-                Or select a custom range:
-              </p>
-              <UCalendar
-                v-model="customDateRange"
-                range
-                :min-value="todayDate"
-                :number-of-months="1"
-              />
-              <p
-                v-if="customDateRange?.start && customDateRange?.end"
-                class="text-xs text-primary-600 mt-2 font-medium"
-              >
-                {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - {{ customDateRange.end.month }}/{{ customDateRange.end.day }}
-              </p>
-            </div>
+              <div class="border-t pt-3">
+                <p class="text-sm text-gray-500 mb-2">
+                  Or select a custom range:
+                </p>
+                <UCalendar
+                  v-model="customDateRange"
+                  range
+                  :min-value="todayDate"
+                  :number-of-months="1"
+                />
+                <p
+                  v-if="customDateRange?.start && customDateRange?.end"
+                  class="text-xs text-primary-600 mt-2 font-medium"
+                >
+                  {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - {{ customDateRange.end.month }}/{{ customDateRange.end.day }}
+                </p>
+              </div>
 
-            <div class="flex justify-end">
-              <UButton
-                size="sm"
-                @click="closeCalendar"
-              >
-                Done
-              </UButton>
+              <div class="flex justify-end">
+                <UButton
+                  size="sm"
+                  @click="closeCalendar"
+                >
+                  Done
+                </UButton>
+              </div>
             </div>
-          </div>
-        </template>
+          </template>
         </UPopover>
 
         <UButton
@@ -461,7 +473,10 @@ onMounted(() => {
           class="flex-shrink-0"
           @click="resetFilters"
         >
-          <UIcon name="i-heroicons-x-mark" class="w-4 h-4 mr-1" />
+          <UIcon
+            name="i-heroicons-x-mark"
+            class="w-4 h-4 mr-1"
+          />
           Reset
         </UButton>
       </div>

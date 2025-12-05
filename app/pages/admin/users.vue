@@ -48,17 +48,6 @@ function formatDate(date: string) {
   })
 }
 
-function getRoleBadgeClass(role: string) {
-  switch (role) {
-    case 'ADMIN':
-      return 'bg-purple-100 text-purple-700'
-    case 'MODERATOR':
-      return 'bg-blue-100 text-blue-700'
-    default:
-      return 'bg-gray-100 text-gray-700'
-  }
-}
-
 useSeoMeta({
   title: 'Admin - Users',
   description: 'Manage users and roles',

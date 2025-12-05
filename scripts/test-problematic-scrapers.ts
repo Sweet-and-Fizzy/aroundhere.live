@@ -3,8 +3,9 @@ import { MarigoldScraper } from '../server/scrapers/venues/marigold'
 import { ProgressionBrewingScraper } from '../server/scrapers/venues/progression-brewing'
 import { ParlorRoomScraper } from '../server/scrapers/venues/parlor-room'
 import { runScraper, cleanup } from '../server/scrapers/runner'
+import type { BaseScraper, ScrapedEvent } from '../server/scrapers/types'
 
-async function testScraper(name: string, scraper: any) {
+async function testScraper(name: string, scraper: BaseScraper) {
   console.log(`\n${'='.repeat(60)}`)
   console.log(`Testing ${name} scraper...`)
   console.log('='.repeat(60))
@@ -28,7 +29,7 @@ async function testScraper(name: string, scraper: any) {
 
   if (result.events.length > 0) {
     console.log('\nEvents:')
-    result.events.slice(0, 5).forEach((event: any, i: number) => {
+    result.events.slice(0, 5).forEach((event: ScrapedEvent, i: number) => {
       console.log(`\n${i + 1}. ${event.title}`)
       console.log(`   Date: ${event.startsAt.toLocaleDateString()} ${event.startsAt.toLocaleTimeString()}`)
       if (event.coverCharge) console.log(`   Price: ${event.coverCharge}`)

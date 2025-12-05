@@ -105,8 +105,8 @@ export function useEvents() {
         events.value = response.events
       }
       pagination.value = response.pagination
-    } catch (e: any) {
-      error.value = e.message || 'Failed to fetch events'
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch events'
     } finally {
       loading.value = false
     }
@@ -128,14 +128,14 @@ export function useEvents() {
 
       const response = await $fetch<{
         events: Event[]
-        artists: any[]
-        venues: any[]
+        artists: { id: string; name: string; slug: string }[]
+        venues: { id: string; name: string; slug: string }[]
       }>(`/api/search?${params.toString()}`)
 
       events.value = response.events
       return response
-    } catch (e: any) {
-      error.value = e.message || 'Search failed'
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Search failed'
       return { events: [], artists: [], venues: [] }
     } finally {
       loading.value = false

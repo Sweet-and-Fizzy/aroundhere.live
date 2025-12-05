@@ -2,8 +2,9 @@ import 'dotenv/config'
 import { ProgressionBrewingScraper } from '../server/scrapers/venues/progression-brewing'
 import { ParlorRoomScraper } from '../server/scrapers/venues/parlor-room'
 import { DeLaLuzScraper } from '../server/scrapers/venues/de-la-luz'
+import type { BaseScraper, ScrapedEvent } from '../server/scrapers/types'
 
-async function checkFields(name: string, scraper: any) {
+async function checkFields(name: string, scraper: BaseScraper) {
   console.log(`\n${'='.repeat(60)}`)
   console.log(`Checking ${name} scraper fields...`)
   console.log('='.repeat(60))
@@ -14,7 +15,7 @@ async function checkFields(name: string, scraper: any) {
 
   if (result.events.length > 0) {
     // Check first 3 events in detail
-    result.events.slice(0, 3).forEach((event: any, i: number) => {
+    result.events.slice(0, 3).forEach((event: ScrapedEvent, i: number) => {
       console.log(`\nEvent ${i + 1}: ${event.title}`)
       console.log(`  ✓ title: ${event.title ? '✓' : '✗'}`)
       console.log(`  ✓ startsAt: ${event.startsAt ? event.startsAt.toISOString() : '✗'}`)
@@ -33,10 +34,10 @@ async function checkFields(name: string, scraper: any) {
 
     // Summary
     const total = result.events.length
-    const withDescription = result.events.filter((e: any) => e.description).length
-    const withImage = result.events.filter((e: any) => e.imageUrl).length
-    const withPrice = result.events.filter((e: any) => e.coverCharge).length
-    const withArtists = result.events.filter((e: any) => e.artists && e.artists.length > 0).length
+    const withDescription = result.events.filter((e) => e.description).length
+    const withImage = result.events.filter((e) => e.imageUrl).length
+    const withPrice = result.events.filter((e) => e.coverCharge).length
+    const withArtists = result.events.filter((e) => e.artists && e.artists.length > 0).length
 
     console.log(`\n--- Summary (${total} events) ---`)
     console.log(`  Description: ${withDescription}/${total} (${Math.round(withDescription/total*100)}%)`)

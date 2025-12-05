@@ -1,6 +1,10 @@
 import { PlaywrightScraper } from '../base'
 import type { ScrapedEvent, ScraperConfig } from '../types'
 
+// Type for deeply nested API responses where structure is not fully known
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ApiResponse = Record<string, any>
+
 export const ironHorseConfig: ScraperConfig = {
   id: 'iron-horse',
   name: 'Iron Horse Music Hall',
@@ -127,7 +131,7 @@ export class IronHorseScraper extends PlaywrightScraper {
   }
 
   // Extract event IDs from Elfsight API response
-  private extractElfsightEventIds(apiResponse: any): void {
+  private extractElfsightEventIds(apiResponse: ApiResponse): void {
     try {
       const widgetData = apiResponse?.data?.widgets?.[IRON_HORSE_WIDGET_ID]?.data?.settings?.events
       if (Array.isArray(widgetData)) {

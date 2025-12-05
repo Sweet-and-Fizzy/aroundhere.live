@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
+const router = useRouter()
 const slug = route.params.slug as string
 
 const { data: event, error } = await useFetch(`/api/events/by-slug/${slug}`)
@@ -418,13 +419,13 @@ useSeoMeta({
         </UButton>
 
         <UButton
-          to="/"
           size="lg"
           color="neutral"
           variant="ghost"
           icon="i-heroicons-arrow-left"
+          @click="router.back()"
         >
-          Back to Events
+          Back
         </UButton>
       </div>
     </div>

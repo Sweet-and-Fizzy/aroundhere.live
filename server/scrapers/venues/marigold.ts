@@ -1,5 +1,26 @@
 import { PlaywrightScraper } from '../base'
 import type { ScrapedEvent, ScraperConfig } from '../types'
+
+// Types for browser-evaluated data
+interface GalleryEventData {
+  href: string
+  dateTitle: string
+  description: string
+  imageUrl?: string
+  category?: string
+}
+
+interface LdJsonEvent {
+  '@type': string
+  name?: string
+  startDate?: string
+  endDate?: string
+  url?: string
+  location?: { name?: string }
+  image?: string | string[]
+  description?: string
+  offers?: { price?: string; priceCurrency?: string; url?: string }
+}
 import * as cheerio from 'cheerio'
 
 /**
@@ -73,8 +94,8 @@ export class MarigoldScraper extends PlaywrightScraper {
     // Extract events directly from gallery items on the listing page
     // This avoids rate limiting by not visiting individual pages
     // Only get visible items from "theater" category
-    const galleryEvents = await this.page.evaluate(() => {
-      const events: any[] = []
+    const galleryEvents = await this.page.evaluate((): GalleryEventData[] => {
+      const events: GalleryEventData[] = []
       const items = document.querySelectorAll('.wonderplugin-gridgallery-item')
       
       items.forEach((item) => {
@@ -131,14 +152,14 @@ export class MarigoldScraper extends PlaywrightScraper {
     }
     
     // Also extract from LD+JSON on main page
-    const ldJsonEvents = await this.page.evaluate(() => {
-      const events: any[] = []
+    const ldJsonEvents = await this.page.evaluate((): LdJsonEvent[] => {
+      const events: LdJsonEvent[] = []
       const scripts = document.querySelectorAll('script[type="application/ld+json"]')
       scripts.forEach((script) => {
         try {
           const data = JSON.parse(script.textContent || '')
         const items = Array.isArray(data) ? data : [data]
-          items.forEach((item: any) => {
+          items.forEach((item: LdJsonEvent) => {
           if (item['@type'] === 'Event' || item['@type'] === 'MusicEvent') {
               events.push(item)
           }

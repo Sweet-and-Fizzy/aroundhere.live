@@ -23,7 +23,7 @@ export interface AgentThinkingStep {
   type: 'analysis' | 'planning' | 'code_generation' | 'execution' | 'evaluation' | 'improvement' | 'success' | 'failure'
   message: string
   timestamp: Date
-  data?: any
+  data?: Record<string, unknown>
 }
 
 export interface ScraperGenerationOptions {
@@ -53,7 +53,7 @@ export interface ScraperGenerationResult {
   sessionId: string
   generatedCode?: string
   venueData?: VenueInfo
-  eventData?: any[]
+  eventData?: Record<string, unknown>[]
   completenessScore?: number
   thinking: AgentThinkingStep[]
   errorMessage?: string

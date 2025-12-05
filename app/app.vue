@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { loggedIn, user } = useUserSession()
+const { user } = useUserSession()
+const route = useRoute()
 
 const isAdmin = computed(() => {
   const role = user.value?.role as string
@@ -25,6 +26,14 @@ const adminMenuItems = computed(() => {
 
   return items
 })
+
+// Mobile menu state
+const mobileMenuOpen = ref(false)
+
+// Close mobile menu on route change
+watch(() => route.fullPath, () => {
+  mobileMenuOpen.value = false
+})
 </script>
 
 <template>
@@ -40,7 +49,9 @@ const adminMenuItems = computed(() => {
             >
               AroundHere
             </NuxtLink>
-            <div class="flex gap-6">
+
+            <!-- Desktop Navigation -->
+            <div class="hidden md:flex gap-6">
               <NuxtLink
                 to="/"
                 class="text-gray-300 hover:text-white transition-colors"
@@ -80,6 +91,90 @@ const adminMenuItems = computed(() => {
                   />
                 </button>
               </UDropdownMenu>
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <button
+              class="md:hidden p-2 -mr-2 text-gray-300 hover:text-white transition-colors"
+              @click="mobileMenuOpen = !mobileMenuOpen"
+            >
+              <UIcon
+                :name="mobileMenuOpen ? 'i-heroicons-x-mark' : 'i-heroicons-bars-3'"
+                class="w-6 h-6"
+              />
+            </button>
+          </div>
+
+          <!-- Mobile Menu -->
+          <div
+            v-if="mobileMenuOpen"
+            class="md:hidden pb-4 border-t border-gray-700"
+          >
+            <div class="flex flex-col gap-1 pt-3">
+              <NuxtLink
+                to="/"
+                class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                active-class="text-white bg-gray-800 font-medium"
+              >
+                Events
+              </NuxtLink>
+              <NuxtLink
+                to="/venues"
+                class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                active-class="text-white bg-gray-800 font-medium"
+              >
+                Venues
+              </NuxtLink>
+              <NuxtLink
+                to="/contact"
+                class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                active-class="text-white bg-gray-800 font-medium"
+              >
+                Contact
+              </NuxtLink>
+
+              <!-- Admin Links for Mobile -->
+              <template v-if="isAdmin">
+                <div class="border-t border-gray-700 mt-2 pt-2">
+                  <div class="px-3 py-1 text-xs text-gray-500 uppercase tracking-wide">
+                    Admin
+                  </div>
+                  <NuxtLink
+                    to="/admin/venues"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-building-storefront"
+                      class="w-4 h-4"
+                    />
+                    Venues
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/admin/scrapers"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-code-bracket"
+                      class="w-4 h-4"
+                    />
+                    Scrapers
+                  </NuxtLink>
+                  <NuxtLink
+                    v-if="isFullAdmin"
+                    to="/admin/users"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-users"
+                      class="w-4 h-4"
+                    />
+                    Users
+                  </NuxtLink>
+                </div>
+              </template>
             </div>
           </div>
         </div>

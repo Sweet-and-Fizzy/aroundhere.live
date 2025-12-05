@@ -175,14 +175,14 @@ export async function runAIScrapers(): Promise<RunnerResult[]> {
 
   // Filter to only sources with generatedCode
   const aiSourcesWithCode = aiSources.filter(s => {
-    const config = s.config as any
+    const config = s.config as Record<string, unknown> | null
     return config?.generatedCode && config?.venueId
   })
 
   console.log(`\n[Runner] Found ${aiSourcesWithCode.length} AI-generated scrapers`)
 
   for (const source of aiSourcesWithCode) {
-    const config = source.config as any
+    const config = source.config as Record<string, unknown>
 
     console.log(`\n[Runner] Starting AI scraper: ${source.name}`)
 

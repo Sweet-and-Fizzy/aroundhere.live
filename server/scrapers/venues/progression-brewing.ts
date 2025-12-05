@@ -3,6 +3,23 @@ import type { ScrapedEvent, ScraperConfig } from '../types'
 import * as cheerio from 'cheerio'
 import { fromZonedTime } from 'date-fns-tz'
 
+// Type for Tribe Events Calendar API response data
+interface TribeEventData {
+  title?: string
+  name?: string
+  start_date?: string
+  start_utc?: string
+  end_date?: string
+  end_utc?: string
+  description?: string
+  excerpt?: string
+  url?: string
+  id?: string | number
+  image?: { url?: string }
+  featured_image?: string
+  cost?: string | number
+}
+
 /**
  * Scraper for Progression Brewing - WordPress with Modern Events Calendar (MEC)
  *
@@ -133,7 +150,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
     return events
   }
 
-  private parseTribeEvent(data: any): ScrapedEvent | null {
+  private parseTribeEvent(data: TribeEventData): ScrapedEvent | null {
     try {
       const title = data.title || data.name
       if (!title) return null

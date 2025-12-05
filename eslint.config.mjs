@@ -36,6 +36,14 @@ const nuxtGlobals = {
   navigateTo: 'readonly',
   $fetch: 'readonly',
   useEvents: 'readonly',
+  // Nuxt auth utils
+  useUserSession: 'readonly',
+  getUserSession: 'readonly',
+  setUserSession: 'readonly',
+  clearUserSession: 'readonly',
+  // Nuxt route/page macros
+  defineNuxtRouteMiddleware: 'readonly',
+  definePageMeta: 'readonly',
   // Nuxt server
   defineEventHandler: 'readonly',
   defineNuxtConfig: 'readonly',
@@ -64,6 +72,7 @@ const nuxtGlobals = {
   sessionStorage: 'readonly',
   localStorage: 'readonly',
   requestAnimationFrame: 'readonly',
+  AbortSignal: 'readonly',
   // Node.js globals (for server files)
   process: 'readonly',
   NodeJS: 'readonly',
@@ -72,6 +81,7 @@ const nuxtGlobals = {
   setHeader: 'readonly',
   // Auto-imported utilities
   stripHtmlAndClean: 'readonly',
+  sendMagicLinkEmail: 'readonly',
 }
 
 export default [

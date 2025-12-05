@@ -77,7 +77,7 @@ async function debugSite(name: string, url: string) {
 
     if (ldJson.length > 0) {
       console.log(`\nFound ${ldJson.length} LD+JSON scripts`)
-      ldJson.forEach((data: any, i: number) => {
+      ldJson.forEach((data: Record<string, unknown>, i: number) => {
         if (data['@type'] === 'Event' || data['@type'] === 'MusicEvent') {
           console.log(`  Event ${i + 1}: ${data.name || 'Unknown'}`)
           console.log(`    Date: ${data.startDate || 'Unknown'}`)

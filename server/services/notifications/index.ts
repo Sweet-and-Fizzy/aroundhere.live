@@ -3,6 +3,19 @@
  * Supports multiple channels: email, webhook, console (for now)
  */
 
+// Slack Block Kit types for message formatting
+interface SlackBlock {
+  type: string
+  text?: { type: string; text: string; emoji?: boolean }
+  elements?: Array<{ type: string; text?: string; url?: string }>
+  fields?: Array<{ type: string; text: string }>
+}
+
+interface SlackPayload {
+  text: string
+  blocks?: SlackBlock[]
+}
+
 export interface NotificationChannel {
   send(notification: ParserFailureNotification): Promise<void>
 }
@@ -190,7 +203,7 @@ export const notificationService = new NotificationService()
 /**
  * Send a simple Slack notification (for general alerts like scraper approvals)
  */
-export async function sendSlackNotification(message: string, blocks?: any[]): Promise<void> {
+export async function sendSlackNotification(message: string, blocks?: SlackBlock[]): Promise<void> {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
 
   if (!webhookUrl) {
@@ -199,7 +212,7 @@ export async function sendSlackNotification(message: string, blocks?: any[]): Pr
   }
 
   try {
-    const payload: any = { text: message }
+    const payload: SlackPayload = { text: message }
     if (blocks) {
       payload.blocks = blocks
     }

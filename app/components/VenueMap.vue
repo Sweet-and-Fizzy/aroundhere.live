@@ -221,10 +221,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="mappableVenues.length > 0" class="venue-map-container">
-    <div ref="mapContainer" class="venue-map" />
+  <div
+    v-if="mappableVenues.length > 0"
+    class="venue-map-container"
+  >
+    <div
+      ref="mapContainer"
+      class="venue-map"
+    />
   </div>
-  <div v-else class="no-map">
+  <div
+    v-else
+    class="no-map"
+  >
     <p>No venue locations available to display.</p>
   </div>
 </template>

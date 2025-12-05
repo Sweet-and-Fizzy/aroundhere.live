@@ -7,6 +7,7 @@ import 'dotenv/config'
 import { readFileSync } from 'fs'
 import prisma from '../server/utils/prisma'
 import { geocodeAddress, buildFullAddress } from '../server/services/geocoding'
+import type { VenueType, SourceType, SourceCategory } from '@prisma/client'
 
 interface ExportData {
   exportedAt: string
@@ -16,7 +17,7 @@ interface ExportData {
     type: string
     category: string
     website: string | null
-    config: any
+    config: Record<string, unknown>
     isActive: boolean
   }>
   venues: Array<{
@@ -96,7 +97,7 @@ async function main() {
         website: v.website,
         latitude: lat,
         longitude: lng,
-        venueType: v.venueType as any || 'OTHER',
+        venueType: (v.venueType as VenueType) || 'OTHER',
         isActive: true,
       },
     })
@@ -132,8 +133,8 @@ async function main() {
       data: {
         name: s.name,
         slug: s.slug,
-        type: s.type as any,
-        category: s.category as any,
+        type: s.type as SourceType,
+        category: s.category as SourceCategory,
         website: s.website,
         config: s.config,
         isActive: s.isActive,

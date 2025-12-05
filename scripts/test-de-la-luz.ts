@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { DeLaLuzScraper } from '../server/scrapers/venues/de-la-luz'
 import { runScraper, cleanup } from '../server/scrapers/runner'
+import type { ScrapedEvent } from '../server/scrapers/types'
 
 async function main() {
   try {
@@ -26,7 +27,7 @@ async function main() {
 
     if (result.events.length > 0) {
       console.log('\nEvents:')
-      result.events.forEach((event: any, i: number) => {
+      result.events.forEach((event: ScrapedEvent, i: number) => {
         console.log(`\n${i + 1}. ${event.title}`)
         console.log(`   Date: ${event.startsAt.toLocaleDateString()} ${event.startsAt.toLocaleTimeString()}`)
         if (event.coverCharge) console.log(`   Price: ${event.coverCharge}`)
