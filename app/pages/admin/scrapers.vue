@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'admin',
+})
+
 interface AgentThinkingStep {
   type: string
   message: string

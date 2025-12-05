@@ -1,3 +1,32 @@
+<script setup lang="ts">
+const { loggedIn, user } = useUserSession()
+
+const isAdmin = computed(() => {
+  const role = user.value?.role as string
+  return role === 'ADMIN' || role === 'MODERATOR'
+})
+
+const isFullAdmin = computed(() => user.value?.role === 'ADMIN')
+
+const adminMenuItems = computed(() => {
+  const items = [
+    [
+      { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
+      { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
+    ],
+  ]
+
+  // Only show Users to full admins
+  if (isFullAdmin.value) {
+    items.push([
+      { label: 'Users', icon: 'i-heroicons-users', to: '/admin/users' },
+    ])
+  }
+
+  return items
+})
+</script>
+
 <template>
   <UApp>
     <div class="min-h-screen flex flex-col bg-gray-50">
@@ -9,7 +38,7 @@
               to="/"
               class="font-bold text-xl hover:text-primary-400 transition-colors"
             >
-              Local Music
+              AroundHere
             </NuxtLink>
             <div class="flex gap-6">
               <NuxtLink
@@ -26,6 +55,31 @@
               >
                 Venues
               </NuxtLink>
+              <NuxtLink
+                to="/contact"
+                class="text-gray-300 hover:text-white transition-colors"
+                active-class="text-white font-medium"
+              >
+                Contact
+              </NuxtLink>
+
+              <!-- Admin Dropdown -->
+              <UDropdownMenu
+                v-if="isAdmin"
+                :items="adminMenuItems"
+              >
+                <button class="flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
+                  <UIcon
+                    name="i-heroicons-cog-6-tooth"
+                    class="w-5 h-5"
+                  />
+                  <span>Admin</span>
+                  <UIcon
+                    name="i-heroicons-chevron-down"
+                    class="w-4 h-4"
+                  />
+                </button>
+              </UDropdownMenu>
             </div>
           </div>
         </div>
@@ -39,8 +93,9 @@
 
       <!-- Footer -->
       <footer class="bg-gray-100 border-t border-gray-200">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm">
-          Local Music Listings - Western Massachusetts
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm space-y-2">
+          <p>Event details may change. Always check the venue website before heading out.</p>
+          <p>AroundHere - Western Massachusetts</p>
         </div>
       </footer>
     </div>

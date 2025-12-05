@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'admin',
+})
+
 const { data: response, refresh } = await useFetch('/api/admin/venues')
 
 const venues = computed(() => response.value?.venues || [])

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'admin',
+})
+
 const route = useRoute()
 const router = useRouter()
 const venueId = route.params.id as string

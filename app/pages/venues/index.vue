@@ -17,7 +17,7 @@ function onVisibleVenues(ids: string[]) {
 }
 
 useSeoMeta({
-  title: 'Venues - Local Music Listings',
+  title: 'Venues - AroundHere',
   description: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more hosting live music.',
 })
 </script>

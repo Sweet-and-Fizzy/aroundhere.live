@@ -152,7 +152,7 @@ const outlookCalendarUrl = computed(() => {
 })
 
 useSeoMeta({
-  title: () => event.value?.title ? `${event.value.title} - Local Music Listings` : 'Event Details',
+  title: () => event.value?.title ? `${event.value.title} - AroundHere` : 'Event Details',
   description: () => event.value?.description || `Live music event at ${event.value?.venue?.name}`,
   ogImage: () => event.value?.imageUrl,
 })

@@ -68,11 +68,11 @@ export default defineEventHandler(async (event) => {
   const icsContent = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Local Music Listings//Event Calendar//EN',
+    'PRODID:-//AroundHere//Event Calendar//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${eventData.id}@local-music-listings`,
+    `UID:${eventData.id}@aroundhere.live`,
     `DTSTAMP:${formatICSDate(new Date())}`,
     `DTSTART:${formatICSDate(eventData.startsAt)}`,
     `DTEND:${formatICSDate(endDate)}`,

@@ -30,7 +30,7 @@ async function loadMore() {
 }
 
 useSeoMeta({
-  title: 'Local Music Listings - Western MA Live Shows',
+  title: 'AroundHere - Western MA Live Shows',
   description: 'Find live music events, concerts, and shows in Western Massachusetts. Browse upcoming shows at Iron Horse, The Drake, and more.',
 })
 </script>
@@ -44,7 +44,7 @@ useSeoMeta({
     >
       <div class="text-center">
         <h1 class="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
-          Local Music Listings
+          AroundHere
         </h1>
         <p class="text-sm sm:text-lg text-white/90">
           Discover live shows in Western Massachusetts

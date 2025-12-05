@@ -18,7 +18,7 @@ export default defineNuxtConfig({
   // App configuration
   app: {
     head: {
-      title: 'Local Music Listings',
+      title: 'AroundHere',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -30,6 +30,21 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap' },
       ],
+      script: [
+        {
+          innerHTML: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-WDNTCPR6');`,
+        },
+      ],
+      noscript: [
+        {
+          innerHTML: `<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WDNTCPR6" height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
+          tagPosition: 'bodyOpen',
+        },
+      ],
     },
   },
 
@@ -37,13 +52,16 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only
     databaseUrl: process.env.DATABASE_URL,
+    emailFrom: process.env.EMAIL_FROM || 'AroundHere <whatsup@aroundhere.live>',
+    superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
     // Public (exposed to client)
     public: {
       regionName: 'Western Massachusetts',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://aroundhere.live',
     },
   },
 
-  modules: ['@nuxt/ui'],
+  modules: ['@nuxt/ui', 'nuxt-auth-utils'],
 
   // Force light mode by default
   colorMode: {

@@ -271,22 +271,39 @@ model Genre {
 
 // Users (admin, liaisons)
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  displayName  String?
-  role         UserRole @default(USER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  displayName   String?
+  role          UserRole @default(USER)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  loginTokens LoginToken[]
 
   @@map("users")
 }
 
 enum UserRole {
   ADMIN
-  LIAISON
+  MODERATOR
   USER
+}
+
+// Login tokens for magic link authentication
+model LoginToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+  @@map("login_tokens")
 }
 
 // AI Agent Sessions for scraper generation
