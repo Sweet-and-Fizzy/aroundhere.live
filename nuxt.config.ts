@@ -19,10 +19,21 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'AroundHere',
+      htmlAttrs: {
+        lang: 'en',
+      },
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'Discover live music events in Western Massachusetts' },
+        // Open Graph defaults
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'AroundHere' },
+        { property: 'og:locale', content: 'en_US' },
+        // Twitter Card defaults
+        { name: 'twitter:card', content: 'summary_large_image' },
+        // Theme color for mobile browsers
+        { name: 'theme-color', content: '#111827' },
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },

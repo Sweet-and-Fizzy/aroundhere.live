@@ -40,9 +40,78 @@ if (error.value) {
 const venue = computed(() => data.value?.venue)
 const events = computed(() => data.value?.events ?? [])
 
+const config = useRuntimeConfig()
+
+const seoDescription = computed(() => {
+  if (!venue.value) return ''
+  const desc = venue.value.description?.slice(0, 160)
+  if (desc) return desc
+  return `Upcoming live music shows at ${venue.value.name} in ${venue.value.city}, ${venue.value.state}. Browse events and get tickets.`
+})
+
+const canonicalUrl = computed(() => {
+  return `${config.public.siteUrl}/venues/${venue.value?.slug}`
+})
+
 useSeoMeta({
   title: () => `${venue.value?.name} - Live Music Events`,
-  description: () => `Upcoming live music shows at ${venue.value?.name} in ${venue.value?.city}, ${venue.value?.state}`,
+  description: () => seoDescription.value,
+  // Open Graph
+  ogTitle: () => `${venue.value?.name} - Live Music Events`,
+  ogDescription: () => seoDescription.value,
+  ogImage: () => venue.value?.imageUrl || venue.value?.logoUrl,
+  ogUrl: () => canonicalUrl.value,
+  // Twitter
+  twitterTitle: () => `${venue.value?.name} - Live Music Events`,
+  twitterDescription: () => seoDescription.value,
+  twitterImage: () => venue.value?.imageUrl || venue.value?.logoUrl,
+})
+
+// Add canonical link
+useHead({
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+  ],
+})
+
+// JSON-LD structured data for venue
+useHead({
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: computed(() => {
+        if (!venue.value) return '{}'
+        const v = venue.value
+        const jsonLd: Record<string, unknown> = {
+          '@context': 'https://schema.org',
+          '@type': 'MusicVenue',
+          name: v.name,
+          url: canonicalUrl.value,
+          image: v.imageUrl || v.logoUrl || undefined,
+          description: v.description || undefined,
+          telephone: v.phone || undefined,
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: v.address || undefined,
+            addressLocality: v.city || undefined,
+            addressRegion: v.state || undefined,
+            postalCode: v.postalCode || undefined,
+          },
+        }
+        if (v.latitude && v.longitude) {
+          jsonLd.geo = {
+            '@type': 'GeoCoordinates',
+            latitude: v.latitude,
+            longitude: v.longitude,
+          }
+        }
+        if (v.website) {
+          jsonLd.sameAs = v.website
+        }
+        return JSON.stringify(jsonLd)
+      }),
+    },
+  ],
 })
 
 const fullAddress = computed(() => {

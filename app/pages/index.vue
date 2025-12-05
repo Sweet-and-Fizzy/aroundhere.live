@@ -29,9 +29,25 @@ async function loadMore() {
   }, true)
 }
 
+const config = useRuntimeConfig()
+const siteUrl = config.public.siteUrl
+
 useSeoMeta({
   title: 'AroundHere - Western MA Live Shows',
   description: 'Find live music events, concerts, and shows in Western Massachusetts. Browse upcoming shows at Iron Horse, The Drake, and more.',
+  // Open Graph
+  ogTitle: 'AroundHere - Live Music in Western Massachusetts',
+  ogDescription: 'Discover live music events, concerts, and shows in Western Massachusetts. Browse upcoming shows at local venues.',
+  ogUrl: siteUrl,
+  // Twitter
+  twitterTitle: 'AroundHere - Live Music in Western Massachusetts',
+  twitterDescription: 'Discover live music events, concerts, and shows in Western Massachusetts.',
+})
+
+useHead({
+  link: [
+    { rel: 'canonical', href: siteUrl },
+  ],
 })
 </script>
 

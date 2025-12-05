@@ -151,10 +151,104 @@ const outlookCalendarUrl = computed(() => {
   return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`
 })
 
+const config = useRuntimeConfig()
+
+// Build a clean description for SEO (strip HTML, limit length)
+const seoDescription = computed(() => {
+  if (!event.value) return ''
+  const desc = event.value.description?.slice(0, 160) || ''
+  const venue = event.value.venue?.name || ''
+  const date = formattedDate.value
+  if (desc) return desc
+  return `${event.value.title} at ${venue} on ${date}`
+})
+
+// Canonical URL for this event
+const canonicalUrl = computed(() => {
+  return `${config.public.siteUrl}/events/${event.value?.slug}`
+})
+
 useSeoMeta({
   title: () => event.value?.title ? `${event.value.title} - AroundHere` : 'Event Details',
-  description: () => event.value?.description || `Live music event at ${event.value?.venue?.name}`,
+  description: () => seoDescription.value,
+  // Open Graph
+  ogTitle: () => event.value?.title,
+  ogDescription: () => seoDescription.value,
   ogImage: () => event.value?.imageUrl,
+  ogUrl: () => canonicalUrl.value,
+  ogType: 'event',
+  // Twitter
+  twitterTitle: () => event.value?.title,
+  twitterDescription: () => seoDescription.value,
+  twitterImage: () => event.value?.imageUrl,
+})
+
+// Add canonical link
+useHead({
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+  ],
+})
+
+// JSON-LD structured data for events
+useHead({
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: computed(() => {
+        if (!event.value) return '{}'
+        const e = event.value
+        const jsonLd: Record<string, unknown> = {
+          '@context': 'https://schema.org',
+          '@type': 'MusicEvent',
+          name: e.title,
+          startDate: e.startsAt,
+          endDate: e.endsAt || undefined,
+          doorTime: e.doorsAt || undefined,
+          url: canonicalUrl.value,
+          image: e.imageUrl || undefined,
+          description: e.description || undefined,
+        }
+        if (e.venue) {
+          jsonLd.location = {
+            '@type': 'Place',
+            name: e.venue.name,
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: e.venue.address || undefined,
+              addressLocality: e.venue.city || undefined,
+              addressRegion: e.venue.state || undefined,
+              postalCode: e.venue.postalCode || undefined,
+            },
+          }
+          if (e.venue.latitude && e.venue.longitude) {
+            (jsonLd.location as Record<string, unknown>).geo = {
+              '@type': 'GeoCoordinates',
+              latitude: e.venue.latitude,
+              longitude: e.venue.longitude,
+            }
+          }
+        }
+        if (e.ticketUrl) {
+          jsonLd.offers = {
+            '@type': 'Offer',
+            url: e.ticketUrl,
+            availability: 'https://schema.org/InStock',
+          }
+          if (e.coverCharge) {
+            (jsonLd.offers as Record<string, unknown>).price = e.coverCharge
+          }
+        }
+        if (e.eventArtists?.length) {
+          jsonLd.performer = e.eventArtists.map((ea: { artist: { name: string } }) => ({
+            '@type': 'MusicGroup',
+            name: ea.artist.name,
+          }))
+        }
+        return JSON.stringify(jsonLd)
+      }),
+    },
+  ],
 })
 </script>
 

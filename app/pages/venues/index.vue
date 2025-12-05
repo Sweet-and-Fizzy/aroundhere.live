@@ -16,9 +16,25 @@ function onVisibleVenues(ids: string[]) {
   visibleVenueIds.value = ids
 }
 
+const config = useRuntimeConfig()
+const canonicalUrl = `${config.public.siteUrl}/venues`
+
 useSeoMeta({
   title: 'Venues - AroundHere',
   description: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more hosting live music.',
+  // Open Graph
+  ogTitle: 'Music Venues in Western Massachusetts',
+  ogDescription: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more hosting live music.',
+  ogUrl: canonicalUrl,
+  // Twitter
+  twitterTitle: 'Music Venues in Western Massachusetts',
+  twitterDescription: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more.',
+})
+
+useHead({
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+  ],
 })
 </script>
 

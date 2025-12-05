@@ -1,7 +1,19 @@
 <script setup lang="ts">
+const config = useRuntimeConfig()
+const canonicalUrl = `${config.public.siteUrl}/contact`
+
 useSeoMeta({
   title: 'Contact - AroundHere',
   description: 'Get in touch with AroundHere. Share suggestions, report issues, or request changes to your venue listing.',
+  ogTitle: 'Contact - AroundHere',
+  ogDescription: 'Get in touch with AroundHere. Share suggestions, report issues, or request changes to your venue listing.',
+  ogUrl: canonicalUrl,
+})
+
+useHead({
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+  ],
 })
 </script>
 
