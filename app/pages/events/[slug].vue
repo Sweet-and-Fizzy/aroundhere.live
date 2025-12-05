@@ -176,7 +176,7 @@ useSeoMeta({
   ogDescription: () => seoDescription.value,
   ogImage: () => event.value?.imageUrl,
   ogUrl: () => canonicalUrl.value,
-  ogType: 'event',
+  ogType: 'website',
   // Twitter
   twitterTitle: () => event.value?.title,
   twitterDescription: () => seoDescription.value,
