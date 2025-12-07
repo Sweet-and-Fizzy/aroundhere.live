@@ -78,22 +78,30 @@ enum VenueType {
 
 // Artists and bands
 model Artist {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  genres       String[] // array of genre slugs
-  description  String?
-  website      String?
-  socialLinks  Json?    // { instagram, facebook, bandcamp, spotify, etc. }
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  genres        String[] // array of genre slugs
+  description   String?
+  website       String?
+  socialLinks   Json?    // { instagram, facebook, bandcamp, spotify, etc. }
   musicbrainzId String?
-  spotifyId    String?
-  isLocal      Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isLocal       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Spotify integration
+  spotifyId              String?              // Spotify artist ID
+  spotifyName            String?              // Name as it appears on Spotify (may differ)
+  spotifyMatchConfidence Float?               // 0-1 confidence score from name matching
+  spotifyMatchStatus     SpotifyMatchStatus   @default(PENDING)
+  spotifyPopularTracks   Json?                // [{trackId, name, uri, durationMs}]
+  spotifyTracksUpdatedAt DateTime?            // When popular tracks were last fetched
 
   eventArtists EventArtist[]
 
   @@index([name])
+  @@index([spotifyMatchStatus])
   @@map("artists")
 }
 
@@ -291,6 +299,14 @@ enum UserRole {
   USER
 }
 
+enum SpotifyMatchStatus {
+  PENDING         // Not yet searched on Spotify
+  AUTO_MATCHED    // High confidence automatic match (>0.9)
+  NEEDS_REVIEW    // Low confidence match, needs human verification
+  VERIFIED        // Manually confirmed correct match
+  NO_MATCH        // Confirmed not on Spotify or should be skipped
+}
+
 // Login tokens for magic link authentication
 model LoginToken {
   id        String   @id @default(cuid())
@@ -405,4 +421,50 @@ model LLMConfig {
   updatedAt       DateTime @updatedAt
 
   @@map("llm_configs")
+}
+
+// Spotify playlist sync configuration
+model SpotifyPlaylist {
+  id           String    @id @default(cuid())
+  playlistId   String    @unique  // Spotify playlist ID
+  name         String              // Display name for admin UI
+  description  String?             // Playlist description
+  regionId     String?             // Optional: limit to specific region
+  daysAhead    Int       @default(30)  // How many days ahead to include events
+  syncEnabled  Boolean   @default(true)
+  lastSyncedAt DateTime?
+  lastSyncError String?            // Error message from last failed sync
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("spotify_playlists")
+}
+
+// Track which tracks are currently in each playlist (for efficient diffing)
+model SpotifyPlaylistTrack {
+  id           String   @id @default(cuid())
+  playlistId   String   // References SpotifyPlaylist.playlistId
+  trackUri     String   // Spotify track URI
+  artistId     String   // Our artist ID
+  eventId      String   // The event this track is for
+  addedAt      DateTime @default(now())
+
+  @@unique([playlistId, trackUri])
+  @@index([playlistId])
+  @@index([eventId])
+  @@map("spotify_playlist_tracks")
+}
+
+// Spotify OAuth credentials (singleton - only one row)
+model SpotifyAuth {
+  id           String   @id @default("spotify_auth") // Fixed ID for singleton
+  accessToken  String   // Current access token
+  refreshToken String   // Refresh token for getting new access tokens
+  expiresAt    DateTime // When the access token expires
+  scope        String   // Granted scopes
+  userId       String?  // Spotify user ID of the authorized account
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("spotify_auth")
 }
