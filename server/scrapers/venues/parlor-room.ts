@@ -26,7 +26,7 @@ export class ParlorRoomScraper extends SquarespaceScraper {
     super(parlorRoomConfig)
   }
 
-  protected async waitForContent(): Promise<void> {
+  protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
     // Wait for LD+JSON scripts to load (Parlor Room has events in LD+JSON)
@@ -41,7 +41,7 @@ export class ParlorRoomScraper extends SquarespaceScraper {
   }
 
   // Override parseEvents to extract from LD+JSON first (Parlor Room has all events in LD+JSON)
-  protected async parseEvents(html: string): Promise<ScrapedEvent[]> {
+  protected override async parseEvents(html: string): Promise<ScrapedEvent[]> {
     const $ = this.$(html)
     const events: ScrapedEvent[] = []
 
@@ -136,8 +136,8 @@ export class ParlorRoomScraper extends SquarespaceScraper {
 
   // Override event link selector for Parlor Room's URL structure
   // Try multiple patterns since Squarespace can vary
-  protected eventLinkSelector = 'a[href*="/parlorroomshows/"], a[href*="/shows-events/"], a[href*="/upcoming-shows/"], a[href*="/events/"]'
+  protected override eventLinkSelector = 'a[href*="/parlorroomshows/"], a[href*="/shows-events/"], a[href*="/upcoming-shows/"], a[href*="/events/"]'
 
   // Override path pattern to match their URL structure
-  protected eventPathPattern = /\/(parlorroomshows|shows-events|upcoming-shows|events)\/[a-z0-9-]+$/
+  protected override eventPathPattern = /\/(parlorroomshows|shows-events|upcoming-shows|events)\/[a-z0-9-]+$/
 }

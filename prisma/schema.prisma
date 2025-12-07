@@ -364,6 +364,10 @@ model ScraperAttempt {
   reasoning       String?       // Why this approach
   planDescription String?       // What the agent plans to do
 
+  // Input context - HTML the agent was working with
+  // Structure: { listing: string, detailPages?: { url: string, html: string }[] }
+  htmlSnapshots   Json?
+
   // Generated code
   generatedCode   String        // The scraper code generated
   codeHash        String?       // Hash to detect duplicate attempts

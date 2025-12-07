@@ -47,7 +47,7 @@ export class NewCityBreweryScraper extends HttpScraper {
     super(newCityBreweryConfig)
   }
 
-  async scrape() {
+  override async scrape() {
     const startTime = Date.now()
     const errors: string[] = []
     const allEvents: ScrapedEvent[] = []

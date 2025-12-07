@@ -236,18 +236,21 @@ export class DeLaLuzScraper extends HttpScraper {
       
       // First, try to extract the Unix timestamp (10 digits after T)
       const timestampMatch = startDate.match(/T(\d{10})(?:\d{3})?/)
-      if (timestampMatch) {
+      if (timestampMatch && timestampMatch[1]) {
         const timestamp = parseInt(timestampMatch[1], 10)
         // It's a Unix timestamp in seconds, convert to milliseconds
         startsAt = new Date(timestamp * 1000)
         console.log(`[${this.config.name}] parseEventSchema: Extracted timestamp ${timestamp}, created ${startsAt.toISOString()}`)
       } else {
         // Fallback: Extract date part (YYYY-MM-DD)
-      const dateMatch = startDate.match(/^(\d{4}-\d{2}-\d{2})/)
-      if (dateMatch) {
+        const dateMatch = startDate.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (dateMatch && dateMatch[1]) {
           const dateStr = dateMatch[1]
           // Create date in local timezone (will be converted properly)
-          const [year, month, day] = dateStr.split('-').map(Number)
+          const parts = dateStr.split('-')
+          const year = Number(parts[0])
+          const month = Number(parts[1])
+          const day = Number(parts[2])
           startsAt = new Date(year, month - 1, day, 19, 0, 0) // Default to 7 PM local time
         } else {
           startsAt = new Date(startDate)
@@ -369,15 +372,15 @@ export class DeLaLuzScraper extends HttpScraper {
         // Also try ISO format dates like "2025-11-22"
         if (!dateMatch) {
           dateMatch = pageText.match(/(\d{4})-(\d{2})-(\d{2})/)
-          if (dateMatch) {
+          if (dateMatch && dateMatch[1] && dateMatch[2] && dateMatch[3]) {
             const year = parseInt(dateMatch[1], 10)
             const month = parseInt(dateMatch[2], 10) - 1 // JS months are 0-indexed
             const day = parseInt(dateMatch[3], 10)
             startsAt = new Date(year, month, day, 19, 0, 0)
           }
         }
-        
-        if (dateMatch && !startsAt) {
+
+        if (dateMatch && !startsAt && dateMatch[1] && dateMatch[2] && dateMatch[3]) {
           const monthStr = dateMatch[1]
           const day = parseInt(dateMatch[2], 10)
           const year = parseInt(dateMatch[3], 10)
@@ -392,12 +395,12 @@ export class DeLaLuzScraper extends HttpScraper {
           }
         }
       }
-      
+
       // Try to extract time if we have a date but want to set a specific time
       if (startsAt && !isNaN(startsAt.getTime())) {
         const timeText = $('.event-time, .fooevents-time, time').first().text()
         const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i)
-        if (timeMatch) {
+        if (timeMatch && timeMatch[1] && timeMatch[2]) {
           let hours = parseInt(timeMatch[1], 10)
           const minutes = parseInt(timeMatch[2], 10)
           const ampm = timeMatch[3]?.toLowerCase()
@@ -507,15 +510,15 @@ export class DeLaLuzScraper extends HttpScraper {
         // Also try ISO format dates like "2025-11-22"
         if (!dateMatch) {
           dateMatch = pageText.match(/(\d{4})-(\d{2})-(\d{2})/)
-        if (dateMatch) {
+          if (dateMatch && dateMatch[1] && dateMatch[2] && dateMatch[3]) {
             const year = parseInt(dateMatch[1], 10)
             const month = parseInt(dateMatch[2], 10) - 1 // JS months are 0-indexed
             const day = parseInt(dateMatch[3], 10)
             startsAt = new Date(year, month, day, 19, 0, 0)
           }
         }
-        
-        if (dateMatch && !startsAt) {
+
+        if (dateMatch && !startsAt && dateMatch[1] && dateMatch[2] && dateMatch[3]) {
           const monthStr = dateMatch[1]
           const day = parseInt(dateMatch[2], 10)
           const year = parseInt(dateMatch[3], 10)
@@ -530,12 +533,12 @@ export class DeLaLuzScraper extends HttpScraper {
           }
         }
       }
-      
+
       // Try to extract time if we have a date but want to set a specific time
       if (startsAt && !isNaN(startsAt.getTime())) {
         const timeText = $('.event-time, .fooevents-time, time').first().text()
         const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i)
-        if (timeMatch) {
+        if (timeMatch && timeMatch[1] && timeMatch[2]) {
           let hours = parseInt(timeMatch[1], 10)
           const minutes = parseInt(timeMatch[2], 10)
           const ampm = timeMatch[3]?.toLowerCase()

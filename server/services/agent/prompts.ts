@@ -147,8 +147,8 @@ export function createVenueScraperUserPrompt(url: string, pageHtml?: string, pre
   let prompt = `Generate a scraper for this venue website: ${url}\n\n`
 
   if (pageHtml) {
-    // Truncate HTML if too long
-    const maxLength = 15000
+    // Truncate HTML if too long (models have 100K+ context, we can be generous)
+    const maxLength = 100000
     const truncatedHtml = pageHtml.length > maxLength
       ? pageHtml.substring(0, maxLength) + '\n\n[HTML truncated...]'
       : pageHtml
@@ -291,8 +291,8 @@ export function createEventScraperUserPrompt(
   prompt += `\n`
 
   if (pageHtml) {
-    // Try to extract the most relevant parts of the HTML
-    const maxLength = 30000
+    // Models have 100K+ token context, we can include much more HTML
+    const maxLength = 100000
     let relevantHtml = pageHtml
 
     // Try to find the main content area
@@ -303,9 +303,11 @@ export function createEventScraperUserPrompt(
 
     // Remove script and style content to save space
     relevantHtml = relevantHtml
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
+      .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '<svg/>')
 
     const truncatedHtml = relevantHtml.length > maxLength
       ? relevantHtml.substring(0, maxLength) + '\n\n[HTML truncated...]'

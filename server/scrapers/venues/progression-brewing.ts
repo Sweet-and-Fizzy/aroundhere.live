@@ -67,7 +67,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
     super(progressionBrewingConfig)
   }
 
-  async scrape() {
+  override async scrape() {
     const startTime = Date.now()
     const errors: string[] = []
     let events: ScrapedEvent[] = []

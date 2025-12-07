@@ -30,15 +30,15 @@ export class IronHorseScraper extends PlaywrightScraper {
   }
 
   // Iron Horse uses click-based pagination with "Next Events" button
-  protected supportsPagination(): boolean {
+  protected override supportsPagination(): boolean {
     return true
   }
 
-  protected getMaxPages(): number {
+  protected override getMaxPages(): number {
     return 10 // Up to 10 pages of events
   }
 
-  protected async loadNextPage(): Promise<boolean> {
+  protected override async loadNextPage(): Promise<boolean> {
     if (!this.page) return false
 
     try {
@@ -60,7 +60,7 @@ export class IronHorseScraper extends PlaywrightScraper {
   }
 
   // Set up response listener BEFORE navigation to capture Elfsight API
-  protected async beforeNavigate(): Promise<void> {
+  protected override async beforeNavigate(): Promise<void> {
     if (!this.page) return
 
     // Set up listener for Elfsight API response to capture event IDs
@@ -77,7 +77,7 @@ export class IronHorseScraper extends PlaywrightScraper {
     })
   }
 
-  protected async waitForContent(): Promise<void> {
+  protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
     // Wait for the calendar widget to render (they use a third-party widget)
@@ -349,7 +349,7 @@ export class IronHorseScraper extends PlaywrightScraper {
     try {
       // dateText format: "Nov22Sat" or "Dec5Thu"
       const dateMatch = dateText.match(/([A-Za-z]+)(\d+)/)
-      if (!dateMatch) return null
+      if (!dateMatch || !dateMatch[1] || !dateMatch[2]) return null
 
       const monthStr = dateMatch[1].toLowerCase()
       const day = parseInt(dateMatch[2])
@@ -388,7 +388,7 @@ export class IronHorseScraper extends PlaywrightScraper {
       let minutes = 0
 
       const timeMatch = timeText.match(/(\d+):(\d+)\s*(AM|PM)/i)
-      if (timeMatch) {
+      if (timeMatch && timeMatch[1] && timeMatch[2] && timeMatch[3]) {
         hours = parseInt(timeMatch[1])
         minutes = parseInt(timeMatch[2])
         const ampm = timeMatch[3].toLowerCase()
@@ -466,7 +466,7 @@ export class IronHorseScraper extends PlaywrightScraper {
 
     // Look for JSON data in script tags (common in Squarespace)
     const scriptMatch = html.match(/Static\.SQUARESPACE_CONTEXT\s*=\s*({[\s\S]*?});/)
-    if (scriptMatch) {
+    if (scriptMatch && scriptMatch[1]) {
       try {
         const context = JSON.parse(scriptMatch[1])
         // Squarespace sometimes embeds collection items in context

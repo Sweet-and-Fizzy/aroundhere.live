@@ -37,7 +37,7 @@ export class StoneChurchScraper extends PlaywrightScraper {
     super(stoneChurchConfig)
   }
 
-  protected async waitForContent(): Promise<void> {
+  protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
     // Wait for VenuePilot widget to load

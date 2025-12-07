@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright'
+import { chromium, type Browser, type Page } from 'playwright'
 import * as cheerio from 'cheerio'
 import { fromZonedTime } from 'date-fns-tz'
 import type { ScraperConfig, ScraperResult, ScrapedEvent, BaseScraper } from './types'
@@ -277,8 +277,12 @@ export abstract class PlaywrightScraper implements BaseScraper {
           dec: 11, december: 11,
         }
 
-        const month = months[monthDayMatch[1].toLowerCase()]
-        const day = parseInt(monthDayMatch[2])
+        const monthStr = monthDayMatch[1]
+        const dayStr = monthDayMatch[2]
+        if (!monthStr || !dayStr) return null
+
+        const month = months[monthStr.toLowerCase()]
+        const day = parseInt(dayStr)
 
         if (month !== undefined && day) {
           const now = new Date()
@@ -295,7 +299,7 @@ export abstract class PlaywrightScraper implements BaseScraper {
           // Parse time if provided
           if (timeStr) {
             const timeMatch = timeStr.match(/(\d+):(\d+)\s*(am|pm)?/i)
-            if (timeMatch) {
+            if (timeMatch && timeMatch[1] && timeMatch[2]) {
               let hours = parseInt(timeMatch[1])
               const minutes = parseInt(timeMatch[2])
               const ampm = timeMatch[3]?.toLowerCase()

@@ -348,9 +348,13 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
       const match = doorsInfo.match(/(\d+)(?::(\d+))?\s*([ap]m)/i)
       if (!match) return undefined
 
-      let hours = parseInt(match[1], 10)
+      const hoursStr = match[1]
+      const ampmStr = match[3]
+      if (!hoursStr || !ampmStr) return undefined
+
+      let hours = parseInt(hoursStr, 10)
       const minutes = match[2] ? parseInt(match[2], 10) : 0
-      const isPM = match[3].toLowerCase() === 'pm'
+      const isPM = ampmStr.toLowerCase() === 'pm'
 
       if (isPM && hours !== 12) hours += 12
       if (!isPM && hours === 12) hours = 0

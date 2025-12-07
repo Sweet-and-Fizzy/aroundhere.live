@@ -25,7 +25,7 @@ export class TheDrakeScraper extends SquarespaceScraper {
     super(theDrakeConfig)
   }
 
-  protected async waitForContent(): Promise<void> {
+  protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
     // Wait for event links to appear

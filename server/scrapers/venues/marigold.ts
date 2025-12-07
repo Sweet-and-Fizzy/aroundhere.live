@@ -49,7 +49,7 @@ export class MarigoldScraper extends PlaywrightScraper {
     super(marigoldConfig)
   }
 
-  protected async waitForContent(): Promise<void> {
+  protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
     // Wait for WonderPlugin Grid Gallery to load (JS-rendered)

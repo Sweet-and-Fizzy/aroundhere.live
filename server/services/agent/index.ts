@@ -62,6 +62,31 @@ export class AgentService {
 
     const thinking: AgentThinkingStep[] = []
 
+    // If no previousCode provided, look for best previous session for this URL
+    let bestPreviousCode = previousCode
+    if (!bestPreviousCode) {
+      const bestPreviousSession = await prisma.agentSession.findFirst({
+        where: {
+          url,
+          sessionType,
+          status: { in: ['SUCCESS', 'APPROVED'] },
+          generatedCode: { not: null },
+        },
+        orderBy: {
+          completenessScore: 'desc',
+        },
+        select: {
+          generatedCode: true,
+          completenessScore: true,
+        },
+      })
+
+      if (bestPreviousSession?.generatedCode) {
+        bestPreviousCode = bestPreviousSession.generatedCode
+        console.log(`[Agent] Found previous session with ${(bestPreviousSession.completenessScore * 100).toFixed(0)}% score, using as baseline`)
+      }
+    }
+
     // Get or create agent session in database
     let session = await prisma.agentSession.findFirst({
       where: {
@@ -167,9 +192,9 @@ export class AgentService {
         }
 
         // On first attempt with existing scraper code, use it as the "previous attempt"
-        const attemptToUse = previousFeedback ?? (attempt === 1 && previousCode ? {
-          code: previousCode,
-          feedback: userFeedback || 'This is the existing deployed scraper. Improve it or use it as a reference for the new implementation.',
+        const attemptToUse = previousFeedback ?? (attempt === 1 && bestPreviousCode ? {
+          code: bestPreviousCode,
+          feedback: userFeedback || 'This is the best previous scraper for this URL. Improve it or use it as a reference for the new implementation.',
         } : undefined)
 
         const codeResult = await this.generateCode({
@@ -272,6 +297,9 @@ export class AgentService {
               fieldsFound: [],
               fieldsMissing: [],
               completenessScore: 0,
+              htmlSnapshots: {
+                listing: pageHtml.substring(0, 200000), // Truncate to ~200KB for storage
+              },
             },
           })
 
@@ -318,6 +346,9 @@ export class AgentService {
             fieldsFound: evaluation.fieldsFound,
             fieldsMissing: evaluation.fieldsMissing,
             completenessScore: evaluation.completenessScore,
+            htmlSnapshots: {
+              listing: pageHtml.substring(0, 200000), // Truncate to ~200KB for storage
+            },
           },
         })
 

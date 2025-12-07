@@ -99,6 +99,7 @@ export default defineEventHandler(async (event) => {
       source = await prisma.source.create({
         data: {
           name: `${venue.name} (Hardcoded)`,
+          slug: `${venue.slug}-hardcoded`,
           type: 'SCRAPER',
           website: scraper.config.url,
           isActive: true,
