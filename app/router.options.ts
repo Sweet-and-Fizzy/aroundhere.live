@@ -32,6 +32,44 @@ function isEventDetailPage(path: string): boolean {
   return path.startsWith('/events/')
 }
 
+// Wait for page content to stabilize (no more height changes)
+function waitForContentStable(targetScrollY: number, maxWait = 2000): Promise<void> {
+  return new Promise((resolve) => {
+    let lastHeight = document.body.scrollHeight
+    let stableCount = 0
+    const startTime = Date.now()
+
+    const check = () => {
+      const currentHeight = document.body.scrollHeight
+      const elapsed = Date.now() - startTime
+
+      // If we've waited too long, give up and scroll anyway
+      if (elapsed > maxWait) {
+        resolve()
+        return
+      }
+
+      // If height is stable and we can scroll to target position
+      if (currentHeight === lastHeight && currentHeight >= targetScrollY) {
+        stableCount++
+        // Wait for 3 consecutive stable checks (150ms of stability)
+        if (stableCount >= 3) {
+          resolve()
+          return
+        }
+      } else {
+        stableCount = 0
+        lastHeight = currentHeight
+      }
+
+      setTimeout(check, 50)
+    }
+
+    // Start checking after initial render
+    requestAnimationFrame(() => setTimeout(check, 100))
+  })
+}
+
 export default <RouterConfig>{
   scrollBehavior(to, from, savedPosition) {
     // If navigating away from a list page to an event detail page, save scroll position
@@ -45,12 +83,10 @@ export default <RouterConfig>{
       const scrollY = getScrollPosition(to.path)
       if (scrollY) {
         clearScrollPosition(to.path)
-        // Wait for content to render before scrolling
+        // Wait for content to stabilize before scrolling
         return new Promise((resolve) => {
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              resolve({ top: scrollY, behavior: 'instant' })
-            }, 300)
+          waitForContentStable(scrollY).then(() => {
+            resolve({ top: scrollY, behavior: 'instant' })
           })
         })
       }

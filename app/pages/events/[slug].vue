@@ -22,8 +22,15 @@ const formattedDate = computed(() => {
   })
 })
 
+// Check if time is midnight (indicating no time was specified)
+const hasSpecificTime = computed(() => {
+  if (!event.value?.startsAt) return false
+  const date = new Date(event.value.startsAt)
+  return date.getHours() !== 0 || date.getMinutes() !== 0
+})
+
 const formattedTime = computed(() => {
-  if (!event.value?.startsAt) return ''
+  if (!event.value?.startsAt || !hasSpecificTime.value) return null
   const date = new Date(event.value.startsAt)
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -286,7 +293,10 @@ useHead({
               {{ formattedDate }}
             </time>
           </div>
-          <div class="flex items-center gap-2">
+          <div
+            v-if="formattedTime"
+            class="flex items-center gap-2"
+          >
             <UIcon
               name="i-heroicons-clock"
               class="w-5 h-5 text-primary-500"

@@ -200,47 +200,15 @@ async function scrapeEvents(url, timezone = 'America/New_York') {
   const page = await browser.newPage()
 
   try {
-    // Use domcontentloaded - networkidle can timeout on sites with analytics
     await page.goto(url, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(3000) // Wait for dynamic content
-
-    // IMPORTANT: Dismiss any popups/overlays that might block clicks
-    try {
-      await page.evaluate(function() {
-        // Remove jQuery UI overlays
-        var overlay = document.querySelector('.ui-widget-overlay')
-        if (overlay) overlay.remove()
-        // Remove common popup/modal overlays
-        var modals = document.querySelectorAll('[class*="popup"], [class*="modal-overlay"]')
-        modals.forEach(function(m) { m.remove() })
-      })
-    } catch (e) { /* ignore */ }
 
     const html = await page.content()
     const $ = cheerio.load(html)
 
-    // Array to hold extracted events
     var events = []
 
-    // TODO: Extract events from the page
-    // Loop through event elements - use actual selectors from the HTML
-    $('.event-item').each(function(_, el) {
-      var $el = $(el)
-
-      // Extract event data
-      var title = $el.find('.event-title').text().trim()
-      var dateStr = $el.find('.event-date').text().trim()
-
-      // Parse date to UTC using timezone
-      // var startsAt = fromZonedTime(new Date(dateStr), timezone)
-
-      events.push({
-        title: title,
-        startsAt: new Date(), // Replace with actual parsed date
-        sourceUrl: url
-        // Add other fields as available...
-      })
-    })
+    // TODO: Extract events using the strategies below
 
     await browser.close()
     return events
@@ -251,133 +219,56 @@ async function scrapeEvents(url, timezone = 'America/New_York') {
 }
 \`\`\`
 
+## Extraction Strategy (in order of preference)
+
+**1. Structured Data First** - JSON-LD (\`<script type="application/ld+json">\`) and microdata are the most reliable sources. They contain machine-readable event data including full descriptions, proper ISO dates, images, and ticket URLs. Always check for structured data before parsing HTML.
+
+**2. Event Detail Pages** - Listing pages typically show only titles and dates. Visit individual event detail pages on the same domain to get full descriptions, exact times, and images. Detail pages are also more likely to contain structured data. Only follow links on the same domain - ignore external ticket sites.
+
+**3. HTML Parsing** - Fall back to CSS selectors when structured data isn't available. This is more fragile as HTML can change with site redesigns. Look at the actual HTML provided and find the exact selectors used - don't assume class names.
+
+## Events to Skip
+
+Do not extract recurring events that lack specific dates. Skip events with titles like:
+- "Trivia Night Every Tuesday"
+- "Open Mic Wednesdays"
+- "Weekly Jazz Night"
+
+Only extract events that have actual calendar dates.
+
+## Dates Embedded in Titles
+
+Many venues embed dates directly in event titles rather than in separate elements:
+- "Saturday November 8th - Band Name"
+- "12/15 Holiday Show"
+- "NYE 2025 featuring DJ Example"
+
+When you see this pattern, parse the date from the title text and use the remaining text as the event title or artist name.
+
 ## Important Guidelines
 
-1. Extract ALL events from the page (loop through all event elements)
-2. Use specific CSS selectors based on the website's HTML structure
-3. **CRITICAL: Check for JSON-LD structured data first** - Many sites have \`<script type="application/ld+json">\` with event data including description
-4. Handle date/time parsing carefully - convert local time to UTC using fromZonedTime
-5. Handle pagination if needed (click "next" or "load more" buttons)
-6. Clean extracted text (trim whitespace, decode HTML entities)
-7. Return empty array if no events found
-8. ONLY return the code - no explanations, no markdown, just the TypeScript function
-9. The function MUST be named \`scrapeEvents\` and accept \`url\` and \`timezone\` parameters
-10. Always close the browser in a try/finally block
-
-## Extracting from JSON-LD (PREFERRED for descriptions)
-
-Many sites include structured data with full event details. Always check for this first on detail pages:
-
-\`\`\`javascript
-// On event detail page, look for JSON-LD
-var jsonLdScript = $('script[type="application/ld+json"]').html()
-if (jsonLdScript) {
-  try {
-    var jsonData = JSON.parse(jsonLdScript)
-    // Handle both single object and array formats
-    var eventData = Array.isArray(jsonData) ? jsonData[0] : jsonData
-    if (eventData.description) {
-      event.description = eventData.description
-    }
-    if (eventData.name) {
-      event.title = eventData.name
-    }
-  } catch (e) {
-    // JSON parse failed, fall back to CSS selectors
-  }
-}
-\`\`\`
-
-## Follow Links to Event Detail Pages
-
-Listing pages often only show title and date. For full details (description, images, times), follow links to individual event pages on the SAME domain. Look for links in event cards that go to paths like \`/events/...\` or \`/event/...\` - not external ticket sites.
+1. Extract ALL events from the page with specific dates
+2. Handle date/time parsing carefully - convert local time to UTC using fromZonedTime
+3. Use the current year dynamically when year is not in the date string: \`new Date().getFullYear()\`
+4. Handle pagination if needed (click "next" or "load more" buttons)
+5. Clean extracted text (trim whitespace, decode HTML entities)
+6. Return empty array if no events found
+7. ONLY return the code - no explanations, no markdown
+8. The function MUST be named \`scrapeEvents\` and accept \`url\` and \`timezone\` parameters
+9. Always close the browser in a try/catch block
 
 ## Expanding Hidden Content
 
-Many sites hide event descriptions behind expandable sections (accordions, info buttons, "read more" links). To get descriptions:
-1. Look for buttons/links with text like "info", "details", "more", "+", or expand icons
-2. Click them to expand the content before extracting
-3. Use \`page.click(selector)\` followed by a short wait: \`await page.waitForTimeout(500)\`
-4. Example: Click all expand buttons first, then extract:
-   \`\`\`javascript
-   // Click all info/expand buttons
-   var expandButtons = await page.$$('.info-btn, .expand-btn, [aria-expanded="false"]')
-   for (var btn of expandButtons) {
-     await btn.click()
-     await page.waitForTimeout(300)
-   }
-   // Now extract content
-   var html = await page.content()
-   \`\`\`
+Some sites hide event descriptions behind expandable sections (accordions, "read more" links). Look for buttons with text like "info", "details", or "more" and click them to expand content before extracting.
 
-## Finding Events - Common Patterns
+## Calendar Views
 
-CRITICAL: Don't assume CSS class names. Actually look at the HTML provided and find the EXACT selectors used.
-
-Common platforms and their patterns:
-- **Squarespace**: Events often in \`<article>\`, \`<li>\` or \`<div>\` with class containing "event". Look for \`data-item-id\` attributes. Links to individual events often contain date patterns in the URL path.
-- **Squarespace Calendar View**: Events may be in \`.eventlist-event\`, \`.eventitem\`, or nested in calendar grid cells
-- **WordPress**: Often \`.event-item\`, \`.tribe-events-*\`, \`.ai1ec-event\`
-- **Custom sites**: Look for repeated structures (multiple similar \`<div>\`, \`<article>\`, or \`<li>\` elements)
-
-Key strategy: If specific selectors fail, try these fallback approaches:
-1. Find ALL links containing date patterns in the URL (e.g., \`a[href*="/events/"]\`)
-2. Look for repeating structures with dates in text content
-3. Parse the visible text content to find date/title patterns
-4. Use the current year dynamically: \`new Date().getFullYear()\`
-
-## IMPORTANT: Calendar Views - Get Multiple Months
-
-If the page shows a calendar view (monthly grid), you MUST navigate to get future months too:
-
-1. **Look for "next month" navigation** - buttons/links with text like "Next", "→", ">", or month names
-2. **Collect events from at least 2-3 months** - the current month plus 1-2 future months
-3. **Navigation pattern:**
-   \`\`\`javascript
-   // Collect events from multiple months
-   var allEvents = []
-   var monthsToScrape = 3 // Current + 2 more months
-
-   for (var i = 0; i < monthsToScrape; i++) {
-     // Extract events from current month view
-     var html = await page.content()
-     var $ = cheerio.load(html)
-
-     // ... extract events and add to allEvents ...
-
-     // Navigate to next month (if not last iteration)
-     if (i < monthsToScrape - 1) {
-       var nextBtn = await page.$('.next-month, .yui3-calendarnav-nextmonth, [aria-label*="next"], [title*="Next"]')
-       if (nextBtn) {
-         await nextBtn.click()
-         await page.waitForTimeout(1000) // Wait for calendar to update
-       }
-     }
-   }
-   return allEvents
-   \`\`\`
-4. **Common next month selectors:**
-   - \`.yui3-calendarnav-nextmonth\` (YUI calendars)
-   - \`.fc-next-button\` (FullCalendar)
-   - \`.next-month\`, \`.calendar-next\`
-   - Links/buttons containing "→", ">", "Next"
-
-## Date Parsing Example
-
-\`\`\`javascript
-// If date string is "December 15, 2025 8:00 PM"
-var dateStr = "December 15, 2025 8:00 PM"
-var localDate = new Date(dateStr) // Parse as date
-var utcDate = fromZonedTime(localDate, timezone) // Convert to UTC
-
-// Use current year dynamically when year is not in the date string
-var currentYear = new Date().getFullYear()
-\`\`\`
+If the page shows a calendar view (monthly grid), navigate to get future months too. Look for "next month" buttons and collect events from at least 2-3 months.
 
 ## Response Format
 
-Your response should ONLY contain the TypeScript code, nothing else. Do not include:
-- Markdown code fences (no \`\`\`typescript)
+Your response should ONLY contain the JavaScript code, nothing else. Do not include:
+- Markdown code fences
 - Import statements
 - Export keywords
 - Explanations or comments outside the code`

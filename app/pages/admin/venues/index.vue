@@ -4,8 +4,10 @@ definePageMeta({
 })
 
 const { data: response, refresh } = await useFetch('/api/admin/venues')
+const { data: hardcodedData } = await useFetch('/api/agent/hardcoded-scrapers')
 
 const venues = computed(() => response.value?.venues || [])
+const hardcodedScraperSlugs = computed(() => new Set(hardcodedData.value?.slugs || []))
 
 function formatDate(date: string | null) {
   if (!date) return 'Never'
@@ -48,6 +50,73 @@ async function deleteVenue(id: string, name: string) {
   } catch (error: any) {
     alert(`Failed to delete: ${error.message}`)
   }
+}
+
+// Track which scrapers are currently running
+const runningScrapers = ref<Set<string>>(new Set())
+
+async function runScraper(sourceId: string, venueName: string) {
+  if (runningScrapers.value.has(sourceId)) return
+
+  runningScrapers.value.add(sourceId)
+
+  try {
+    const result = await $fetch('/api/agent/run-scraper', {
+      method: 'POST',
+      body: { sourceId },
+      timeout: 200000,
+    }) as any
+
+    if (result.success) {
+      const filteredMsg = result.filteredCount ? `, Filtered: ${result.filteredCount}` : ''
+      alert(`Scraped ${result.eventCount} events for ${venueName}.\nSaved: ${result.savedCount}, Skipped: ${result.skippedCount}${filteredMsg}`)
+    } else {
+      alert(`Scraper failed: ${result.error}`)
+    }
+    refresh()
+  } catch (error: any) {
+    alert(`Failed to run scraper: ${error.message}`)
+  } finally {
+    runningScrapers.value.delete(sourceId)
+  }
+}
+
+async function runHardcodedScraper(venueSlug: string, venueName: string) {
+  const key = `hardcoded-${venueSlug}`
+  if (runningScrapers.value.has(key)) return
+
+  runningScrapers.value.add(key)
+
+  try {
+    const result = await $fetch('/api/agent/run-hardcoded-scraper', {
+      method: 'POST',
+      body: { venueSlug },
+      timeout: 200000,
+    }) as any
+
+    if (result.success) {
+      const filteredMsg = result.filteredCount ? `, Filtered: ${result.filteredCount}` : ''
+      alert(`Scraped ${result.eventCount} events for ${venueName}.\nSaved: ${result.savedCount}, Skipped: ${result.skippedCount}${filteredMsg}`)
+    } else {
+      alert(`Scraper failed: ${result.error}`)
+    }
+    refresh()
+  } catch (error: any) {
+    alert(`Failed to run scraper: ${error.message}`)
+  } finally {
+    runningScrapers.value.delete(key)
+  }
+}
+
+// Check if venue has any scraper (AI-generated or hardcoded)
+function hasAnyScraper(venue: any): boolean {
+  return !!venue.scraper?.id || hardcodedScraperSlugs.value.has(venue.slug)
+}
+
+function isScraperRunning(venue: any): boolean {
+  if (venue.scraper?.id && runningScrapers.value.has(venue.scraper.id)) return true
+  if (hardcodedScraperSlugs.value.has(venue.slug) && runningScrapers.value.has(`hardcoded-${venue.slug}`)) return true
+  return false
 }
 
 useSeoMeta({
@@ -157,6 +226,32 @@ useSeoMeta({
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex justify-end gap-2">
+                <!-- Run Scraper button (AI-generated scraper) -->
+                <button
+                  v-if="venue.scraper?.id"
+                  :disabled="isScraperRunning(venue)"
+                  class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded disabled:opacity-50 disabled:cursor-wait"
+                  :title="isScraperRunning(venue) ? 'Running...' : 'Run scraper'"
+                  @click="runScraper(venue.scraper.id, venue.name)"
+                >
+                  <UIcon
+                    :name="isScraperRunning(venue) ? 'i-heroicons-arrow-path' : 'i-heroicons-play'"
+                    :class="['w-5 h-5', isScraperRunning(venue) ? 'animate-spin' : '']"
+                  />
+                </button>
+                <!-- Run Scraper button (hardcoded scraper) -->
+                <button
+                  v-else-if="hardcodedScraperSlugs.has(venue.slug)"
+                  :disabled="isScraperRunning(venue)"
+                  class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded disabled:opacity-50 disabled:cursor-wait"
+                  :title="isScraperRunning(venue) ? 'Running...' : 'Run hardcoded scraper'"
+                  @click="runHardcodedScraper(venue.slug, venue.name)"
+                >
+                  <UIcon
+                    :name="isScraperRunning(venue) ? 'i-heroicons-arrow-path' : 'i-heroicons-play'"
+                    :class="['w-5 h-5', isScraperRunning(venue) ? 'animate-spin' : '']"
+                  />
+                </button>
                 <NuxtLink
                   :to="`/venues/${venue.slug}`"
                   class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"

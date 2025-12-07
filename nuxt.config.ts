@@ -74,6 +74,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
   modules: ['@nuxt/ui', 'nuxt-auth-utils'],
 
+  // Session configuration for nuxt-auth-utils
+  session: {
+    // 30 days in seconds
+    maxAge: 60 * 60 * 24 * 30,
+    cookie: {
+      sameSite: 'lax',
+    },
+  },
+
   // Force light mode by default
   colorMode: {
     preference: 'light',

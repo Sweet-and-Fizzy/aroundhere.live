@@ -90,6 +90,8 @@ export default defineEventHandler(async (event) => {
     let savedCount = 0
     let skippedCount = 0
 
+    let filteredCount = 0
+
     if (saveEvents && scrapedEvents.length > 0) {
       const venueData = { id: venue.id, regionId: venue.regionId }
       const sourceData = { id: source.id, priority: source.priority }
@@ -97,6 +99,7 @@ export default defineEventHandler(async (event) => {
       const saveResult = await saveScrapedEvents(prisma, scrapedEvents, venueData, sourceData)
       savedCount = saveResult.saved
       skippedCount = saveResult.skipped
+      filteredCount = saveResult.filtered || 0
 
       // Classify newly saved events
       await classifyPendingEvents(prisma)
@@ -112,6 +115,7 @@ export default defineEventHandler(async (event) => {
       eventCount: scrapedEvents.length,
       savedCount,
       skippedCount,
+      filteredCount,
       events: scrapedEvents,
       executionTime: result.executionTime,
     }

@@ -10,7 +10,19 @@ import {
   decodeHtmlEntities,
   processDescriptions,
   generateSlug,
+  normalizeForComparison,
 } from '../utils/html'
+
+/**
+ * Generate a composite key for event uniqueness when sourceUrl is not unique.
+ * Uses venueId + date + time + normalized title to identify unique events.
+ */
+function generateCompositeKey(venueId: string, event: ScrapedEvent): string {
+  const date = event.startsAt.toISOString().split('T')[0] // YYYY-MM-DD
+  const time = event.startsAt.toTimeString().slice(0, 5) // HH:MM (24h format)
+  const title = normalizeForComparison(event.title)
+  return `${venueId}:${date}:${time}:${title}`
+}
 
 /**
  * Save a single scraped event to the database with deduplication
@@ -179,6 +191,31 @@ export async function saveEvent(
 }
 
 /**
+ * Check if an event date is valid (not too far in future, not in past)
+ * This catches cases where scraper incorrectly assumes next year for stale listings
+ */
+function isValidEventDate(startsAt: Date): { valid: boolean; reason?: string } {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Skip events in the past
+  if (startsAt < today) {
+    return { valid: false, reason: 'past event' }
+  }
+
+  // Skip events more than 10 months in the future
+  // This catches stale November listings being interpreted as next year when it's December
+  const maxFutureDate = new Date(now)
+  maxFutureDate.setMonth(maxFutureDate.getMonth() + 10)
+
+  if (startsAt > maxFutureDate) {
+    return { valid: false, reason: 'too far in future (>10 months)' }
+  }
+
+  return { valid: true }
+}
+
+/**
  * Save multiple scraped events and return counts
  */
 export async function saveScrapedEvents(
@@ -187,13 +224,40 @@ export async function saveScrapedEvents(
   venue: { id: string; regionId: string },
   source: { id: string; priority: number },
   defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
-): Promise<{ saved: number; skipped: number }> {
+): Promise<{ saved: number; skipped: number; filtered: number }> {
   let saved = 0
   let skipped = 0
+  let filtered = 0
+
+  // Detect if sourceUrls are non-unique (e.g., scraper returns listing page URL for all events)
+  const urlCounts: Record<string, number> = {}
+  for (const event of events) {
+    if (event.sourceUrl) {
+      urlCounts[event.sourceUrl] = (urlCounts[event.sourceUrl] || 0) + 1
+    }
+  }
+  const hasNonUniqueUrls = Object.values(urlCounts).some(count => count > 1)
+
+  if (hasNonUniqueUrls) {
+    console.log(`[SaveEvent] Detected non-unique sourceUrls, using composite keys for deduplication`)
+  }
 
   for (const event of events) {
     try {
-      const isNew = await saveEvent(prisma, event, venue, source, defaultAgeRestriction)
+      // Validate event date
+      const dateCheck = isValidEventDate(event.startsAt)
+      if (!dateCheck.valid) {
+        console.log(`[SaveEvent] Filtering out "${event.title}": ${dateCheck.reason}`)
+        filtered++
+        continue
+      }
+
+      // If sourceUrls are non-unique, generate a composite key as sourceEventId
+      const eventToSave = hasNonUniqueUrls
+        ? { ...event, sourceEventId: generateCompositeKey(venue.id, event) }
+        : event
+
+      const isNew = await saveEvent(prisma, eventToSave, venue, source, defaultAgeRestriction)
       if (isNew) {
         saved++
       } else {
@@ -205,6 +269,6 @@ export async function saveScrapedEvents(
     }
   }
 
-  return { saved, skipped }
+  return { saved, skipped, filtered }
 }
 

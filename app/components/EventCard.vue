@@ -16,7 +16,14 @@ const formattedDate = computed(() => {
   }
 })
 
+// Check if time is midnight (indicating no time was specified)
+const hasSpecificTime = computed(() => {
+  const date = new Date(props.event.startsAt)
+  return date.getHours() !== 0 || date.getMinutes() !== 0
+})
+
 const formattedTime = computed(() => {
+  if (!hasSpecificTime.value) return null
   const date = new Date(props.event.startsAt)
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -76,7 +83,7 @@ const truncatedDescription = computed(() => {
 <template>
   <UCard
     class="hover:shadow-lg transition-all duration-200 border-l-4 border-l-black overflow-hidden"
-    :ui="{ body: displayImage ? 'p-0 sm:p-0' : undefined }"
+    :ui="{ body: 'p-0 sm:p-0' }"
   >
     <!-- Mobile-first: Stacked layout, horizontal on md+ -->
     <div class="flex flex-col md:flex-row">
@@ -95,40 +102,26 @@ const truncatedDescription = computed(() => {
         >
       </div>
 
-      <!-- Date Block (only show if no image) - Horizontal on mobile, vertical on md+ -->
+      <!-- Fallback: Event title at venue on black background -->
       <div
         v-else
-        class="flex md:flex-col items-center md:items-stretch gap-3 md:gap-0 flex-shrink-0 md:w-20 md:text-center py-1"
+        class="flex-shrink-0 w-full md:w-64 lg:w-72 aspect-video md:aspect-square bg-black flex items-center justify-center p-4"
       >
-        <div class="bg-primary-50 rounded-lg px-4 py-2 md:px-2 md:py-3 flex md:flex-col items-center md:items-stretch gap-2 md:gap-0">
-          <div class="text-xs font-medium text-primary-600 uppercase tracking-wide">
-            {{ formattedDate.weekday }}
-          </div>
-          <div class="text-2xl md:text-3xl font-bold text-primary-700">
-            {{ formattedDate.day }}
-          </div>
-          <div class="text-sm font-medium text-primary-600 uppercase">
-            {{ formattedDate.month }}
-          </div>
-        </div>
-        <div class="flex md:flex-col items-center gap-2 md:gap-0 md:mt-2">
-          <div class="text-sm font-medium text-gray-700">
-            {{ formattedTime }}
+        <div class="text-center">
+          <div class="text-white font-bold text-lg leading-tight line-clamp-3">
+            {{ event.title }}
           </div>
           <div
-            v-if="doorsTime"
-            class="text-xs text-gray-500"
+            v-if="event.venue"
+            class="text-gray-300 text-sm mt-2"
           >
-            Doors {{ doorsTime }}
+            at {{ event.venue.name }}
           </div>
         </div>
       </div>
 
-      <!-- Event Details - add padding when image is present since card body has no padding -->
-      <div
-        class="flex-1 min-w-0"
-        :class="displayImage ? 'p-4 md:py-4 md:pr-4 md:pl-4 lg:pl-6' : 'py-1'"
-      >
+      <!-- Event Details - add padding since card body has no padding when image/fallback is present -->
+      <div class="flex-1 min-w-0 p-4 md:py-4 md:pr-4 md:pl-4 lg:pl-6">
         <!-- Date/Time row -->
         <div class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm text-gray-600 mb-1">
           <UIcon
@@ -136,12 +129,14 @@ const truncatedDescription = computed(() => {
             class="w-4 h-4 text-primary-500"
           />
           <span class="font-medium">{{ formattedDate.weekday }}, {{ formattedDate.month }} {{ formattedDate.day }}</span>
-          <span class="text-gray-400">at</span>
-          <span>{{ formattedTime }}</span>
-          <span
-            v-if="doorsTime"
-            class="text-gray-400 hidden sm:inline"
-          >(doors {{ doorsTime }})</span>
+          <template v-if="formattedTime">
+            <span class="text-gray-400">at</span>
+            <span>{{ formattedTime }}</span>
+            <span
+              v-if="doorsTime"
+              class="text-gray-400 hidden sm:inline"
+            >(doors {{ doorsTime }})</span>
+          </template>
         </div>
 
         <NuxtLink
@@ -266,10 +261,7 @@ const truncatedDescription = computed(() => {
       </div>
 
       <!-- Actions - Desktop only (hidden on mobile, shown at lg+) -->
-      <div
-        class="hidden lg:flex flex-shrink-0 flex-col justify-center gap-2"
-        :class="event.imageUrl ? 'p-4 pl-0' : ''"
-      >
+      <div class="hidden lg:flex flex-shrink-0 flex-col justify-center gap-2 p-4 pl-0">
         <UButton
           v-if="event.ticketUrl"
           :to="event.ticketUrl"
