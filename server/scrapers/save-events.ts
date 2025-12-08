@@ -12,6 +12,7 @@ import {
   generateSlug,
   normalizeForComparison,
 } from '../utils/html'
+import { extractAndLinkArtist } from '../utils/artist-extraction'
 
 /**
  * Generate a composite key for event uniqueness when sourceUrl is not unique.
@@ -186,6 +187,9 @@ export async function saveEvent(
       rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
     },
   })
+
+  // Extract and link artist from title
+  await extractAndLinkArtist(prisma, event.id, scrapedEvent.title)
 
   return true // New event created
 }

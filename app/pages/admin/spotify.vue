@@ -169,6 +169,28 @@ async function resetToPending(artistId: string) {
 const matching = ref(false)
 const matchResult = ref<any>(null)
 
+// Extract artists
+const extracting = ref(false)
+const extractResult = ref<any>(null)
+
+async function extractArtists() {
+  extracting.value = true
+  extractResult.value = null
+  try {
+    const result = await $fetch('/api/spotify/artists/extract', {
+      method: 'POST',
+      body: { limit: 500 },
+    })
+    extractResult.value = result
+    refreshArtists()
+    refreshStats()
+  } catch (error: any) {
+    alert(error.data?.message || 'Extraction failed')
+  } finally {
+    extracting.value = false
+  }
+}
+
 // Playlists
 const { data: playlistsData, refresh: refreshPlaylists } = await useFetch('/api/spotify/playlists')
 const playlists = computed(() => (playlistsData.value as any)?.playlists || [])
@@ -296,18 +318,33 @@ useSeoMeta({
         </p>
       </div>
 
-      <!-- Run Matcher Button -->
-      <button
-        :disabled="matching"
-        class="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-        @click="runMatcher(20)"
-      >
-        <span
-          v-if="matching"
-          class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
-        />
-        {{ matching ? 'Matching...' : 'Run Matcher (20)' }}
-      </button>
+      <div class="flex gap-2">
+        <!-- Extract Artists Button -->
+        <button
+          :disabled="extracting"
+          class="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+          @click="extractArtists"
+        >
+          <span
+            v-if="extracting"
+            class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+          />
+          {{ extracting ? 'Extracting...' : 'Extract Artists' }}
+        </button>
+
+        <!-- Run Matcher Button -->
+        <button
+          :disabled="matching"
+          class="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+          @click="runMatcher(20)"
+        >
+          <span
+            v-if="matching"
+            class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+          />
+          {{ matching ? 'Matching...' : 'Run Matcher (20)' }}
+        </button>
+      </div>
     </div>
 
     <!-- Stats Cards -->
@@ -354,6 +391,32 @@ useSeoMeta({
         <div class="text-sm text-gray-600">
           No Match
         </div>
+      </div>
+    </div>
+
+    <!-- Extract Result -->
+    <div
+      v-if="extractResult"
+      class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6"
+    >
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="font-medium text-green-900">
+            Extraction completed
+          </div>
+          <div class="text-sm text-green-700 mt-1">
+            Scanned {{ extractResult.eventsScanned }} events:
+            {{ extractResult.artistsCreated || extractResult.artistsFound }} artists created,
+            {{ extractResult.eventsLinked || 0 }} events linked,
+            {{ extractResult.skipped }} skipped
+          </div>
+        </div>
+        <button
+          class="text-green-600 hover:text-green-800"
+          @click="extractResult = null"
+        >
+          ×
+        </button>
       </div>
     </div>
 
