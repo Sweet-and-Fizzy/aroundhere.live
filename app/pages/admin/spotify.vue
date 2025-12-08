@@ -37,7 +37,7 @@ interface Playlist {
 }
 
 // Tabs
-const activeTab = ref<'review' | 'all' | 'matched'>('review')
+const activeTab = ref<'review' | 'matched' | 'verified' | 'pending' | 'nomatch' | 'all'>('review')
 
 // Stats
 const { data: stats, refresh: refreshStats } = await useFetch('/api/spotify/artists/stats')
@@ -47,18 +47,32 @@ const statusFilter = computed(() => {
   switch (activeTab.value) {
     case 'review': return 'NEEDS_REVIEW'
     case 'matched': return 'AUTO_MATCHED'
+    case 'verified': return 'VERIFIED'
+    case 'pending': return 'PENDING'
+    case 'nomatch': return 'NO_MATCH'
     default: return undefined
   }
 })
 
+// Filter
+const filterQuery = ref('')
+
 const { data: artistsData, refresh: refreshArtists } = await useFetch('/api/spotify/artists', {
   query: computed(() => ({
     status: statusFilter.value,
-    limit: 50,
+    limit: 100,
   })),
 })
 
-const artists = computed(() => artistsData.value?.artists || [])
+const artists = computed(() => {
+  const all = artistsData.value?.artists || []
+  if (!filterQuery.value.trim()) return all
+  const q = filterQuery.value.toLowerCase()
+  return all.filter((a: Artist) =>
+    a.name.toLowerCase().includes(q) ||
+    a.spotifyName?.toLowerCase().includes(q)
+  )
+})
 
 // Search modal state
 const showSearchModal = ref(false)
@@ -579,9 +593,25 @@ useSeoMeta({
       </div>
     </div>
 
+    <!-- Search and Tabs -->
+    <div class="flex items-center gap-4 mb-4">
+      <div class="relative flex-1 max-w-xs">
+        <UIcon
+          name="i-heroicons-magnifying-glass"
+          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+        />
+        <input
+          v-model="filterQuery"
+          type="text"
+          placeholder="Filter artists..."
+          class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+      </div>
+    </div>
+
     <!-- Tabs -->
     <div class="border-b border-gray-200 mb-6">
-      <nav class="flex gap-6">
+      <nav class="flex gap-4 flex-wrap">
         <button
           :class="activeTab === 'review'
             ? 'border-b-2 border-primary-600 text-primary-600'
@@ -590,6 +620,15 @@ useSeoMeta({
           @click="activeTab = 'review'"
         >
           Needs Review ({{ stats?.needsReview || 0 }})
+        </button>
+        <button
+          :class="activeTab === 'verified'
+            ? 'border-b-2 border-primary-600 text-primary-600'
+            : 'text-gray-500 hover:text-gray-700'"
+          class="pb-3 font-medium"
+          @click="activeTab = 'verified'"
+        >
+          Verified ({{ stats?.verified || 0 }})
         </button>
         <button
           :class="activeTab === 'matched'
@@ -601,13 +640,31 @@ useSeoMeta({
           Auto-Matched ({{ stats?.autoMatched || 0 }})
         </button>
         <button
+          :class="activeTab === 'pending'
+            ? 'border-b-2 border-primary-600 text-primary-600'
+            : 'text-gray-500 hover:text-gray-700'"
+          class="pb-3 font-medium"
+          @click="activeTab = 'pending'"
+        >
+          Pending ({{ stats?.pending || 0 }})
+        </button>
+        <button
+          :class="activeTab === 'nomatch'
+            ? 'border-b-2 border-primary-600 text-primary-600'
+            : 'text-gray-500 hover:text-gray-700'"
+          class="pb-3 font-medium"
+          @click="activeTab = 'nomatch'"
+        >
+          No Match ({{ stats?.noMatch || 0 }})
+        </button>
+        <button
           :class="activeTab === 'all'
             ? 'border-b-2 border-primary-600 text-primary-600'
             : 'text-gray-500 hover:text-gray-700'"
           class="pb-3 font-medium"
           @click="activeTab = 'all'"
         >
-          All Artists ({{ stats?.total || 0 }})
+          All ({{ stats?.total || 0 }})
         </button>
       </nav>
     </div>
@@ -735,6 +792,24 @@ useSeoMeta({
                     @click="openSearchModal(artist)"
                   >
                     Change
+                  </button>
+                </template>
+
+                <!-- For VERIFIED: Allow changing -->
+                <template v-else-if="artist.spotifyMatchStatus === 'VERIFIED'">
+                  <button
+                    :disabled="saving === artist.id"
+                    class="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                    @click="openSearchModal(artist)"
+                  >
+                    Change
+                  </button>
+                  <button
+                    :disabled="saving === artist.id"
+                    class="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                    @click="markNoMatch(artist.id)"
+                  >
+                    Remove
                   </button>
                 </template>
 
