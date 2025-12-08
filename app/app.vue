@@ -68,6 +68,13 @@ watch(() => route.fullPath, () => {
                 Venues
               </NuxtLink>
               <NuxtLink
+                to="/playlist"
+                class="text-gray-300 hover:text-white transition-colors"
+                active-class="text-white font-medium"
+              >
+                Playlist
+              </NuxtLink>
+              <NuxtLink
                 to="/contact"
                 class="text-gray-300 hover:text-white transition-colors"
                 active-class="text-white font-medium"
@@ -125,6 +132,13 @@ watch(() => route.fullPath, () => {
                 active-class="text-white bg-gray-800 font-medium"
               >
                 Venues
+              </NuxtLink>
+              <NuxtLink
+                to="/playlist"
+                class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                active-class="text-white bg-gray-800 font-medium"
+              >
+                Playlist
               </NuxtLink>
               <NuxtLink
                 to="/contact"
