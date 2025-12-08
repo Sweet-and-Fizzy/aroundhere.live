@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
-  extensions = [postgis]
+  extensions = [postgis, fuzzystrmatch, postgis_tiger_geocoder, postgis_topology]
 }
 
 // Geographic regions (cities, metros)
@@ -66,6 +66,7 @@ model Venue {
 
 enum VenueType {
   BAR
+  BREWERY
   CLUB
   THEATER
   CONCERT_HALL
@@ -99,6 +100,7 @@ model Artist {
   spotifyTracksUpdatedAt DateTime?            // When popular tracks were last fetched
 
   eventArtists EventArtist[]
+  spotifyPlaylistTracks SpotifyPlaylistTrack[]
 
   @@index([name])
   @@index([spotifyMatchStatus])
@@ -146,6 +148,7 @@ model Event {
   source       Source?       @relation(fields: [sourceId], references: [id]) // Canonical source
   eventArtists EventArtist[]
   eventSources EventSource[] // All sources that found this event
+  spotifyPlaylistTracks SpotifyPlaylistTrack[]
 
   @@unique([sourceId, sourceEventId])
   @@index([regionId, startsAt])
@@ -449,9 +452,13 @@ model SpotifyPlaylistTrack {
   eventId      String   // The event this track is for
   addedAt      DateTime @default(now())
 
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
   @@unique([playlistId, trackUri])
   @@index([playlistId])
   @@index([eventId])
+  @@index([artistId])
   @@map("spotify_playlist_tracks")
 }
 

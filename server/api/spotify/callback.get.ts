@@ -3,6 +3,7 @@
  * Exchanges authorization code for tokens and stores them
  */
 
+import { getCookie, deleteCookie, sendRedirect } from 'h3'
 import { spotifyService } from '../../services/spotify'
 
 export default defineEventHandler(async (event) => {

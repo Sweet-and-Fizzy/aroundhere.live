@@ -59,6 +59,8 @@ export interface Event {
       name: string
       slug: string
       genres: string[]
+      spotifyId?: string | null
+      spotifyMatchStatus?: string
     }
     order: number
   }[]
@@ -133,6 +135,13 @@ export function useEvents() {
       }>(`/api/search?${params.toString()}`)
 
       events.value = response.events
+      // Update pagination for search results (no server-side pagination for search)
+      pagination.value = {
+        total: response.events.length,
+        limit: response.events.length,
+        offset: 0,
+        hasMore: false,
+      }
       return response
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Search failed'

@@ -14,6 +14,7 @@ const adminMenuItems = computed(() => {
     [
       { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
       { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
+      { label: 'Spotify', icon: 'i-heroicons-musical-note', to: '/admin/spotify' },
     ],
   ]
 
@@ -160,6 +161,17 @@ watch(() => route.fullPath, () => {
                       class="w-4 h-4"
                     />
                     Scrapers
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/admin/spotify"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-musical-note"
+                      class="w-4 h-4"
+                    />
+                    Spotify
                   </NuxtLink>
                   <NuxtLink
                     v-if="isFullAdmin"

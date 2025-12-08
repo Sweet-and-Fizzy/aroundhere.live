@@ -9,6 +9,7 @@
  * - Playlist management
  */
 
+import { Buffer } from 'node:buffer'
 import { prisma } from '../../utils/prisma'
 import type {
   SpotifyArtist,

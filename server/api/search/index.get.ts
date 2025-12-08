@@ -70,6 +70,7 @@ export default defineEventHandler(async (event) => {
           city: true,
           latitude: true,
           longitude: true,
+          logoUrl: true,
         },
       },
       eventArtists: {
@@ -80,6 +81,8 @@ export default defineEventHandler(async (event) => {
               name: true,
               slug: true,
               genres: true,
+              spotifyId: true,
+              spotifyMatchStatus: true,
             },
           },
         },

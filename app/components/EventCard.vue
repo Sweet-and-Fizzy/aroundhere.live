@@ -58,19 +58,16 @@ const displayGenres = computed(() => {
   return Array.from(genres).slice(0, 3)
 })
 
-// Get display image - prefer event image, fallback to venue logo
-const displayImage = computed(() => {
-  return props.event.imageUrl || props.event.venue?.logoUrl
-})
-
-// Check if we're using venue logo as fallback (for styling purposes)
-const isVenueLogo = computed(() => {
-  return !props.event.imageUrl && props.event.venue?.logoUrl
-})
-
 // Check if description is long enough to warrant expansion
 const hasLongDescription = computed(() => {
   return props.event.description && props.event.description.length > 150
+})
+
+// Find first artist with verified Spotify match
+const spotifyArtist = computed(() => {
+  return props.event.eventArtists?.find(ea =>
+    ea.artist.spotifyId && ['AUTO_MATCHED', 'VERIFIED'].includes(ea.artist.spotifyMatchStatus || '')
+  )?.artist
 })
 
 const truncatedDescription = computed(() => {
@@ -88,16 +85,15 @@ const truncatedDescription = computed(() => {
     <!-- Mobile-first: Stacked layout, horizontal on md+ -->
     <div class="flex flex-col md:flex-row">
       <!-- Image - Full width edge-to-edge on mobile, fixed width on desktop -->
-      <!-- Shows event image or venue logo as fallback -->
+      <!-- Only shows actual event images, not venue logos -->
       <div
-        v-if="displayImage"
-        class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-black flex items-center justify-center"
-        :class="isVenueLogo ? 'aspect-video md:aspect-square p-4' : 'aspect-square'"
+        v-if="event.imageUrl"
+        class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-black flex items-center justify-center aspect-square"
       >
         <img
-          :src="displayImage"
+          :src="event.imageUrl"
           :alt="event.title"
-          :class="isVenueLogo ? 'max-w-full max-h-full object-contain' : 'max-w-full max-h-full object-contain'"
+          class="max-w-full max-h-full object-contain"
           loading="lazy"
         >
       </div>
@@ -108,7 +104,7 @@ const truncatedDescription = computed(() => {
         class="flex-shrink-0 w-full md:w-64 lg:w-72 aspect-video md:aspect-square bg-black flex items-center justify-center p-4"
       >
         <div class="text-center">
-          <div class="text-white font-bold text-lg leading-tight line-clamp-3">
+          <div class="text-white font-bold text-xl sm:text-2xl leading-tight line-clamp-3">
             {{ event.title }}
           </div>
           <div
@@ -139,14 +135,26 @@ const truncatedDescription = computed(() => {
           </template>
         </div>
 
-        <NuxtLink
-          :to="`/events/${event.slug}`"
-          class="block group"
-        >
-          <h3 class="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2">
-            {{ event.title }}
-          </h3>
-        </NuxtLink>
+        <div class="flex items-start gap-2">
+          <NuxtLink
+            :to="`/events/${event.slug}`"
+            class="block group flex-1 min-w-0"
+          >
+            <h3 class="font-bold text-xl sm:text-2xl text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2">
+              {{ event.title }}
+            </h3>
+          </NuxtLink>
+          <a
+            v-if="spotifyArtist"
+            :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
+            target="_blank"
+            class="flex-shrink-0 text-[#1DB954] hover:text-[#1ed760] transition-colors mt-1"
+            title="Listen on Spotify"
+            @click.stop
+          >
+            <SpotifyIcon class="w-5 h-5" />
+          </a>
+        </div>
 
         <div
           v-if="event.venue"

@@ -69,6 +69,8 @@ export default defineEventHandler(async (event) => {
                 name: true,
                 slug: true,
                 genres: true,
+                spotifyId: true,
+                spotifyMatchStatus: true,
               },
             },
           },

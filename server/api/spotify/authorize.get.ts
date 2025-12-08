@@ -4,6 +4,7 @@
  */
 
 import { randomBytes } from 'crypto'
+import { setCookie, sendRedirect } from 'h3'
 import { spotifyService } from '../../services/spotify'
 
 export default defineEventHandler(async (event) => {

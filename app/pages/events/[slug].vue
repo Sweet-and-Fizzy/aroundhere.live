@@ -61,6 +61,14 @@ const truncatedDescription = computed(() => {
   return event.value.description.slice(0, descriptionThreshold) + '...'
 })
 
+// Artists with verified Spotify matches
+const spotifyArtists = computed(() => {
+  if (!event.value?.eventArtists) return []
+  return event.value.eventArtists
+    .filter(ea => ea.artist.spotifyId && ['AUTO_MATCHED', 'VERIFIED'].includes(ea.artist.spotifyMatchStatus))
+    .map(ea => ea.artist)
+})
+
 // Google Maps URL for venue
 const mapUrl = computed(() => {
   if (!event.value?.venue) return ''
@@ -491,10 +499,28 @@ useHead({
                 </div>
               </dd>
             </div>
+
+            <div v-if="spotifyArtists.length">
+              <dt class="text-sm text-gray-500">
+                Listen
+              </dt>
+              <dd class="font-medium">
+                <div class="flex flex-wrap gap-3">
+                  <a
+                    v-for="artist in spotifyArtists"
+                    :key="artist.id"
+                    :href="`https://open.spotify.com/artist/${artist.spotifyId}`"
+                    target="_blank"
+                    class="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm"
+                  >
+                    <SpotifyIcon class="w-4 h-4" />
+                    {{ artist.name }}
+                  </a>
+                </div>
+              </dd>
+            </div>
           </dl>
         </UCard>
-
-        <!-- Artists section hidden until manual curation is implemented -->
       </div>
 
       <!-- Actions -->
