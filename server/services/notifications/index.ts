@@ -290,3 +290,57 @@ export async function notifyScraperApproved(params: {
   await sendSlackNotification(message, blocks)
 }
 
+/**
+ * Notify about artist matching results (when there are artists needing review)
+ */
+export async function notifyArtistMatchingResults(params: {
+  processed: number
+  autoMatched: number
+  needsReview: number
+  noMatch: number
+  errors: number
+  adminUrl?: string
+}): Promise<void> {
+  const { processed, autoMatched, needsReview, noMatch, errors, adminUrl } = params
+
+  // Only notify if there are artists needing review or errors
+  if (needsReview === 0 && errors === 0) {
+    console.log('[Notifications] No artists need review, skipping Slack notification')
+    return
+  }
+
+  const emoji = needsReview > 0 ? '🎵' : '⚠️'
+  const message = `${emoji} Artist Matching: ${needsReview} need review`
+
+  const statsText = [
+    `*Processed:* ${processed} artists`,
+    `*Auto-matched:* ${autoMatched}`,
+    `*Needs Review:* ${needsReview}`,
+    `*No Match:* ${noMatch}`,
+    errors > 0 ? `*Errors:* ${errors}` : null,
+  ].filter(Boolean).join('\n')
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `${emoji} *Spotify Artist Matching Complete*\n\n${statsText}`,
+      },
+    },
+  ]
+
+  // Add action button if adminUrl provided and there are items to review
+  if (adminUrl && needsReview > 0) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `<${adminUrl}|Review Artists in Admin>`,
+      },
+    })
+  }
+
+  await sendSlackNotification(message, blocks)
+}
+
