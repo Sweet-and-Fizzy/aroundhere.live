@@ -1,6 +1,9 @@
 import prisma from '../../utils/prisma'
+import { setCacheHeaders } from '../../utils/cache'
 
 export default defineEventHandler(async (event) => {
+  setCacheHeaders(event)
+
   const slug = getRouterParam(event, 'slug')
 
   if (!slug) {

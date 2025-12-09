@@ -1,7 +1,10 @@
 import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
+import { setCacheHeaders } from '../../utils/cache'
 
 export default defineEventHandler(async (event) => {
+  setCacheHeaders(event)
+
   const query = getQuery(event)
 
   // Parse query parameters
