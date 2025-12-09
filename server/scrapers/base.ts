@@ -366,9 +366,10 @@ export abstract class PlaywrightScraper implements BaseScraper {
     if (!text) return undefined
     const cleaned = this.cleanText(text)
 
-    // Look for price patterns
-    if (cleaned.toLowerCase().includes('free')) return 'Free'
-    if (cleaned.toLowerCase().includes('donation')) return 'Donation'
+    // Look for price patterns - use word boundaries to avoid matching "free" in other words
+    // Match "free", "free admission", "free entry", "free show", etc. but not "gluten-free"
+    if (/\bfree\s*(admission|entry|show|event|concert)?\b/i.test(cleaned)) return 'Free'
+    if (/\b(donation|pay what you can|pwyc|sliding scale)\b/i.test(cleaned)) return 'Donation'
 
     const priceMatch = cleaned.match(/\$[\d,]+(?:\.\d{2})?(?:\s*-\s*\$[\d,]+(?:\.\d{2})?)?/)
     return priceMatch ? priceMatch[0] : undefined
