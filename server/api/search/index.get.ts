@@ -37,6 +37,11 @@ export default defineEventHandler(async (event) => {
     eventWhere.venueId = venueId
   }
 
+  // Filter by genre at the database level
+  if (genres && genres.length > 0) {
+    eventWhere.canonicalGenres = { hasSome: genres.map(g => g.toLowerCase()) }
+  }
+
   // Text search on events
   if (q) {
     eventWhere.OR = [
@@ -97,21 +102,6 @@ export default defineEventHandler(async (event) => {
     take: limit,
   })
 
-  // Filter by genre if specified
-  let filteredEvents = events
-  if (genres && genres.length > 0) {
-    filteredEvents = events.filter(event => {
-      // Check event-level genres first
-      if (event.genres?.some(g => genres.includes(g))) {
-        return true
-      }
-      // Fallback to artist genres
-      return event.eventArtists.some(ea =>
-        ea.artist.genres.some(g => genres.includes(g))
-      )
-    })
-  }
-
   // Also search artists directly if there's a text query
   const artists = q
     ? await prisma.artist.findMany({
@@ -135,7 +125,7 @@ export default defineEventHandler(async (event) => {
     : []
 
   return {
-    events: filteredEvents,
+    events,
     artists,
     venues,
   }
