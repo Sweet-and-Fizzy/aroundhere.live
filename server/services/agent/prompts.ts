@@ -3,6 +3,7 @@
  */
 
 import type { VenueInfo } from './types'
+import { processHtmlForLlm, formatHtmlForPrompt } from './html-processor'
 
 export const VENUE_SCRAPER_SYSTEM_PROMPT = `You are an expert web scraper generator specializing in extracting venue information from websites.
 
@@ -277,7 +278,8 @@ export function createEventScraperUserPrompt(
   venueInfo: VenueInfo,
   timezone: string,
   pageHtml?: string,
-  previousAttempt?: { code: string; feedback: string }
+  previousAttempt?: { code: string; feedback: string },
+  detailPageHtml?: { url: string; html: string }
 ): string {
   let prompt = `Generate an event scraper for this venue website: ${url}\n\n`
 
@@ -317,6 +319,18 @@ export function createEventScraperUserPrompt(
 
   if (previousAttempt) {
     prompt += `PREVIOUS ATTEMPT:\nYour previous code did not extract all required event information.\n\nPrevious code:\n${previousAttempt.code}\n\nFeedback:\n${previousAttempt.feedback}\n\nPlease generate improved code that addresses the feedback and extracts the missing fields.\n\n`
+  }
+
+  // Include sample detail page HTML if provided
+  if (detailPageHtml) {
+    const processedDetail = processHtmlForLlm(detailPageHtml.html, 50000)
+
+    prompt += `## SAMPLE EVENT DETAIL PAGE\n`
+    prompt += `Here is a sample event detail page that contains more information (like full description, images, prices).\n`
+    prompt += `Detail page URL: ${detailPageHtml.url}\n\n`
+    prompt += `Your scraper should visit these detail pages to extract full descriptions and other fields not available on the listing page.\n\n`
+    prompt += formatHtmlForPrompt(processedDetail)
+    prompt += `\n`
   }
 
   prompt += `Generate the scrapeEvents function now. Remember:\n`

@@ -164,6 +164,7 @@ export class AgentService {
       let bestData: any = null
       let bestEvaluation: any = null
       let lastError: string | null = null // Track last error to provide feedback
+      let detailPageHtml: { url: string; html: string } | undefined = undefined // Sample detail page for event scrapers
 
       for (let attempt = 1; attempt <= maxIterations; attempt++) {
         onProgress?.(attempt, maxIterations)
@@ -206,6 +207,7 @@ export class AgentService {
           llmModel,
           userFeedback: previousFeedback ? undefined : userFeedback, // Only pass userFeedback on first attempt
           previousAttempt: attemptToUse,
+          detailPageHtml,
         })
 
         if (!codeResult.success || !codeResult.code) {
@@ -332,6 +334,46 @@ export class AgentService {
             fieldsMissing: evaluation.fieldsMissing,
           },
         })
+
+        // For event scrapers, try to fetch a sample detail page if we don't have one yet
+        // This helps the LLM understand what additional data is available on detail pages
+        if (sessionType === 'EVENT_SCRAPER' && !detailPageHtml && Array.isArray(execution.data)) {
+          // Find an event with a sourceUrl that's different from the listing page
+          // and on the same domain (to avoid external ticket sites)
+          const listingDomain = new URL(url).hostname
+          const eventWithDetailUrl = execution.data.find((event: any) => {
+            if (!event.sourceUrl || event.sourceUrl === url) return false
+            try {
+              const eventDomain = new URL(event.sourceUrl).hostname
+              return eventDomain === listingDomain
+            } catch {
+              return false
+            }
+          })
+
+          if (eventWithDetailUrl?.sourceUrl) {
+            addThinking({
+              type: 'analysis',
+              message: `Fetching sample event detail page: ${eventWithDetailUrl.sourceUrl}`,
+            })
+
+            try {
+              const detailHtml = await fetchPageHtml(eventWithDetailUrl.sourceUrl)
+              if (detailHtml) {
+                detailPageHtml = {
+                  url: eventWithDetailUrl.sourceUrl,
+                  html: detailHtml,
+                }
+                addThinking({
+                  type: 'analysis',
+                  message: `Fetched detail page (${Math.round(detailHtml.length / 1024)}KB) - will include in next iteration`,
+                })
+              }
+            } catch (error) {
+              console.log('[Agent] Failed to fetch detail page:', error)
+            }
+          }
+        }
 
         // Save attempt
         await prisma.scraperAttempt.create({
@@ -504,8 +546,9 @@ export class AgentService {
     llmModel: string
     previousAttempt?: { code: string; feedback: string }
     userFeedback?: string
+    detailPageHtml?: { url: string; html: string }
   }): Promise<{ success: boolean; code?: string; error?: string }> {
-    const { sessionType, url, pageHtml, venueInfo, llmProvider, llmModel, previousAttempt, userFeedback } = params
+    const { sessionType, url, pageHtml, venueInfo, llmProvider, llmModel, previousAttempt, userFeedback, detailPageHtml } = params
 
     try {
       const systemPrompt =
@@ -514,7 +557,7 @@ export class AgentService {
       let userPrompt =
         sessionType === 'VENUE_INFO'
           ? createVenueScraperUserPrompt(url, pageHtml, previousAttempt)
-          : createEventScraperUserPrompt(url, venueInfo!, 'America/New_York', pageHtml, previousAttempt)
+          : createEventScraperUserPrompt(url, venueInfo!, 'America/New_York', pageHtml, previousAttempt, detailPageHtml)
 
       // Add user feedback if provided
       if (userFeedback) {
