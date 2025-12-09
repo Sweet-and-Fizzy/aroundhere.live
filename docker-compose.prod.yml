@@ -77,7 +77,7 @@ services:
       - worker
 
   db:
-    image: postgis/postgis:16-3.4
+    build: ./docker/postgres
     container_name: aroundhere-db
     restart: unless-stopped
     environment:
