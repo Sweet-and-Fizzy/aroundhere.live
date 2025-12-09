@@ -270,5 +270,7 @@ const googleMapsUrl = computed(() => {
         />
       </div>
     </div>
+
+    <BackToTop />
   </div>
 </template>
