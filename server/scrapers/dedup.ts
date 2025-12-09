@@ -111,11 +111,13 @@ export async function findDuplicate(
 
       // Found a duplicate
       const existingPriority = existing.source?.priority ?? 50
+      const isSameSource = existing.sourceId === sourceId
 
       return {
         isDuplicate: true,
         existingEventId: existing.id,
-        shouldUpdateCanonical: sourcePriority < existingPriority,
+        // Update canonical if: same source (re-scrape), OR higher priority source
+        shouldUpdateCanonical: isSameSource || sourcePriority < existingPriority,
         similarity,
       }
     }
