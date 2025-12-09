@@ -69,6 +69,34 @@ const spotifyArtists = computed(() => {
     .map(ea => ea.artist)
 })
 
+// Collect all artist reviews from event artists
+const artistReviews = computed(() => {
+  if (!event.value?.eventArtists) return []
+  const reviews: Array<{
+    artistName: string
+    review: {
+      id: string
+      title: string
+      url: string
+      excerpt: string | null
+      publishedAt: string | null
+      source: { name: string; slug: string }
+    }
+  }> = []
+
+  for (const ea of event.value.eventArtists) {
+    if (ea.artist.artistReviews?.length) {
+      for (const ar of ea.artist.artistReviews) {
+        reviews.push({
+          artistName: ea.artist.name,
+          review: ar.review,
+        })
+      }
+    }
+  }
+  return reviews
+})
+
 // Google Maps URL for venue
 const mapUrl = computed(() => {
   if (!event.value?.venue) return ''
@@ -421,6 +449,53 @@ useHead({
               />
               View on Map
             </a>
+          </div>
+        </UCard>
+
+        <!-- Artist Reviews -->
+        <UCard v-if="artistReviews.length">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-heroicons-newspaper"
+                class="w-5 h-5 text-primary-500"
+              />
+              <span class="font-semibold">Press</span>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <div
+              v-for="ar in artistReviews"
+              :key="ar.review.id"
+              class="border-l-2 border-primary-200 pl-4"
+            >
+              <a
+                :href="ar.review.url"
+                target="_blank"
+                class="text-primary-600 hover:text-primary-700 font-medium hover:underline"
+              >
+                {{ ar.review.title }}
+              </a>
+              <p
+                v-if="ar.review.excerpt"
+                class="text-gray-600 text-sm mt-1 line-clamp-3"
+              >
+                "{{ ar.review.excerpt }}"
+              </p>
+              <div class="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                <span>{{ ar.review.source.name }}</span>
+                <span v-if="ar.review.publishedAt">•</span>
+                <time
+                  v-if="ar.review.publishedAt"
+                  :datetime="ar.review.publishedAt"
+                >
+                  {{ new Date(ar.review.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}
+                </time>
+                <span>•</span>
+                <span class="text-gray-400">featuring {{ ar.artistName }}</span>
+              </div>
+            </div>
           </div>
         </UCard>
 

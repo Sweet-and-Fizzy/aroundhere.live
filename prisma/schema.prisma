@@ -99,8 +99,9 @@ model Artist {
   spotifyPopularTracks   Json?                // [{trackId, name, uri, durationMs}]
   spotifyTracksUpdatedAt DateTime?            // When popular tracks were last fetched
 
-  eventArtists EventArtist[]
+  eventArtists          EventArtist[]
   spotifyPlaylistTracks SpotifyPlaylistTrack[]
+  artistReviews         ArtistReview[]
 
   @@index([name])
   @@index([spotifyMatchStatus])
@@ -143,6 +144,9 @@ model Event {
   isCancelled     Boolean      @default(false)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  // Vector embedding for similarity search (managed via raw SQL)
+  embedding       Unsupported("vector(1536)")?
 
   region       Region        @relation(fields: [regionId], references: [id])
   venue        Venue?        @relation(fields: [venueId], references: [id])
@@ -475,4 +479,54 @@ model SpotifyAuth {
   updatedAt    DateTime @updatedAt
 
   @@map("spotify_auth")
+}
+
+// Review sources (local music blogs, newsletters)
+model ReviewSource {
+  id            String    @id @default(cuid())
+  name          String    @unique // "Freakscene"
+  slug          String    @unique // "freakscene"
+  feedUrl       String    // Archive/feed URL to scrape
+  type          String    @default("buttondown") // buttondown, rss, etc.
+  lastFetchedAt DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  reviews Review[]
+
+  @@map("review_sources")
+}
+
+// Reviews/articles from local music writers
+model Review {
+  id          String    @id @default(cuid())
+  sourceId    String
+  url         String    @unique // Canonical URL of the review
+  title       String
+  excerpt     String?   // First paragraph or so for display
+  publishedAt DateTime?
+  fetchedAt   DateTime  @default(now())
+
+  source        ReviewSource   @relation(fields: [sourceId], references: [id])
+  artistReviews ArtistReview[]
+
+  @@index([sourceId])
+  @@index([publishedAt])
+  @@map("reviews")
+}
+
+// Junction table linking reviews to featured artists
+model ArtistReview {
+  id        String   @id @default(cuid())
+  artistId  String
+  reviewId  String
+  createdAt DateTime @default(now())
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, reviewId])
+  @@index([reviewId])
+  @@map("artist_reviews")
 }

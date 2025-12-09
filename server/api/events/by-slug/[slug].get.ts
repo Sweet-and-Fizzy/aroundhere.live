@@ -31,7 +31,30 @@ export default defineEventHandler(async (event) => {
       },
       eventArtists: {
         include: {
-          artist: true,
+          artist: {
+            include: {
+              artistReviews: {
+                include: {
+                  review: {
+                    include: {
+                      source: {
+                        select: {
+                          name: true,
+                          slug: true,
+                        },
+                      },
+                    },
+                  },
+                },
+                orderBy: {
+                  review: {
+                    publishedAt: 'desc',
+                  },
+                },
+                take: 3, // Limit reviews per artist
+              },
+            },
+          },
         },
         orderBy: {
           order: 'asc',

@@ -13,6 +13,8 @@ import { classifyPendingEvents } from '../../scrapers/classify-events'
 import type { ScrapedEvent } from '../../scrapers/types'
 
 // Import hardcoded scrapers
+import { scrapeFreakscene } from '../../scrapers/reviews/freakscene'
+import { notifyNewReviews } from '../../services/notifications'
 import { IronHorseScraper } from '../../scrapers/venues/iron-horse'
 import { TheDrakeScraper } from '../../scrapers/venues/the-drake'
 import { NewCityBreweryScraper } from '../../scrapers/venues/new-city-brewery'
@@ -192,7 +194,28 @@ export default defineEventHandler(async () => {
     }
   }
 
-  // 3. Classify any new events
+  // 3. Scrape review sources
+  let reviewStats = { newReviews: 0, artistMatches: 0, duration: 0 }
+  const reviewStart = Date.now()
+  try {
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY
+    if (anthropicApiKey) {
+      const reviewResult = await scrapeFreakscene(prisma, anthropicApiKey)
+      reviewStats = { ...reviewResult, duration: Date.now() - reviewStart }
+      console.log(`[Cron] Freakscene: ${reviewResult.newReviews} new reviews, ${reviewResult.artistMatches} artist matches`)
+
+      // Notify about new reviews with artist matches
+      await notifyNewReviews({
+        source: 'Freakscene',
+        newReviews: reviewResult.newReviews,
+        artistMatches: reviewResult.artistMatches,
+      })
+    }
+  } catch (error) {
+    console.error('[Cron] Freakscene scraper error:', error instanceof Error ? error.message : error)
+  }
+
+  // 4. Classify any new events
   await classifyPendingEvents(prisma)
 
   const totalDuration = Date.now() - start
@@ -211,6 +234,7 @@ export default defineEventHandler(async () => {
       failed,
       eventsSaved: totalSaved,
     },
+    reviews: reviewStats,
     results,
   }
 })

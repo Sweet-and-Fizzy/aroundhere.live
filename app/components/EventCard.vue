@@ -65,9 +65,15 @@ const spotifyArtist = computed(() => {
   )?.artist
 })
 
-// For display: use summary if available, otherwise fall back to description
+// For display: use summary if available, otherwise truncate description
 const displaySummary = computed(() => {
-  return props.event.summary || props.event.description || ''
+  if (props.event.summary) return props.event.summary
+  if (!props.event.description) return ''
+  // Truncate long descriptions to ~200 chars at word boundary
+  if (props.event.description.length <= 200) return props.event.description
+  const truncated = props.event.description.slice(0, 200)
+  const lastSpace = truncated.lastIndexOf(' ')
+  return (lastSpace > 150 ? truncated.slice(0, lastSpace) : truncated) + '...'
 })
 
 // Full description for expanded view - prefer HTML

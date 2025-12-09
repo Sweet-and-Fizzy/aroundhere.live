@@ -291,6 +291,36 @@ export async function notifyScraperApproved(params: {
 }
 
 /**
+ * Notify about new reviews scraped and matched to artists
+ */
+export async function notifyNewReviews(params: {
+  source: string
+  newReviews: number
+  artistMatches: number
+}): Promise<void> {
+  const { source, newReviews, artistMatches } = params
+
+  // Only notify if there are new reviews with artist matches
+  if (newReviews === 0 || artistMatches === 0) {
+    return
+  }
+
+  const message = `📰 ${source}: ${newReviews} new reviews, ${artistMatches} artist matches`
+
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `📰 *New Reviews from ${source}*\n\n*New Reviews:* ${newReviews}\n*Artist Matches:* ${artistMatches}`,
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+
+/**
  * Notify about artist matching results (when there are artists needing review)
  */
 export async function notifyArtistMatchingResults(params: {

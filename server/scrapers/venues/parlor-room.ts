@@ -1,5 +1,6 @@
 import { SquarespaceScraper } from '../platforms/squarespace'
 import type { ScraperConfig, ScrapedEvent } from '../types'
+import { decodeHtmlEntities } from '../../utils/html'
 
 export const parlorRoomConfig: ScraperConfig = {
   id: 'parlor-room',
@@ -17,9 +18,9 @@ export const parlorRoomConfig: ScraperConfig = {
 /**
  * Scraper for The Parlor Room in Northampton, MA
  *
- * The Parlor Room uses Squarespace with standard event pages.
- * Same organization as Iron Horse, uses similar structure.
- * Each event page has LD+JSON with event details.
+ * The Parlor Room uses Squarespace with LD+JSON event data embedded in the listing page.
+ * Events include descriptions directly in the LD+JSON, so we extract from there.
+ * Same organization as Iron Horse.
  */
 export class ParlorRoomScraper extends SquarespaceScraper {
   constructor() {
@@ -29,23 +30,21 @@ export class ParlorRoomScraper extends SquarespaceScraper {
   protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
-    // Wait for LD+JSON scripts to load (Parlor Room has events in LD+JSON)
+    // Wait for LD+JSON scripts to load
     try {
       await this.page.waitForSelector('script[type="application/ld+json"]', {
         timeout: 10000,
       })
     } catch {
-      // If specific selectors don't appear, wait for general content
       await this.page.waitForTimeout(3000)
     }
   }
 
-  // Override parseEvents to extract from LD+JSON first (Parlor Room has all events in LD+JSON)
+  // Extract events from LD+JSON on the listing page
   protected override async parseEvents(html: string): Promise<ScrapedEvent[]> {
     const $ = this.$(html)
     const events: ScrapedEvent[] = []
 
-    // First, extract all events from LD+JSON (Parlor Room has them all here)
     $('script[type="application/ld+json"]').each((_, el) => {
       try {
         const data = JSON.parse($(el).html() || '')
@@ -64,14 +63,8 @@ export class ParlorRoomScraper extends SquarespaceScraper {
       }
     })
 
-    // If we found events in LD+JSON, return them
-    if (events.length > 0) {
-      console.log(`[${this.config.name}] Found ${events.length} events from LD+JSON`)
-      return events
-    }
-
-    // Fallback to parent class method (visit individual event pages)
-    return super.parseEvents(html)
+    console.log(`[${this.config.name}] Found ${events.length} events from LD+JSON`)
+    return events
   }
 
   private parseLdJsonEvent(data: Record<string, unknown>): ScrapedEvent | null {
@@ -110,17 +103,27 @@ export class ParlorRoomScraper extends SquarespaceScraper {
         }
       }
 
+      // Get description - clean up HTML entities
+      let description = data.description as string | undefined
+      if (description) {
+        description = decodeHtmlEntities(description).trim()
+        // Skip empty or very short descriptions
+        if (description.length < 10) {
+          description = undefined
+        }
+      }
+
       // Generate stable event ID
       const dateStr = startsAt.toISOString().split('T')[0]
-      const titleSlug = title
+      const titleSlug = decodeHtmlEntities(title)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .slice(0, 50)
       const sourceEventId = `parlor-room-${dateStr}-${titleSlug}`
 
       return {
-        title: title.replace(/&amp;/g, '&').replace(/&apos;/g, "'"),
-        description: data.description as string | undefined,
+        title: decodeHtmlEntities(title),
+        description,
         imageUrl,
         startsAt,
         endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,
@@ -133,11 +136,4 @@ export class ParlorRoomScraper extends SquarespaceScraper {
       return null
     }
   }
-
-  // Override event link selector for Parlor Room's URL structure
-  // Try multiple patterns since Squarespace can vary
-  protected override eventLinkSelector = 'a[href*="/parlorroomshows/"], a[href*="/shows-events/"], a[href*="/upcoming-shows/"], a[href*="/events/"]'
-
-  // Override path pattern to match their URL structure
-  protected override eventPathPattern = /\/(parlorroomshows|shows-events|upcoming-shows|events)\/[a-z0-9-]+$/
 }
