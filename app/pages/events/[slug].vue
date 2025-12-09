@@ -364,6 +364,22 @@ useHead({
             >(Doors: {{ doorsTime }})</span>
           </div>
         </div>
+
+        <!-- Genre badges -->
+        <div
+          v-if="event.canonicalGenres?.length"
+          class="mt-3 flex flex-wrap gap-2"
+        >
+          <UBadge
+            v-for="genre in event.canonicalGenres"
+            :key="genre"
+            color="primary"
+            variant="soft"
+            size="sm"
+          >
+            {{ genre }}
+          </UBadge>
+        </div>
       </header>
 
       <!-- Main Content -->
