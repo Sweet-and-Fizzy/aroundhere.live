@@ -19,7 +19,9 @@ import type {
   ScraperGenerationResult,
   AgentThinkingStep,
   VenueInfo,
+  FieldEvaluationResult,
 } from './types'
+import type { LLMProvider } from '../llm/types'
 import crypto from 'crypto'
 
 export * from './types'
@@ -161,8 +163,8 @@ export class AgentService {
       // Iterative generation loop
       let bestCode: string | undefined = undefined
       let bestScore: number = 0
-      let bestData: any = null
-      let bestEvaluation: any = null
+      let bestData: VenueInfo | Record<string, unknown>[] | null = null
+      let bestEvaluation: FieldEvaluationResult | null = null
       let lastError: string | null = null // Track last error to provide feedback
       let detailPageHtml: { url: string; html: string } | undefined = undefined // Sample detail page for event scrapers
 
@@ -341,7 +343,7 @@ export class AgentService {
           // Find an event with a sourceUrl that's different from the listing page
           // and on the same domain (to avoid external ticket sites)
           const listingDomain = new URL(url).hostname
-          const eventWithDetailUrl = execution.data.find((event: any) => {
+          const eventWithDetailUrl = execution.data.find((event: Record<string, unknown>) => {
             if (!event.sourceUrl || event.sourceUrl === url) return false
             try {
               const eventDomain = new URL(event.sourceUrl).hostname
@@ -565,7 +567,7 @@ export class AgentService {
       }
 
       const response = await llmService.complete({
-        provider: llmProvider as any,
+        provider: llmProvider as LLMProvider,
         model: llmModel,
         messages: [{ role: 'user', content: userPrompt }],
         systemPrompt,
