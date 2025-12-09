@@ -196,11 +196,22 @@ const outlookCalendarUrl = computed(() => {
 
 const config = useRuntimeConfig()
 
-// Fetch related events
-const { data: relatedEvents } = await useFetch(() => `/api/events/${event.value?.id}/related?limit=6`, {
+// Fetch related events with pagination
+const relatedLimit = ref(6)
+const { data: relatedEvents } = await useFetch(() => `/api/events/${event.value?.id}/related?limit=${relatedLimit.value}`, {
   // Only fetch if we have an event
   immediate: !!event.value?.id,
+  watch: [relatedLimit],
 })
+
+const hasMoreRelated = computed(() => {
+  if (!relatedEvents.value) return false
+  return relatedEvents.value.events?.length === relatedLimit.value && relatedEvents.value.hasMore !== false
+})
+
+function loadMoreRelated() {
+  relatedLimit.value += 6
+}
 
 // Build a clean description for SEO - prefer summary, then description
 const seoDescription = computed(() => {
@@ -710,6 +721,20 @@ useHead({
               </div>
             </div>
           </NuxtLink>
+        </div>
+
+        <!-- Show More / Back buttons -->
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <UButton
+            v-if="hasMoreRelated"
+            color="neutral"
+            variant="outline"
+            icon="i-heroicons-arrow-down"
+            @click="loadMoreRelated"
+          >
+            Show More
+          </UButton>
+          <BackButton />
         </div>
       </section>
     </div>

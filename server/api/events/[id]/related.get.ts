@@ -64,11 +64,13 @@ export default defineEventHandler(async (event) => {
         },
       },
       orderBy: { startsAt: 'asc' },
-      take: limit,
+      take: limit + 1,
     })
 
+    const hasMore = fallbackEvents.length > limit
     return {
-      events: fallbackEvents,
+      events: fallbackEvents.slice(0, limit),
+      hasMore,
       method: 'venue_fallback',
     }
   }
@@ -115,11 +117,13 @@ export default defineEventHandler(async (event) => {
     ORDER BY e.embedding <=> source.embedding
     LIMIT $2`,
     id,
-    limit
+    limit + 1
   )
 
+  const hasMore = relatedEvents.length > limit
+
   // Transform to match expected format
-  const events = relatedEvents.map(e => ({
+  const events = relatedEvents.slice(0, limit).map(e => ({
     id: e.id,
     title: e.title,
     slug: e.slug,
@@ -137,6 +141,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     events,
+    hasMore,
     method: 'embedding_similarity',
   }
 })
