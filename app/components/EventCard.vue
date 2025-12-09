@@ -105,8 +105,9 @@ const hasMoreContent = computed(() => {
     <div class="flex flex-col md:flex-row">
       <!-- Image - Full width edge-to-edge on mobile, fixed width on desktop -->
       <!-- Only shows actual event images, not venue logos -->
-      <div
+      <NuxtLink
         v-if="event.imageUrl"
+        :to="`/events/${event.slug}`"
         class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-black flex items-center justify-center aspect-square"
       >
         <img
@@ -115,11 +116,12 @@ const hasMoreContent = computed(() => {
           class="max-w-full max-h-full object-contain"
           loading="lazy"
         >
-      </div>
+      </NuxtLink>
 
       <!-- Fallback: Event title at venue on black background -->
-      <div
+      <NuxtLink
         v-else
+        :to="`/events/${event.slug}`"
         class="flex-shrink-0 w-full md:w-64 lg:w-72 aspect-video md:aspect-square bg-black flex items-center justify-center p-4"
       >
         <div class="text-center">
@@ -133,7 +135,7 @@ const hasMoreContent = computed(() => {
             at {{ event.venue.name }}
           </div>
         </div>
-      </div>
+      </NuxtLink>
 
       <!-- Event Details - add padding since card body has no padding when image/fallback is present -->
       <div class="flex-1 min-w-0 p-4 md:py-4 md:pr-4 md:pl-4 lg:pl-6">
@@ -271,14 +273,12 @@ const hasMoreContent = computed(() => {
             Tickets
           </UButton>
           <UButton
-            v-if="event.sourceUrl"
-            :to="event.sourceUrl"
-            target="_blank"
+            :to="`/events/${event.slug}`"
             size="sm"
             color="neutral"
-            icon="i-heroicons-arrow-top-right-on-square"
+            icon="i-heroicons-information-circle"
           >
-            Event Page
+            More Info
           </UButton>
         </div>
       </div>
@@ -296,14 +296,12 @@ const hasMoreContent = computed(() => {
           Tickets
         </UButton>
         <UButton
-          v-if="event.sourceUrl"
-          :to="event.sourceUrl"
-          target="_blank"
+          :to="`/events/${event.slug}`"
           size="sm"
           color="neutral"
-          icon="i-heroicons-arrow-top-right-on-square"
+          icon="i-heroicons-information-circle"
         >
-          Event Page
+          More Info
         </UButton>
       </div>
     </div>
