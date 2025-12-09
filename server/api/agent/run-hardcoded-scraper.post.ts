@@ -134,13 +134,14 @@ export default defineEventHandler(async (event) => {
       data: { lastRunAt: new Date(), lastRunStatus: 'success' },
     })
 
-    console.log(`[RUN-HARDCODED] Completed: ${result.events.length} events, saved ${saveResult.saved}, canceled ${saveResult.canceled}`)
+    console.log(`[RUN-HARDCODED] Completed: ${result.events.length} events, saved ${saveResult.saved}, updated ${saveResult.updated}, canceled ${saveResult.canceled}`)
 
     return {
       success: true,
       eventCount: result.events.length,
       savedCount: saveResult.saved,
       skippedCount: saveResult.skipped,
+      updatedCount: saveResult.updated,
       filteredCount: saveResult.filtered,
       canceledCount: saveResult.canceled,
       executionTime,

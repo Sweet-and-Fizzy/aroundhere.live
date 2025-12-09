@@ -25,9 +25,11 @@ function generateCompositeKey(venueId: string, event: ScrapedEvent): string {
   return `${venueId}:${date}:${time}:${title}`
 }
 
+export type SaveEventResult = 'created' | 'updated' | 'skipped'
+
 /**
  * Save a single scraped event to the database with deduplication
- * Returns true if a new event was created, false if updated/skipped
+ * Returns 'created' for new events, 'updated' for updated events, 'skipped' for no changes
  */
 export async function saveEvent(
   prisma: PrismaClient,
@@ -35,7 +37,7 @@ export async function saveEvent(
   venue: { id: string; regionId: string },
   source: { id: string; priority: number },
   defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
-): Promise<boolean> {
+): Promise<SaveEventResult> {
   // First, check if this exact source already has this event (by source + sourceEventId)
   if (scrapedEvent.sourceEventId) {
     const existingFromSameSource = await prisma.event.findFirst({
@@ -67,7 +69,7 @@ export async function saveEvent(
           updatedAt: new Date(),
         },
       })
-      return false // Not a new event
+      return 'updated'
     }
   }
 
@@ -107,8 +109,8 @@ export async function saveEvent(
     })
 
     if (dedupResult.shouldUpdateCanonical) {
-      // This source has higher priority, update the canonical event
-      console.log(`[SaveEvent] Updating canonical source (higher priority)`)
+      // Same source re-scrape or higher priority source - update the canonical event
+      console.log(`[SaveEvent] Updating canonical event (same source or higher priority)`)
       const canonicalDescriptions = processDescriptions(scrapedEvent.description)
       await prisma.event.update({
         where: { id: dedupResult.existingEventId },
@@ -126,6 +128,7 @@ export async function saveEvent(
           updatedAt: new Date(),
         },
       })
+      return 'updated'
     } else {
       // Lower priority source - only fill in missing data
       const existing = await prisma.event.findUnique({
@@ -141,11 +144,12 @@ export async function saveEvent(
               updatedAt: new Date(),
             },
           })
+          return 'updated'
         }
       }
     }
 
-    return false // Duplicate, not a new event
+    return 'skipped' // Duplicate with no changes needed
   }
 
   // Generate slug
@@ -193,7 +197,7 @@ export async function saveEvent(
   // Extract and link artist from title
   await extractAndLinkArtist(prisma, event.id, scrapedEvent.title)
 
-  return true // New event created
+  return 'created'
 }
 
 /**
@@ -282,9 +286,10 @@ export async function saveScrapedEvents(
   venue: { id: string; regionId: string },
   source: { id: string; priority: number },
   defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
-): Promise<{ saved: number; skipped: number; filtered: number; canceled: number }> {
+): Promise<{ saved: number; skipped: number; updated: number; filtered: number; canceled: number }> {
   let saved = 0
   let skipped = 0
+  let updated = 0
   let filtered = 0
 
   // Detect if sourceUrls are non-unique (e.g., scraper returns listing page URL for all events)
@@ -324,9 +329,11 @@ export async function saveScrapedEvents(
         scrapedSourceEventIds.push(eventToSave.sourceEventId)
       }
 
-      const isNew = await saveEvent(prisma, eventToSave, venue, source, defaultAgeRestriction)
-      if (isNew) {
+      const result = await saveEvent(prisma, eventToSave, venue, source, defaultAgeRestriction)
+      if (result === 'created') {
         saved++
+      } else if (result === 'updated') {
+        updated++
       } else {
         skipped++
       }
@@ -344,6 +351,6 @@ export async function saveScrapedEvents(
     venue.id
   )
 
-  return { saved, skipped, filtered, canceled }
+  return { saved, skipped, updated, filtered, canceled }
 }
 

@@ -69,7 +69,8 @@ async function runScraper(sourceId: string, venueName: string) {
 
     if (result.success) {
       const filteredMsg = result.filteredCount ? `, Filtered: ${result.filteredCount}` : ''
-      alert(`Scraped ${result.eventCount} events for ${venueName}.\nSaved: ${result.savedCount}, Skipped: ${result.skippedCount}${filteredMsg}`)
+      const updatedMsg = result.updatedCount ? `, Updated: ${result.updatedCount}` : ''
+      alert(`Scraped ${result.eventCount} events for ${venueName}.\nSaved: ${result.savedCount}, Skipped: ${result.skippedCount}${updatedMsg}${filteredMsg}`)
     } else {
       alert(`Scraper failed: ${result.error}`)
     }
@@ -96,7 +97,8 @@ async function runHardcodedScraper(venueSlug: string, venueName: string) {
 
     if (result.success) {
       const filteredMsg = result.filteredCount ? `, Filtered: ${result.filteredCount}` : ''
-      alert(`Scraped ${result.eventCount} events for ${venueName}.\nSaved: ${result.savedCount}, Skipped: ${result.skippedCount}${filteredMsg}`)
+      const updatedMsg = result.updatedCount ? `, Updated: ${result.updatedCount}` : ''
+      alert(`Scraped ${result.eventCount} events for ${venueName}.\nSaved: ${result.savedCount}, Skipped: ${result.skippedCount}${updatedMsg}${filteredMsg}`)
     } else {
       alert(`Scraper failed: ${result.error}`)
     }
