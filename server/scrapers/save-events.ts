@@ -297,7 +297,7 @@ export async function saveScrapedEvents(
   const hasNonUniqueUrls = Object.values(urlCounts).some(count => count > 1)
 
   if (hasNonUniqueUrls) {
-    console.log(`[SaveEvent] Detected non-unique sourceUrls, using composite keys for deduplication`)
+    console.log(`[SaveEvent] Detected non-unique sourceUrls, will use composite keys for events without sourceEventId`)
   }
 
   // Track sourceEventIds for cancellation detection
@@ -313,8 +313,9 @@ export async function saveScrapedEvents(
         continue
       }
 
-      // If sourceUrls are non-unique, generate a composite key as sourceEventId
-      const eventToSave = hasNonUniqueUrls
+      // If sourceUrls are non-unique AND scraper doesn't provide its own sourceEventId,
+      // generate a composite key. Don't override scraper-provided IDs.
+      const eventToSave = hasNonUniqueUrls && !event.sourceEventId
         ? { ...event, sourceEventId: generateCompositeKey(venue.id, event) }
         : event
 
