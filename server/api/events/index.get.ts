@@ -46,6 +46,10 @@ export default defineEventHandler(async (event) => {
     ...(regionId && { regionId }),
     ...(venueIds && venueIds.length > 0 && { venueId: { in: venueIds } }),
     ...(venueId && !venueIds && { venueId }),
+    // Filter by genre - check canonicalGenres array (case-insensitive)
+    ...(genres && genres.length > 0 && {
+      canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) },
+    }),
   }
 
   // Fetch events with related data
@@ -91,28 +95,8 @@ export default defineEventHandler(async (event) => {
     prisma.event.count({ where }),
   ])
 
-  // Filter by genre if specified (post-query filter for now)
-  let filteredEvents = events
-  if (genres && genres.length > 0) {
-    const genresLower = genres.map(g => g.toLowerCase())
-    filteredEvents = events.filter(event => {
-      // Check canonicalGenres (from classifier) - case insensitive
-      if (event.canonicalGenres?.some(g => genresLower.includes(g.toLowerCase()))) {
-        return true
-      }
-      // Check event-level genres
-      if (event.genres?.some(g => genresLower.includes(g.toLowerCase()))) {
-        return true
-      }
-      // Fallback to artist genres
-      return event.eventArtists.some(ea =>
-        ea.artist.genres.some(g => genresLower.includes(g.toLowerCase()))
-      )
-    })
-  }
-
   return {
-    events: filteredEvents,
+    events,
     pagination: {
       total,
       limit,
