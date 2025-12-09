@@ -62,6 +62,7 @@ useHead({
           v-if="allVenues.length > 0"
           :venues="allVenues"
           persist-key="mapBounds"
+          :show-controls="true"
           @visible-venues="onVisibleVenues"
         />
       </ClientOnly>
