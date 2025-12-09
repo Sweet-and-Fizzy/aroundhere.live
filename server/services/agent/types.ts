@@ -66,7 +66,6 @@ export const VENUE_OPTIONAL_FIELDS = ['postalCode', 'phone', 'description', 'ven
 export const EVENT_REQUIRED_FIELDS = ['title', 'startsAt', 'sourceUrl']
 export const EVENT_OPTIONAL_FIELDS = [
   'description',
-  'descriptionHtml',
   'imageUrl',
   'doorsAt',
   'endsAt',

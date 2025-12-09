@@ -27,6 +27,7 @@ Your job is to:
 1. Determine if an event is a MUSIC event vs NON-MUSIC (comedy, trivia, private event, etc.)
 2. Assign an event type from our enum
 3. If it IS a music event, assign 1-3 relevant genres from our curated list
+4. Write a concise 1-2 sentence summary of the event for display on event cards
 
 EVENT TYPES:
 - MUSIC: Live music performance by band/artist
@@ -66,6 +67,12 @@ CONFIDENCE LEVELS:
 - 0.5-0.7: Uncertain (limited information)
 - Below 0.5: Very uncertain (flag for human review)
 
+SUMMARY:
+- Write a concise summary (1-3 sentences, under 300 chars) of the event for display on listing cards
+- Focus on who/what is performing and why it's interesting
+- Don't include date, time, venue, or pricing (shown separately)
+- If no description is provided, return null - don't invent details
+
 Respond with ONLY valid JSON, no markdown.`
 
 export function buildClassificationPrompt(
@@ -76,6 +83,7 @@ export function buildClassificationPrompt(
 2. eventType: one of the event types listed above
 3. canonicalGenres: array of genre slugs (empty if not music, 1-3 if music)
 4. confidence: 0.0-1.0
+5. summary: concise summary for listing cards (null if no description provided)
 
 Events to classify:
 ${events
@@ -84,14 +92,14 @@ ${events
 ${i + 1}. ID: ${e.id}
    Title: ${e.title}
    Venue: ${e.venueName || 'Unknown'}
-   Description: ${e.description?.slice(0, 500) || 'None provided'}
+   Description: ${e.description?.slice(0, 1500) || 'None provided'}
 `
   )
   .join('\n')}
 
 Respond with a JSON array:
 [
-  { "eventId": "...", "isMusic": true, "eventType": "MUSIC", "canonicalGenres": ["rock", "indie"], "confidence": 0.95 },
+  { "eventId": "...", "isMusic": true, "eventType": "MUSIC", "canonicalGenres": ["rock", "indie"], "confidence": 0.95, "summary": "..." },
   ...
 ]`
 }

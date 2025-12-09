@@ -219,6 +219,7 @@ export async function runAIScrapers(): Promise<RunnerResult[]> {
         const saveResult = await saveScrapedEvents(prisma, scrapedEvents, venueData, sourceData)
         savedEvents = saveResult.saved
         skippedEvents = saveResult.skipped
+        console.log(`[${source.name}] Canceled ${saveResult.canceled} missing events`)
       } else if (!execResult.success) {
         console.error(`[${source.name}] Execution failed:`, execResult.error)
       }

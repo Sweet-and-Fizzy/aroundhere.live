@@ -107,42 +107,9 @@ export class DeLaLuzScraper extends HttpScraper {
 
     console.log(`[${this.config.name}] Found ${normalizedLinks.length} event links`)
 
-    // If we found structured data events, try to match them with links or use their URLs
-    if (structuredDataEvents.length > 0) {
-      console.log(`[${this.config.name}] Found ${structuredDataEvents.length} events in structured data`)
-      
-      for (const { data, url } of structuredDataEvents) {
-        // If structured data has a URL, use it; otherwise try to find matching link
-        let eventUrl = url
-        if (!eventUrl && normalizedLinks.length > 0) {
-          // Try to match by title - find a link that might correspond to this event
-          const eventTitle = (data.name as string)?.toLowerCase()
-          if (eventTitle) {
-            // Look for a link that contains words from the title
-            const titleWords = eventTitle.split(/\s+/).filter(w => w.length > 3)
-            eventUrl = normalizedLinks.find(link => {
-              const linkLower = link.toLowerCase()
-              return titleWords.some(word => linkLower.includes(word))
-            })
-          }
-        }
-        
-        // Use the URL from structured data or fallback to config URL
-        const sourceUrl = eventUrl || this.config.url
-        const event = this.parseEventSchema(data, sourceUrl)
-        if (event) {
-          events.push(event)
-        }
-      }
-      
-    }
-
-    // Fetch each event page (either from links or to supplement structured data)
+    // Always fetch individual event pages to get accurate pricing
+    // The homepage structured data doesn't include price ranges
     for (const link of normalizedLinks) {
-      // Skip if we already have this event from structured data
-      const alreadyHave = events.some(e => e.sourceUrl === link)
-      if (alreadyHave) continue
-      
       try {
         const event = await this.scrapeEventPage(link)
         if (event) {
@@ -174,6 +141,9 @@ export class DeLaLuzScraper extends HttpScraper {
       const html = await response.text()
       const $ = cheerio.load(html)
 
+      // Extract price range from HTML (more accurate than structured data)
+      const priceFromHtml = this.extractPriceFromHtml($)
+
       // Try to extract from LD+JSON first (most reliable)
       let eventData: ScrapedEvent | null = null
 
@@ -189,9 +159,9 @@ export class DeLaLuzScraper extends HttpScraper {
 
           for (const item of items) {
             const itemType = item['@type']
-            
+
             // Support Event, MusicEvent, TheaterEvent, and other event types
-            if (itemType === 'Event' || itemType === 'MusicEvent' || itemType === 'TheaterEvent' || 
+            if (itemType === 'Event' || itemType === 'MusicEvent' || itemType === 'TheaterEvent' ||
                 (typeof itemType === 'string' && itemType.endsWith('Event'))) {
               eventData = this.parseEventSchema(item, url)
               if (eventData) break
@@ -213,11 +183,76 @@ export class DeLaLuzScraper extends HttpScraper {
         eventData = this.parseEventFromHtml($, url)
       }
 
+      // Override cover charge with HTML-extracted price if available (more accurate)
+      if (eventData && priceFromHtml) {
+        eventData.coverCharge = priceFromHtml
+      }
+
       return eventData
     } catch (error) {
       console.error(`[${this.config.name}] Error fetching ${url}:`, error)
       return null
     }
+  }
+
+  /**
+   * Extract price range from HTML - De La Luz uses WooCommerce with variable pricing
+   * The most reliable source is the data-product_variations JSON attribute
+   */
+  private extractPriceFromHtml($: cheerio.CheerioAPI): string | undefined {
+    // Best source: data-product_variations JSON contains display_price for each tier
+    const variationsEl = $('[data-product_variations]')
+    if (variationsEl.length) {
+      try {
+        const variationsJson = variationsEl.attr('data-product_variations')
+        if (variationsJson) {
+          const variations = JSON.parse(variationsJson) as Array<{ display_price?: number }>
+          const prices = variations
+            .map(v => v.display_price)
+            .filter((p): p is number => typeof p === 'number')
+
+          if (prices.length > 0) {
+            const minPrice = Math.min(...prices)
+            const maxPrice = Math.max(...prices)
+
+            // Handle free events
+            if (maxPrice === 0) {
+              return 'Free'
+            }
+
+            return minPrice === maxPrice ? `$${minPrice}` : `$${minPrice}-$${maxPrice}`
+          }
+        }
+      } catch {
+        // JSON parse error, fall through to other methods
+      }
+    }
+
+    // Fallback: Look for price display in .bde-text elements
+    const priceEl = $('.bde-text .woocommerce-Price-amount')
+    if (priceEl.length >= 1) {
+      const prices: number[] = []
+      priceEl.each((_, el) => {
+        const text = $(el).text().replace(/[^0-9.]/g, '')
+        const price = parseFloat(text)
+        if (!isNaN(price)) {
+          prices.push(price)
+        }
+      })
+
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices)
+        const maxPrice = Math.max(...prices)
+
+        if (maxPrice === 0) {
+          return 'Free'
+        }
+
+        return minPrice === maxPrice ? `$${minPrice}` : `$${minPrice}-$${maxPrice}`
+      }
+    }
+
+    return undefined
   }
 
   private parseEventSchema(data: Record<string, unknown>, sourceUrl: string): ScrapedEvent | null {
@@ -285,13 +320,22 @@ export class DeLaLuzScraper extends HttpScraper {
         imageUrl = (image as Record<string, string>)?.url
       }
 
-      // Get price
+      // Get price - will be enhanced with full range from HTML later
       let coverCharge: string | undefined
       const offers = data.offers as Record<string, unknown> | Record<string, unknown>[]
       if (offers) {
-        const offer = Array.isArray(offers) ? offers[0] : offers
-        if (offer?.price) {
-          coverCharge = `$${offer.price}`
+        const offersList = Array.isArray(offers) ? offers : [offers]
+        // Try to get price range if multiple offers
+        const prices = offersList
+          .map(o => parseFloat(String(o?.price || o?.lowPrice || '')))
+          .filter(p => !isNaN(p))
+
+        if (prices.length > 1) {
+          const minPrice = Math.min(...prices)
+          const maxPrice = Math.max(...prices)
+          coverCharge = minPrice === maxPrice ? `$${minPrice}` : `$${minPrice}-${maxPrice}`
+        } else if (prices.length === 1) {
+          coverCharge = `$${prices[0]}`
         }
       }
 

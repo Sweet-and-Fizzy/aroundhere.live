@@ -58,11 +58,6 @@ const displayGenres = computed(() => {
   return Array.from(genres).slice(0, 3)
 })
 
-// Check if description is long enough to warrant expansion
-const hasLongDescription = computed(() => {
-  return props.event.description && props.event.description.length > 150
-})
-
 // Find first artist with verified Spotify match
 const spotifyArtist = computed(() => {
   return props.event.eventArtists?.find(ea =>
@@ -70,10 +65,28 @@ const spotifyArtist = computed(() => {
   )?.artist
 })
 
-const truncatedDescription = computed(() => {
-  if (!props.event.description) return ''
-  if (!hasLongDescription.value) return props.event.description
-  return props.event.description.slice(0, 150) + '...'
+// For display: use summary if available, otherwise fall back to description
+const displaySummary = computed(() => {
+  return props.event.summary || props.event.description || ''
+})
+
+// Full description for expanded view - prefer HTML
+const fullDescription = computed(() => {
+  return props.event.descriptionHtml || props.event.description || ''
+})
+
+// Show expand button if there's more content in full description than summary
+const hasMoreContent = computed(() => {
+  if (!fullDescription.value) return false
+  // If we have a summary and a longer full description, show expand
+  if (props.event.summary && fullDescription.value.length > props.event.summary.length + 50) {
+    return true
+  }
+  // If no summary but description is long, show expand
+  if (!props.event.summary && props.event.description && props.event.description.length > 200) {
+    return true
+  }
+  return false
 })
 </script>
 
@@ -217,25 +230,21 @@ const truncatedDescription = computed(() => {
 
         <!-- Expandable Description -->
         <div
-          v-if="event.description"
+          v-if="displaySummary || fullDescription"
           class="mt-3"
         >
-          <div class="text-sm text-gray-600">
-            <p
+          <div class="text-sm text-gray-600 prose prose-sm prose-gray max-w-none">
+            <div
               v-if="!expanded"
-              class="whitespace-pre-line"
-            >
-              {{ truncatedDescription }}
-            </p>
-            <p
+              v-html="displaySummary"
+            />
+            <div
               v-else
-              class="whitespace-pre-line"
-            >
-              {{ event.description }}
-            </p>
+              v-html="fullDescription"
+            />
           </div>
           <button
-            v-if="hasLongDescription"
+            v-if="hasMoreContent"
             class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1"
             @click="expanded = !expanded"
           >

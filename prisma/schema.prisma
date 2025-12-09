@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
-  extensions = [postgis, fuzzystrmatch, postgis_tiger_geocoder, postgis_topology]
+  extensions = [postgis, fuzzystrmatch, postgis_tiger_geocoder, postgis_topology, vector]
 }
 
 // Geographic regions (cities, metros)
@@ -129,6 +129,7 @@ model Event {
   isMusic           Boolean?       // true=music event, false=non-music, null=unclassified
   eventType         EventType?     // Classified event type
   canonicalGenres   String[]       // Normalized genre slugs from classifier
+  summary           String?        // AI-generated concise summary for listing cards
   classifiedAt      DateTime?      // When classification was performed
   classificationConfidence Float?  // 0-1 confidence score from classifier
 

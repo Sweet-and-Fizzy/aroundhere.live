@@ -240,20 +240,13 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
 
       if (contentParts.length === 0) return {}
 
-      // Build HTML description
-      const descriptionHtml = contentParts.map((p) => p.content).join('\n')
-
-      // Build plain text description (for backwards compatibility/search)
-      const description = contentParts
-        .filter((p) => p.text)
-        .map((p) => p.text)
-        .join('\n\n')
+      // Build HTML description (processDescriptions will extract plain text)
+      const description = contentParts.map((p) => p.content).join('\n')
 
       return {
         pricingInfo,
         doorsInfo,
         description: description || undefined,
-        descriptionHtml: descriptionHtml || undefined,
       }
     })
   }
@@ -264,7 +257,7 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
   protected parseSquarespaceEvent(
     data: Record<string, unknown>,
     sourceUrl: string,
-    pageContent?: { pricingInfo?: string; doorsInfo?: string; description?: string; descriptionHtml?: string }
+    pageContent?: { pricingInfo?: string; doorsInfo?: string; description?: string }
   ): ScrapedEvent | null {
     try {
       // Extract and clean title (often has " — Venue Name" suffix)
@@ -325,7 +318,6 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
       return {
         title,
         description,
-        descriptionHtml: pageContent?.descriptionHtml,
         imageUrl,
         startsAt,
         endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,

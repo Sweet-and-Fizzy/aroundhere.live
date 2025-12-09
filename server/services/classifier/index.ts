@@ -67,6 +67,11 @@ export class EventClassifier {
     const confidence =
       typeof raw.confidence === 'number' ? Math.max(0, Math.min(1, raw.confidence)) : 0.5
 
+    // Validate summary - should be a non-empty string or null
+    const summary = typeof raw.summary === 'string' && raw.summary.trim().length > 0
+      ? raw.summary.trim().slice(0, 500) // Cap at 500 chars just in case
+      : undefined
+
     return {
       eventId: raw.eventId || '',
       isMusic,
@@ -74,6 +79,7 @@ export class EventClassifier {
       canonicalGenres,
       confidence,
       reasoning: raw.reasoning,
+      summary,
     }
   }
 

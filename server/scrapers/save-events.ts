@@ -47,7 +47,7 @@ export async function saveEvent(
 
     if (existingFromSameSource) {
       // Update existing event from same source
-      const descriptions = processDescriptions(scrapedEvent.description, scrapedEvent.descriptionHtml)
+      const descriptions = processDescriptions(scrapedEvent.description)
       await prisma.event.update({
         where: { id: existingFromSameSource.id },
         data: {
@@ -62,6 +62,8 @@ export async function saveEvent(
           ticketUrl: scrapedEvent.ticketUrl,
           sourceUrl: scrapedEvent.sourceUrl,
           genres: scrapedEvent.genres || [],
+          // If event reappears after being marked canceled, uncancel it
+          isCancelled: false,
           updatedAt: new Date(),
         },
       })
@@ -107,7 +109,7 @@ export async function saveEvent(
     if (dedupResult.shouldUpdateCanonical) {
       // This source has higher priority, update the canonical event
       console.log(`[SaveEvent] Updating canonical source (higher priority)`)
-      const canonicalDescriptions = processDescriptions(scrapedEvent.description, scrapedEvent.descriptionHtml)
+      const canonicalDescriptions = processDescriptions(scrapedEvent.description)
       await prisma.event.update({
         where: { id: dedupResult.existingEventId },
         data: {
@@ -150,7 +152,7 @@ export async function saveEvent(
   const slug = generateSlug(scrapedEvent.title, scrapedEvent.startsAt)
 
   // Process descriptions - preserve HTML in descriptionHtml, clean text in description
-  const newDescriptions = processDescriptions(scrapedEvent.description, scrapedEvent.descriptionHtml)
+  const newDescriptions = processDescriptions(scrapedEvent.description)
 
   // Create new event
   const event = await prisma.event.create({
@@ -220,6 +222,58 @@ function isValidEventDate(startsAt: Date): { valid: boolean; reason?: string } {
 }
 
 /**
+ * Mark events as canceled if they're no longer listed by their source.
+ * Only affects future events from this specific source.
+ * Returns the number of events marked as canceled.
+ */
+export async function markMissingEventsAsCanceled(
+  prisma: PrismaClient,
+  scrapedEventIds: string[],
+  sourceId: string,
+  venueId: string
+): Promise<number> {
+  const now = new Date()
+
+  // Find future events from this source/venue that weren't in the scraped list
+  const missingEvents = await prisma.event.findMany({
+    where: {
+      sourceId,
+      venueId,
+      startsAt: { gte: now },
+      isCancelled: false,
+      // Only consider events that have a sourceEventId (so we can match them)
+      sourceEventId: {
+        notIn: scrapedEventIds.filter(Boolean),
+        not: null,
+      },
+    },
+    select: { id: true, title: true, startsAt: true },
+  })
+
+  if (missingEvents.length === 0) {
+    return 0
+  }
+
+  console.log(`[SaveEvent] Marking ${missingEvents.length} missing events as canceled:`)
+  for (const event of missingEvents) {
+    console.log(`  - "${event.title}" (${event.startsAt.toISOString().split('T')[0]})`)
+  }
+
+  // Mark them as canceled
+  await prisma.event.updateMany({
+    where: {
+      id: { in: missingEvents.map(e => e.id) },
+    },
+    data: {
+      isCancelled: true,
+      updatedAt: new Date(),
+    },
+  })
+
+  return missingEvents.length
+}
+
+/**
  * Save multiple scraped events and return counts
  */
 export async function saveScrapedEvents(
@@ -228,7 +282,7 @@ export async function saveScrapedEvents(
   venue: { id: string; regionId: string },
   source: { id: string; priority: number },
   defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
-): Promise<{ saved: number; skipped: number; filtered: number }> {
+): Promise<{ saved: number; skipped: number; filtered: number; canceled: number }> {
   let saved = 0
   let skipped = 0
   let filtered = 0
@@ -246,6 +300,9 @@ export async function saveScrapedEvents(
     console.log(`[SaveEvent] Detected non-unique sourceUrls, using composite keys for deduplication`)
   }
 
+  // Track sourceEventIds for cancellation detection
+  const scrapedSourceEventIds: string[] = []
+
   for (const event of events) {
     try {
       // Validate event date
@@ -261,6 +318,11 @@ export async function saveScrapedEvents(
         ? { ...event, sourceEventId: generateCompositeKey(venue.id, event) }
         : event
 
+      // Track the sourceEventId for cancellation detection
+      if (eventToSave.sourceEventId) {
+        scrapedSourceEventIds.push(eventToSave.sourceEventId)
+      }
+
       const isNew = await saveEvent(prisma, eventToSave, venue, source, defaultAgeRestriction)
       if (isNew) {
         saved++
@@ -273,6 +335,14 @@ export async function saveScrapedEvents(
     }
   }
 
-  return { saved, skipped, filtered }
+  // Mark events that are no longer listed as canceled
+  const canceled = await markMissingEventsAsCanceled(
+    prisma,
+    scrapedSourceEventIds,
+    source.id,
+    venue.id
+  )
+
+  return { saved, skipped, filtered, canceled }
 }
 

@@ -176,8 +176,7 @@ Your task is to analyze a venue's event listing page and generate JavaScript cod
 - sourceUrl: URL to the event or event list page
 
 **Optional Fields (extract as many as possible):**
-- description: Event description (plain text)
-- descriptionHtml: Event description (HTML with images/videos)
+- description: Event description (prefer HTML to preserve formatting/links/images - we'll extract plain text automatically)
 - imageUrl: Event image URL
 - doorsAt: Doors open time as Date object (UTC)
 - endsAt: Event end time as Date object (UTC)

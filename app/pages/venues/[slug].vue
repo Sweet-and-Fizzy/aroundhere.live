@@ -147,7 +147,7 @@ const googleMapsUrl = computed(() => {
   <div v-if="venue">
     <!-- Header with optional banner image -->
     <div
-      class="relative text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-8"
+      class="relative text-white py-12 -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 px-4 sm:px-6 lg:px-8 mb-8 min-h-[280px] sm:min-h-[320px] flex items-end"
       :class="venue.imageUrl ? '' : 'bg-gray-900'"
     >
       <!-- Banner image background -->
@@ -158,9 +158,9 @@ const googleMapsUrl = computed(() => {
         <img
           :src="venue.imageUrl"
           :alt="`${venue.name} banner`"
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover object-center"
         >
-        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
       </div>
 
       <div class="relative max-w-4xl mx-auto">

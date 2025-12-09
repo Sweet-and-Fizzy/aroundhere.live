@@ -82,6 +82,7 @@ export default defineEventHandler(async () => {
             eventsFound: result.events.length,
             eventsSaved: saveResult.saved,
             eventsSkipped: saveResult.skipped,
+            eventsCanceled: saveResult.canceled,
             duration: Date.now() - scraperStart,
           })
         }
@@ -92,6 +93,7 @@ export default defineEventHandler(async () => {
           eventsFound: 0,
           eventsSaved: 0,
           eventsSkipped: 0,
+          eventsCanceled: 0,
           duration: Date.now() - scraperStart,
           error: result.error,
         })
@@ -103,6 +105,7 @@ export default defineEventHandler(async () => {
         eventsFound: 0,
         eventsSaved: 0,
         eventsSkipped: 0,
+        eventsCanceled: 0,
         duration: Date.now() - scraperStart,
         error: error instanceof Error ? error.message : 'Unknown error',
       })
@@ -155,6 +158,7 @@ export default defineEventHandler(async () => {
           eventsFound: events.length,
           eventsSaved: saveResult.saved,
           eventsSkipped: saveResult.skipped,
+          eventsCanceled: saveResult.canceled,
           duration: Date.now() - scraperStart,
         })
       } else {
@@ -169,6 +173,7 @@ export default defineEventHandler(async () => {
           eventsFound: 0,
           eventsSaved: 0,
           eventsSkipped: 0,
+          eventsCanceled: 0,
           duration: Date.now() - scraperStart,
           error: result.error,
         })
@@ -180,6 +185,7 @@ export default defineEventHandler(async () => {
         eventsFound: 0,
         eventsSaved: 0,
         eventsSkipped: 0,
+        eventsCanceled: 0,
         duration: Date.now() - scraperStart,
         error: error instanceof Error ? error.message : 'Unknown error',
       })

@@ -57,14 +57,15 @@ const showCalendar = ref(false)
 const selectedVenues = ref<{ label: string; value: string }[]>(savedFilters?.selectedVenues || [])
 const searchQuery = ref(savedFilters?.searchQuery || '')
 const selectedGenres = ref<{ label: string; value: string }[]>(savedFilters?.selectedGenres || [])
-// Multi-select for event types - default to Music
+// Multi-select for event types - default to All Music
 const selectedEventTypes = ref<{ label: string; value: string }[]>(
-  savedFilters?.selectedEventTypes || [{ label: 'Music', value: 'MUSIC' }]
+  savedFilters?.selectedEventTypes || [{ label: 'All Music', value: 'ALL_MUSIC' }]
 )
 
 // Map filter state
 const mapFilteredVenueIds = ref<string[] | null>(null)
 const mapAccordionOpen = ref<string | undefined>(undefined)
+const mapCenter = ref<{ lat: number; lng: number; radius: number | 'view' } | null>(null)
 
 // Shared localStorage key for map bounds (used across all pages)
 const MAP_BOUNDS_KEY = 'mapBounds'
@@ -74,13 +75,82 @@ const venuesWithCoords = computed(() =>
   props.venues?.filter(v => v.latitude && v.longitude) || []
 )
 
+// Calculate distance between two points in miles (Haversine formula)
+function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3959 // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+// Filter venues by radius from center
+function filterVenuesByRadius() {
+  if (!mapCenter.value) {
+    mapFilteredVenueIds.value = null
+    return
+  }
+
+  const { lat, lng, radius } = mapCenter.value
+  const venuesInRadius = venuesWithCoords.value.filter(v => {
+    if (!v.latitude || !v.longitude) return false
+    const distance = getDistanceMiles(lat, lng, v.latitude, v.longitude)
+    return distance <= radius
+  })
+
+  mapFilteredVenueIds.value = venuesInRadius.map(v => v.id)
+}
+
 function onMapVisibleVenues(venueIds: string[]) {
-  mapFilteredVenueIds.value = venueIds
-  applyFilters()
+  // Use viewport filtering when in 'view' mode
+  if (mapCenter.value?.radius === 'view') {
+    mapFilteredVenueIds.value = venueIds
+    applyFilters()
+  }
 }
 
 function clearMapFilter() {
   mapFilteredVenueIds.value = null
+  // Clear persisted map bounds
+  if (import.meta.client) {
+    localStorage.removeItem(MAP_BOUNDS_KEY)
+  }
+  applyFilters()
+}
+
+// Track if map has been customized (search, locate, etc.)
+const mapHasCustomCenter = computed(() => mapCenter.value !== null)
+
+function onMapCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
+  mapCenter.value = center
+  if (center.radius === 'view') {
+    // In view mode, clear radius filter - will be set by onMapVisibleVenues
+    // But we need to trigger a filter update immediately based on current view
+    // The map's moveend/zoomend will call onMapVisibleVenues
+    mapFilteredVenueIds.value = null
+    applyFilters()
+  } else {
+    filterVenuesByRadius()
+    applyFilters()
+  }
+}
+
+function resetMap() {
+  mapFilteredVenueIds.value = null
+  mapCenter.value = null
+  // Clear persisted map bounds to trigger reset on next render
+  if (import.meta.client) {
+    localStorage.removeItem(MAP_BOUNDS_KEY)
+  }
+  // Force map to re-render by toggling the accordion
+  const wasOpen = mapAccordionOpen.value
+  mapAccordionOpen.value = undefined
+  nextTick(() => {
+    mapAccordionOpen.value = wasOpen
+  })
   applyFilters()
 }
 
@@ -91,7 +161,7 @@ const hasActiveFilters = computed(() => {
     selectedVenues.value.length > 0 ||
     selectedGenres.value.length > 0 ||
     selectedEventTypes.value.length !== 1 ||
-    selectedEventTypes.value[0]?.value !== 'MUSIC' ||
+    selectedEventTypes.value[0]?.value !== 'ALL_MUSIC' ||
     datePreset.value !== 'month' ||
     mapFilteredVenueIds.value !== null
   )
@@ -102,7 +172,7 @@ function resetFilters() {
   searchQuery.value = ''
   selectedVenues.value = []
   selectedGenres.value = []
-  selectedEventTypes.value = [{ label: 'Music', value: 'MUSIC' }]
+  selectedEventTypes.value = [{ label: 'All Music', value: 'ALL_MUSIC' }]
   datePreset.value = 'month'
   customDateRange.value = undefined
   mapFilteredVenueIds.value = null
@@ -113,15 +183,27 @@ function resetFilters() {
   applyFilters()
 }
 
-// Event type options - includes common non-music events
-const eventTypeItems = [
-  { label: 'Music', value: 'MUSIC' },
+// Music-related event types (for "All Music" selection)
+const musicEventTypes = [
+  { label: 'Live Music', value: 'MUSIC' },
   { label: 'DJ Sets', value: 'DJ' },
   { label: 'Open Mic', value: 'OPEN_MIC' },
+  { label: 'Karaoke', value: 'KARAOKE' },
+]
+
+// Non-music event types
+const nonMusicEventTypes = [
   { label: 'Comedy', value: 'COMEDY' },
   { label: 'Theater', value: 'THEATER' },
   { label: 'Trivia', value: 'TRIVIA' },
-  { label: 'Karaoke', value: 'KARAOKE' },
+]
+
+// Event type options - includes common non-music events
+const eventTypeItems = [
+  { label: 'All Events', value: 'ALL_EVENTS' },
+  { label: 'All Music', value: 'ALL_MUSIC' },
+  ...musicEventTypes,
+  ...nonMusicEventTypes,
 ]
 
 const datePresets = [
@@ -264,10 +346,20 @@ function applyFilters() {
   }
 
   // Get event types from multi-select
-  const eventTypes = selectedEventTypes.value.map(e => e.value).filter(Boolean)
+  let eventTypes = selectedEventTypes.value.map(e => e.value).filter(Boolean)
 
-  // If no event types selected, show all events (including non-music)
-  const musicOnly = eventTypes.length === 0 ? false : undefined
+  // ALL_EVENTS means no filtering by type
+  const showAllEvents = eventTypes.includes('ALL_EVENTS')
+
+  // Expand ALL_MUSIC to all music-related types
+  if (!showAllEvents && eventTypes.includes('ALL_MUSIC')) {
+    const otherTypes = eventTypes.filter(t => t !== 'ALL_MUSIC')
+    const musicTypes = musicEventTypes.map(t => t.value)
+    eventTypes = [...new Set([...musicTypes, ...otherTypes])]
+  }
+
+  // If no event types selected or ALL_EVENTS, show all events (including non-music)
+  const musicOnly = (eventTypes.length === 0 || showAllEvents) ? false : undefined
 
   emit('filter', {
     startDate,
@@ -275,7 +367,7 @@ function applyFilters() {
     venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
     genres: selectedGenres.value.length > 0 ? selectedGenres.value.map(g => g.value) : undefined,
-    eventTypes: eventTypes.length > 0 ? eventTypes : undefined,
+    eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
   })
 
@@ -494,21 +586,29 @@ onMounted(() => {
               <VenueMap
                 :venues="venuesWithCoords"
                 :persist-key="MAP_BOUNDS_KEY"
+                :show-controls="true"
                 @visible-venues="onMapVisibleVenues"
+                @center-changed="onMapCenterChanged"
               />
             </ClientOnly>
-            <p
-              v-if="mapFilteredVenueIds !== null"
-              class="text-xs text-gray-500 mt-2"
-            >
-              Showing events from {{ mapFilteredVenueIds.length }} venue{{ mapFilteredVenueIds.length === 1 ? '' : 's' }} in view
-              <button
-                class="text-primary-600 hover:underline ml-2"
-                @click="clearMapFilter"
+            <div class="flex items-center justify-between mt-2">
+              <p
+                v-if="mapFilteredVenueIds !== null"
+                class="text-xs text-gray-500"
               >
-                Clear
-              </button>
-            </p>
+                Showing events from {{ mapFilteredVenueIds.length }} venue{{ mapFilteredVenueIds.length === 1 ? '' : 's' }} in view
+              </p>
+              <span v-else />
+              <UButton
+                v-if="mapFilteredVenueIds !== null || mapHasCustomCenter"
+                size="xs"
+                color="neutral"
+                variant="outline"
+                @click="resetMap"
+              >
+                Reset Map
+              </UButton>
+            </div>
           </div>
         </template>
       </UAccordion>

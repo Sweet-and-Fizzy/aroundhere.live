@@ -2,8 +2,7 @@
 
 export interface ScrapedEvent {
   title: string
-  description?: string
-  descriptionHtml?: string // Rich HTML description with images/videos/links
+  description?: string // Can be plain text or HTML - processDescriptions() handles both
   startsAt: Date
   endsAt?: Date
   doorsAt?: Date

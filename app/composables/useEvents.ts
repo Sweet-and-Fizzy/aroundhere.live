@@ -31,6 +31,8 @@ export interface Event {
   title: string
   slug: string
   description?: string
+  descriptionHtml?: string
+  summary?: string
   imageUrl?: string
   startsAt: string
   endsAt?: string

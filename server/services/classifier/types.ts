@@ -46,6 +46,7 @@ export interface ClassificationResult {
   canonicalGenres: CanonicalGenre[]
   confidence: number // 0-1
   reasoning?: string
+  summary?: string // Concise 1-2 sentence summary of the event
 }
 
 export interface ClassificationInput {

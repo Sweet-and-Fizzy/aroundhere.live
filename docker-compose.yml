@@ -3,7 +3,7 @@
 
 services:
   db:
-    image: postgis/postgis:16-3.4
+    build: ./docker/postgres
     container_name: local-music-db
     restart: unless-stopped
     environment:

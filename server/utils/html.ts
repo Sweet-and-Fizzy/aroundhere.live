@@ -64,29 +64,30 @@ export function normalizeForComparison(text: string): string {
 }
 
 /**
- * Process description fields - if description has HTML and descriptionHtml is empty,
- * copy to descriptionHtml before stripping HTML from description
+ * Process description - if it contains HTML, preserve it in descriptionHtml
+ * and create a clean plain text version for description.
  */
 export function processDescriptions(
-  description?: string | null,
-  descriptionHtml?: string | null
+  description?: string | null
 ): { description: string | null; descriptionHtml: string | null } {
   if (!description) {
-    return { description: null, descriptionHtml: descriptionHtml || null }
+    return { description: null, descriptionHtml: null }
   }
 
-  // If description contains HTML and descriptionHtml is empty, preserve HTML version
-  if (containsHtml(description) && !descriptionHtml) {
+  const cleanDescription = stripHtmlAndClean(description)
+
+  // If description contains HTML, preserve it as descriptionHtml
+  if (containsHtml(description)) {
     return {
-      description: stripHtmlAndClean(description),
+      description: cleanDescription,
       descriptionHtml: description,
     }
   }
 
-  // Otherwise just clean the description
+  // Plain text description, no HTML
   return {
-    description: stripHtmlAndClean(description),
-    descriptionHtml: descriptionHtml || null,
+    description: cleanDescription,
+    descriptionHtml: null,
   }
 }
 

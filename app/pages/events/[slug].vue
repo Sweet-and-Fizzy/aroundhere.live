@@ -168,13 +168,22 @@ const outlookCalendarUrl = computed(() => {
 
 const config = useRuntimeConfig()
 
-// Build a clean description for SEO (strip HTML, limit length)
+// Fetch related events
+const { data: relatedEvents } = await useFetch(() => `/api/events/${event.value?.id}/related?limit=6`, {
+  // Only fetch if we have an event
+  immediate: !!event.value?.id,
+})
+
+// Build a clean description for SEO - prefer summary, then description
 const seoDescription = computed(() => {
   if (!event.value) return ''
-  const desc = event.value.description?.slice(0, 160) || ''
+  // Use summary if available (AI-generated concise version)
+  if (event.value.summary) return event.value.summary.slice(0, 160)
+  // Fall back to description
+  if (event.value.description) return event.value.description.slice(0, 160)
+  // Last resort: generate from title/venue/date
   const venue = event.value.venue?.name || ''
   const date = formattedDate.value
-  if (desc) return desc
   return `${event.value.title} at ${venue} on ${date}`
 })
 
@@ -320,52 +329,6 @@ useHead({
 
       <!-- Main Content -->
       <div class="grid gap-6">
-        <!-- Venue Card -->
-        <UCard v-if="event.venue">
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-heroicons-map-pin"
-                class="w-5 h-5 text-primary-500"
-              />
-              <span class="font-semibold">Venue</span>
-            </div>
-          </template>
-
-          <NuxtLink
-            :to="`/venues/${event.venue.slug}`"
-            class="text-lg font-medium text-primary-600 hover:text-primary-700"
-          >
-            {{ event.venue.name }}
-          </NuxtLink>
-          <p
-            v-if="event.venue.address"
-            class="text-gray-600 mt-1"
-          >
-            {{ event.venue.address }}<template v-if="event.venue.city">
-              , {{ event.venue.city }}
-            </template><template v-if="event.venue.state || event.venue.postalCode">
-              , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
-            </template>
-          </p>
-          <div
-            v-if="mapUrl"
-            class="mt-2 flex gap-2"
-          >
-            <a
-              :href="mapUrl"
-              target="_blank"
-              class="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
-            >
-              <UIcon
-                name="i-heroicons-map"
-                class="w-4 h-4"
-              />
-              View on Map
-            </a>
-          </div>
-        </UCard>
-
         <!-- Description -->
         <UCard v-if="event.descriptionHtml || event.description">
           <template #header>
@@ -415,6 +378,52 @@ useHead({
           </div>
         </UCard>
 
+        <!-- Venue Card -->
+        <UCard v-if="event.venue">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-5 h-5 text-primary-500"
+              />
+              <span class="font-semibold">Venue</span>
+            </div>
+          </template>
+
+          <NuxtLink
+            :to="`/venues/${event.venue.slug}`"
+            class="text-lg font-medium text-primary-600 hover:text-primary-700"
+          >
+            {{ event.venue.name }}
+          </NuxtLink>
+          <p
+            v-if="event.venue.address"
+            class="text-gray-600 mt-1"
+          >
+            {{ event.venue.address }}<template v-if="event.venue.city">
+              , {{ event.venue.city }}
+            </template><template v-if="event.venue.state || event.venue.postalCode">
+              , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
+            </template>
+          </p>
+          <div
+            v-if="mapUrl"
+            class="mt-2 flex gap-2"
+          >
+            <a
+              :href="mapUrl"
+              target="_blank"
+              class="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
+            >
+              <UIcon
+                name="i-heroicons-map"
+                class="w-4 h-4"
+              />
+              View on Map
+            </a>
+          </div>
+        </UCard>
+
         <!-- Details -->
         <UCard>
           <template #header>
@@ -443,15 +452,6 @@ useHead({
               </dt>
               <dd class="font-medium">
                 {{ event.ageRestriction === 'ALL_AGES' ? 'All Ages' : event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
-              </dd>
-            </div>
-
-            <div v-if="event.source">
-              <dt class="text-sm text-gray-500">
-                Source
-              </dt>
-              <dd class="font-medium">
-                {{ event.source.name }}
               </dd>
             </div>
 
@@ -549,6 +549,94 @@ useHead({
 
         <BackButton />
       </div>
+
+      <!-- Related Events -->
+      <section
+        v-if="relatedEvents?.events?.length"
+        class="mt-12 pt-8 border-t border-gray-200"
+      >
+        <h2 class="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+          <UIcon
+            name="i-heroicons-sparkles"
+            class="w-5 h-5 text-primary-500"
+          />
+          Similar Shows
+        </h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <NuxtLink
+            v-for="related in relatedEvents.events"
+            :key="related.id"
+            :to="`/events/${related.slug}`"
+            class="group block bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-primary-400 hover:shadow-lg transition-all duration-200"
+          >
+            <!-- Image with date overlay -->
+            <div class="relative">
+              <div
+                v-if="related.imageUrl"
+                class="aspect-square overflow-hidden bg-black flex items-center justify-center"
+              >
+                <img
+                  :src="related.imageUrl"
+                  :alt="related.title"
+                  class="max-w-full max-h-full object-contain"
+                  loading="lazy"
+                >
+              </div>
+              <div
+                v-else
+                class="aspect-square bg-black flex items-center justify-center p-4"
+              >
+                <span class="text-white/80 font-semibold text-center line-clamp-3">{{ related.title }}</span>
+              </div>
+              <!-- Date badge -->
+              <div class="absolute top-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm">
+                <div class="text-xs font-bold text-primary-600 uppercase">
+                  {{ new Date(related.startsAt).toLocaleDateString('en-US', { month: 'short' }) }}
+                </div>
+                <div class="text-lg font-bold text-gray-900 leading-none">
+                  {{ new Date(related.startsAt).getDate() }}
+                </div>
+              </div>
+            </div>
+            <!-- Content -->
+            <div class="p-3">
+              <h3 class="font-semibold text-gray-900 group-hover:text-primary-600 line-clamp-2 leading-snug transition-colors">
+                {{ related.title }}
+              </h3>
+              <div
+                v-if="related.venue"
+                class="mt-1.5 flex items-center gap-1 text-sm text-gray-500"
+              >
+                <UIcon
+                  name="i-heroicons-map-pin"
+                  class="w-3.5 h-3.5 flex-shrink-0"
+                />
+                <span class="truncate">{{ related.venue.name }}</span>
+              </div>
+              <div
+                v-if="related.canonicalGenres?.length"
+                class="mt-2 flex flex-wrap gap-1"
+              >
+                <UBadge
+                  v-for="genre in related.canonicalGenres.slice(0, 2)"
+                  :key="genre"
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                >
+                  {{ genre }}
+                </UBadge>
+              </div>
+              <div
+                v-if="related.coverCharge"
+                class="mt-2 text-sm font-medium text-green-600"
+              >
+                {{ related.coverCharge }}
+              </div>
+            </div>
+          </NuxtLink>
+        </div>
+      </section>
     </div>
   </div>
 </template>
