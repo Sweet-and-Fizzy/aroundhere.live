@@ -330,6 +330,7 @@ export async function saveScrapedEvents(
       }
 
       const result = await saveEvent(prisma, eventToSave, venue, source, defaultAgeRestriction)
+      console.log(`[SaveEvent] "${eventToSave.title}" -> ${result}`)
       if (result === 'created') {
         saved++
       } else if (result === 'updated') {
@@ -351,6 +352,7 @@ export async function saveScrapedEvents(
     venue.id
   )
 
+  console.log(`[SaveEvent] Summary: saved=${saved}, updated=${updated}, skipped=${skipped}, filtered=${filtered}, canceled=${canceled}`)
   return { saved, skipped, updated, filtered, canceled }
 }
 

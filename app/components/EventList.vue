@@ -9,9 +9,9 @@ defineProps<{
 
 <template>
   <div class="space-y-4">
-    <!-- Loading State -->
+    <!-- Loading State - shown as overlay -->
     <div
-      v-if="loading"
+      v-if="loading && events.length === 0"
       class="space-y-4"
     >
       <USkeleton
@@ -23,7 +23,7 @@ defineProps<{
 
     <!-- Empty State -->
     <UCard
-      v-else-if="events.length === 0"
+      v-else-if="!loading && events.length === 0"
       class="text-center py-12"
     >
       <UIcon
@@ -38,16 +38,44 @@ defineProps<{
       </p>
     </UCard>
 
-    <!-- Events List -->
-    <div
-      v-else
-      class="space-y-3"
+    <!-- Events List - always rendered when we have events -->
+    <TransitionGroup
+      v-show="events.length > 0"
+      name="event-list"
+      tag="div"
+      class="space-y-3 relative"
+      :class="{ 'opacity-50 pointer-events-none': loading }"
     >
       <EventCard
         v-for="event in events"
         :key="event.id"
         :event="event"
       />
-    </div>
+    </TransitionGroup>
   </div>
 </template>
+
+<style>
+.event-list-enter-active {
+  transition: all 0.3s ease;
+}
+
+.event-list-leave-active {
+  transition: all 0.2s ease;
+  position: absolute;
+  width: 100%;
+}
+
+.event-list-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.event-list-leave-to {
+  opacity: 0;
+}
+
+.event-list-move {
+  transition: transform 0.3s ease;
+}
+</style>

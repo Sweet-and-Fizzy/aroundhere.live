@@ -116,6 +116,8 @@ export function useEvents() {
     }
   }
 
+  const searchTotalCount = ref(0)
+
   async function searchEvents(filters: EventFilters) {
     loading.value = true
     error.value = null
@@ -129,25 +131,32 @@ export function useEvents() {
       if (filters.endDate) params.set('endDate', filters.endDate)
       if (filters.genres?.length) params.set('genres', filters.genres.join(','))
       if (filters.venueId) params.set('venueId', filters.venueId)
+      if (filters.venueIds?.length) params.set('venueIds', filters.venueIds.join(','))
+      if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
+      if (filters.musicOnly === false) params.set('musicOnly', 'false')
 
       const response = await $fetch<{
         events: Event[]
         artists: { id: string; name: string; slug: string }[]
         venues: { id: string; name: string; slug: string }[]
+        filteredCount: number
+        totalCount: number
       }>(`/api/search?${params.toString()}`)
 
       events.value = response.events
+      searchTotalCount.value = response.totalCount
       // Update pagination for search results (no server-side pagination for search)
       pagination.value = {
-        total: response.events.length,
-        limit: response.events.length,
+        total: response.filteredCount,
+        limit: response.filteredCount,
         offset: 0,
         hasMore: false,
       }
       return response
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Search failed'
-      return { events: [], artists: [], venues: [] }
+      searchTotalCount.value = 0
+      return { events: [], artists: [], venues: [], filteredCount: 0, totalCount: 0 }
     } finally {
       loading.value = false
     }
@@ -158,6 +167,7 @@ export function useEvents() {
     loading,
     error,
     pagination,
+    searchTotalCount,
     fetchEvents,
     searchEvents,
   }

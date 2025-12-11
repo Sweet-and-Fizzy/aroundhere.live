@@ -395,6 +395,15 @@ onMounted(async () => {
   updateLabelVisibility()
   emitVisibleVenues()
 
+  // Emit initial center state for 'view' mode
+  if (searchRadius.value === 'view') {
+    emit('centerChanged', {
+      lat: map.value.getCenter().lat,
+      lng: map.value.getCenter().lng,
+      radius: 'view' as const,
+    })
+  }
+
   map.value.on('zoomend', () => {
     updateLabelVisibility()
     emitVisibleVenues()
@@ -474,21 +483,24 @@ onUnmounted(() => {
         />
       </button>
 
-      <!-- Radius Select -->
-      <select
-        :value="searchRadius"
-        class="radius-select"
-        title="Search radius"
-        @change="onRadiusChange(($event.target as HTMLSelectElement).value === 'view' ? 'view' : Number(($event.target as HTMLSelectElement).value))"
-      >
-        <option
-          v-for="r in radiusOptions"
-          :key="String(r)"
-          :value="r"
+      <!-- Radius Select with Label -->
+      <div class="radius-wrapper">
+        <label class="radius-label">Area:</label>
+        <select
+          :value="searchRadius"
+          class="radius-select"
+          title="Filter venues by area"
+          @change="onRadiusChange(($event.target as HTMLSelectElement).value === 'view' ? 'view' : Number(($event.target as HTMLSelectElement).value))"
         >
-          {{ r === 'view' ? 'In view' : `${r} mi` }}
-        </option>
-      </select>
+          <option
+            v-for="r in radiusOptions"
+            :key="String(r)"
+            :value="r"
+          >
+            {{ r === 'view' ? 'Visible map' : `${r} mi radius` }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div
@@ -633,20 +645,40 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.radius-select {
-  padding: 0.5rem 0.625rem;
+.radius-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: white;
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
-  font-size: 0.875rem;
-  background: white;
-  color: #374151;
-  cursor: pointer;
+  padding-left: 0.5rem;
   flex-shrink: 0;
 }
 
+.radius-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.radius-select {
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border: none;
+  font-size: 0.875rem;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+}
+
 .radius-select:focus {
-  border-color: #3b82f6;
   outline: none;
+}
+
+.radius-wrapper:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .no-map {

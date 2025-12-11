@@ -6,6 +6,11 @@ const props = defineProps<{
 }>()
 
 const expanded = ref(false)
+const imageLoaded = ref(false)
+
+function onImageLoad() {
+  imageLoaded.value = true
+}
 
 const formattedDate = computed(() => {
   const date = new Date(props.event.startsAt)
@@ -108,13 +113,20 @@ const hasMoreContent = computed(() => {
       <NuxtLink
         v-if="event.imageUrl"
         :to="`/events/${event.slug}`"
-        class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-black flex items-center justify-center aspect-square"
+        class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-gray-900 flex items-center justify-center aspect-square relative"
       >
+        <!-- Placeholder shown only while loading -->
+        <div
+          v-if="!imageLoaded"
+          class="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900"
+        />
         <img
           :src="event.imageUrl"
           :alt="event.title"
           class="max-w-full max-h-full object-contain"
+          :class="imageLoaded ? 'opacity-100' : 'opacity-0 blur-sm scale-105 transition-all duration-200'"
           loading="lazy"
+          @load="onImageLoad"
         >
       </NuxtLink>
 

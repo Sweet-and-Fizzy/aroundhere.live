@@ -207,14 +207,14 @@ watch(() => route.fullPath, () => {
       </nav>
 
       <!-- Main Content -->
-      <main class="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      <main class="flex-1 max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <NuxtRouteAnnouncer />
         <NuxtPage />
       </main>
 
       <!-- Footer -->
       <footer class="bg-gray-100 border-t border-gray-200">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm space-y-2">
+        <div class="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm space-y-2">
           <p>Event details may change. Always check the venue website before heading out.</p>
           <p>AroundHere - Western Massachusetts</p>
         </div>
