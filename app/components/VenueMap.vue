@@ -21,7 +21,7 @@ interface MapBounds {
 interface MapCenter {
   lat: number
   lng: number
-  radius: number // miles
+  radius: number | 'view' // miles, or 'view' for map extent
 }
 
 const props = defineProps<{
@@ -99,7 +99,7 @@ function selectSearchResult(result: { name: string; lat: number; lng: number }) 
   if (!map.value) return
   showSearchResults.value = false
   searchResults.value = [] // Clear results to prevent re-showing
-  searchQuery.value = result.name.replace(/📍 /, '').split(',')[0] // Clean up display
+  searchQuery.value = result.name.replace(/📍 /, '').split(',')[0] || '' // Clean up display
   centerMapAt(result.lat, result.lng)
 }
 

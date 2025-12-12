@@ -72,10 +72,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     },
   },
 
-  modules: ['@nuxt/ui', 'nuxt-auth-utils'],
+  modules: ['@nuxt/ui', '@nuxt/ui-pro', '@nuxtjs/mdc', 'nuxt-auth-utils'],
 
-  // Session configuration for nuxt-auth-utils
-  session: {
+  // Auth configuration for nuxt-auth-utils
+  auth: {
     // 30 days in seconds
     maxAge: 60 * 60 * 24 * 30,
     cookie: {

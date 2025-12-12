@@ -23,13 +23,13 @@ onUnmounted(() => {
   <Transition name="fade">
     <button
       v-if="isVisible"
-      class="fixed bottom-6 right-6 w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors z-50"
+      class="fixed bottom-[5.5rem] right-6 w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors z-40"
       title="Back to top"
       @click="scrollToTop"
     >
       <UIcon
         name="i-heroicons-arrow-up"
-        class="w-4 h-4"
+        class="w-5 h-5"
       />
     </button>
   </Transition>

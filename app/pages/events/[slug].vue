@@ -754,6 +754,8 @@ useHead({
         </div>
       </section>
     </div>
+
+    <FloatingChatButton always-visible />
   </div>
 </template>
 

@@ -153,7 +153,7 @@ export async function matchSingleArtist(
         spotifyName: match.artist.name,
         spotifyMatchConfidence: match.confidence,
         spotifyMatchStatus: status,
-        spotifyPopularTracks: popularTracks,
+        spotifyPopularTracks: popularTracks ?? undefined,
         spotifyTracksUpdatedAt: popularTracks ? new Date() : null,
       },
     })
@@ -224,7 +224,7 @@ export async function manuallyMatchArtist(
         spotifyName,
         spotifyMatchConfidence: 1.0,  // Manual = 100% confidence
         spotifyMatchStatus: 'VERIFIED',
-        spotifyPopularTracks: popularTracks,
+        spotifyPopularTracks: popularTracks ?? undefined,
         spotifyTracksUpdatedAt: popularTracks ? new Date() : null,
       },
     })
@@ -255,7 +255,7 @@ export async function markArtistNoMatch(artistId: string): Promise<void> {
       spotifyName: null,
       spotifyMatchConfidence: null,
       spotifyMatchStatus: 'NO_MATCH',
-      spotifyPopularTracks: null,
+      spotifyPopularTracks: undefined,
       spotifyTracksUpdatedAt: null,
     },
   })
@@ -272,7 +272,7 @@ export async function resetArtistMatch(artistId: string): Promise<void> {
       spotifyName: null,
       spotifyMatchConfidence: null,
       spotifyMatchStatus: 'PENDING',
-      spotifyPopularTracks: null,
+      spotifyPopularTracks: undefined,
       spotifyTracksUpdatedAt: null,
     },
   })

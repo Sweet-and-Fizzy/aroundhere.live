@@ -11,7 +11,7 @@ interface Artist {
   spotifyName: string | null
   spotifyMatchConfidence: number | null
   spotifyMatchStatus: 'PENDING' | 'AUTO_MATCHED' | 'NEEDS_REVIEW' | 'VERIFIED' | 'NO_MATCH'
-  spotifyPopularTracks: any[] | null
+  spotifyPopularTracks: any // Can be array or other JsonValue types from Prisma serialization
   eventCount: number
 }
 
@@ -849,7 +849,7 @@ useSeoMeta({
     <!-- Search Modal -->
     <UModal
       v-model:open="showSearchModal"
-      :ui="{ width: 'max-w-2xl' }"
+      class="max-w-2xl"
     >
       <template #header>
         <div>

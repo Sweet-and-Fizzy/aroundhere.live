@@ -272,5 +272,6 @@ const googleMapsUrl = computed(() => {
     </div>
 
     <BackToTop />
+    <FloatingChatButton always-visible />
   </div>
 </template>

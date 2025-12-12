@@ -15,6 +15,13 @@ const currentFilters = ref<Record<string, any>>({})
 // Ref to sidebar component for calling methods
 const sidebarRef = ref<{ clearFiltersKeepSearch: () => void } | null>(null)
 
+// Track active sidebar tab for dynamic width
+const sidebarTab = ref<'filters' | 'chat'>('filters')
+
+function handleTabChange(tab: 'filters' | 'chat') {
+  sidebarTab.value = tab
+}
+
 // Track if we're in search mode
 const isSearching = computed(() => !!currentFilters.value.q)
 const moreResultsOutsideFilters = computed(() => {
@@ -105,23 +112,25 @@ useHead({
 
     <!-- Two-column layout on lg+ screens -->
     <div class="lg:flex lg:gap-6">
-      <!-- Sidebar Filters - Desktop only -->
-      <aside class="hidden lg:block lg:w-72 flex-shrink-0">
-        <div class="sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-sm">
-          <div class="px-4 py-3 border-b border-gray-200">
-            <h2 class="font-semibold text-gray-900">Filters</h2>
-          </div>
-          <div class="p-4">
-            <EventFiltersSidebar
-              ref="sidebarRef"
-              :venues="venues"
-              :genres="genres"
-              :genre-labels="genreLabels"
-              :facets="facets"
-              :result-count="events.length"
-              @filter="handleFilter"
-            />
-          </div>
+      <!-- Sidebar with Tabs - Desktop only -->
+      <aside
+        class="hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out"
+        :class="sidebarTab === 'chat' ? 'lg:w-[28rem]' : 'lg:w-72'"
+      >
+        <div
+          class="sticky top-4 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden flex flex-col"
+          :class="sidebarTab === 'chat' ? 'h-[calc(100vh-6rem)]' : ''"
+        >
+          <SidebarTabs
+            ref="sidebarRef"
+            :venues="venues"
+            :genres="genres"
+            :genre-labels="genreLabels"
+            :facets="facets"
+            :result-count="events.length"
+            @filter="handleFilter"
+            @tab-change="handleTabChange"
+          />
         </div>
       </aside>
 
@@ -208,6 +217,9 @@ useHead({
     </div>
 
     <BackToTop />
+
+    <!-- Floating Chat Button - Mobile/Tablet only (hidden on desktop) -->
+    <FloatingChatButton />
   </div>
 </template>
 

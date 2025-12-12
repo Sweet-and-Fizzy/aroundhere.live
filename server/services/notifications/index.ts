@@ -374,3 +374,180 @@ export async function notifyArtistMatchingResults(params: {
   await sendSlackNotification(message, blocks)
 }
 
+// ============================================================================
+// Chat Observability Notifications
+// ============================================================================
+
+export interface ChatDailySummary {
+  date: string
+  totalChats: number
+  uniqueSessions: number
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCostUsd: number
+  avgLatencyMs: number
+  validationFailures: number
+  topQuestions: Array<{ question: string; count: number }>
+  toolUsage: Record<string, number>
+}
+
+/**
+ * Notify with daily chat cost and usage summary
+ */
+export async function notifyChatDailySummary(summary: ChatDailySummary): Promise<void> {
+  const message = `📊 Chat Daily Summary: ${summary.date}`
+
+  const costFormatted = summary.totalCostUsd.toFixed(4)
+  const avgLatency = Math.round(summary.avgLatencyMs)
+
+  // Format tool usage
+  const toolUsageText = Object.entries(summary.toolUsage)
+    .sort((a, b) => b[1] - a[1])
+    .map(([tool, count]) => `${tool}: ${count}`)
+    .join(', ') || 'None'
+
+  // Format top questions (truncate to 50 chars each)
+  const topQuestionsText = summary.topQuestions.length > 0
+    ? summary.topQuestions
+        .slice(0, 5)
+        .map((q, i) => `${i + 1}. "${q.question.substring(0, 50)}${q.question.length > 50 ? '...' : ''}" (${q.count}x)`)
+        .join('\n')
+    : 'No questions logged'
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `📊 *Chat Daily Summary - ${summary.date}*`,
+          '',
+          `*Usage:*`,
+          `• Total chats: ${summary.totalChats}`,
+          `• Unique sessions: ${summary.uniqueSessions}`,
+          `• Avg latency: ${avgLatency}ms`,
+          '',
+          `*Tokens & Cost:*`,
+          `• Input tokens: ${summary.totalInputTokens.toLocaleString()}`,
+          `• Output tokens: ${summary.totalOutputTokens.toLocaleString()}`,
+          `• Total cost: $${costFormatted}`,
+          '',
+          `*Tool Usage:* ${toolUsageText}`,
+          summary.validationFailures > 0 ? `\n⚠️ *Validation failures:* ${summary.validationFailures}` : '',
+        ].filter(Boolean).join('\n'),
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Top Questions:*\n${topQuestionsText}`,
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+
+export interface ChatThresholdAlert {
+  type: 'cost' | 'abuse' | 'validation' | 'rate'
+  severity: 'warning' | 'critical'
+  message: string
+  details: {
+    threshold: number
+    actual: number
+    sessionId?: string
+    userMessage?: string
+    timestamp: Date
+  }
+}
+
+/**
+ * Alert when chat thresholds are exceeded (cost, abuse, etc.)
+ */
+export async function notifyChatThresholdAlert(alert: ChatThresholdAlert): Promise<void> {
+  const emoji = alert.severity === 'critical' ? '🚨' : '⚠️'
+  const message = `${emoji} Chat Alert: ${alert.type}`
+
+  const typeLabels: Record<string, string> = {
+    cost: 'Cost Threshold',
+    abuse: 'Abuse Detection',
+    validation: 'Validation Failure',
+    rate: 'Rate Limit',
+  }
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `${emoji} *${typeLabels[alert.type] || alert.type} - ${alert.severity.toUpperCase()}*`,
+          '',
+          `*Message:* ${alert.message}`,
+          `*Threshold:* ${alert.details.threshold}`,
+          `*Actual:* ${alert.details.actual}`,
+          alert.details.sessionId ? `*Session:* \`${alert.details.sessionId}\`` : '',
+          alert.details.userMessage ? `*User message:* "${alert.details.userMessage.substring(0, 100)}${alert.details.userMessage.length > 100 ? '...' : ''}"` : '',
+          `*Time:* ${alert.details.timestamp.toISOString()}`,
+        ].filter(Boolean).join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+
+/**
+ * Send a sample of chat Q&A for quality monitoring
+ */
+export async function notifyChatQualitySample(params: {
+  sessionId: string
+  userMessage: string
+  assistantResponse: string
+  toolsUsed: string[]
+  latencyMs: number
+  cost: number
+}): Promise<void> {
+  const { sessionId, userMessage, assistantResponse, toolsUsed, latencyMs, cost } = params
+
+  const message = `💬 Chat Sample: ${userMessage.substring(0, 30)}...`
+
+  // Truncate response for readability
+  const truncatedResponse = assistantResponse.length > 500
+    ? assistantResponse.substring(0, 500) + '...'
+    : assistantResponse
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `💬 *Chat Quality Sample*`,
+          '',
+          `*Session:* \`${sessionId}\``,
+          `*Latency:* ${latencyMs}ms | *Cost:* $${cost.toFixed(4)}`,
+          `*Tools:* ${toolsUsed.length > 0 ? toolsUsed.join(', ') : 'None'}`,
+        ].join('\n'),
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Question:*\n>${userMessage.replace(/\n/g, '\n>')}`,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Answer:*\n${truncatedResponse}`,
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+

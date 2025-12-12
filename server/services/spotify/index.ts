@@ -463,7 +463,7 @@ class SpotifyService {
       `${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks?limit=100`
 
     while (url) {
-      const response = await fetch(url, {
+      const response: Response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -474,7 +474,7 @@ class SpotifyService {
         throw new Error(`Failed to get playlist tracks: ${error}`)
       }
 
-      const data = await response.json()
+      const data: any = await response.json()
       tracks.push(...data.items.map((item: { track: SpotifyTrack }) => item.track))
       url = data.next
     }

@@ -135,7 +135,7 @@ const savedFilters = loadSavedFilters()
 
 // Collapsible sections state - accordion style (only one section open at a time)
 const expandedSection = ref<string | null>(
-  savedFilters?.expandedSection || 'date'
+  savedFilters?.expandedSection || null
 )
 
 function toggleSection(section: string) {

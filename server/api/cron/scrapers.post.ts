@@ -2,11 +2,14 @@
  * Cron endpoint for running all scrapers
  * POST /api/cron/scrapers
  *
+ * Authentication: Requires CRON_SECRET token via query param or header
+ *
  * Add to server crontab:
- *   Run all scrapers daily at 4am: 0 4 * * * curl -sX POST http://localhost:3000/api/cron/scrapers
+ *   Run all scrapers daily at 4am: 0 4 * * * curl -sX POST "http://localhost:3000/api/cron/scrapers?token=$CRON_SECRET"
  */
 
 import prisma from '../../utils/prisma'
+import { verifyCronAuth } from '../../utils/cron-auth'
 import { executeScraperCode } from '../../services/agent/executor'
 import { saveScrapedEvents } from '../../scrapers/save-events'
 import { classifyPendingEvents } from '../../scrapers/classify-events'
@@ -32,11 +35,15 @@ interface ScraperResult {
   eventsFound: number
   eventsSaved: number
   eventsSkipped: number
+  eventsCanceled: number
   duration: number
   error?: string
 }
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  // Verify cron authentication
+  verifyCronAuth(event)
+
   const start = Date.now()
   const results: ScraperResult[] = []
 
@@ -97,7 +104,7 @@ export default defineEventHandler(async () => {
           eventsSkipped: 0,
           eventsCanceled: 0,
           duration: Date.now() - scraperStart,
-          error: result.error,
+          error: result.errors?.[0] || 'Unknown error',
         })
       }
     } catch (error) {
@@ -118,7 +125,7 @@ export default defineEventHandler(async () => {
   const aiSources = await prisma.source.findMany({
     where: {
       isActive: true,
-      config: { not: null },
+      config: { not: undefined },
     },
   })
 
@@ -129,13 +136,13 @@ export default defineEventHandler(async () => {
     const scraperStart = Date.now()
     try {
       const venue = await prisma.venue.findUnique({
-        where: { id: config.venueId },
+        where: { id: config.venueId as string },
       })
       if (!venue) continue
 
       const result = await executeScraperCode(
-        config.generatedCode,
-        source.website || config.url || '',
+        config.generatedCode as string,
+        (source.website || config.url || '') as string,
         'America/New_York',
         180000
       )
@@ -177,7 +184,7 @@ export default defineEventHandler(async () => {
           eventsSkipped: 0,
           eventsCanceled: 0,
           duration: Date.now() - scraperStart,
-          error: result.error,
+          error: result.error || 'Unknown error',
         })
       }
     } catch (error) {

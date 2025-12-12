@@ -138,7 +138,7 @@ export async function syncPlaylist(playlistId: string): Promise<SyncResult> {
           await prisma.artist.update({
             where: { id: artist.id },
             data: {
-              spotifyPopularTracks: tracks,
+              spotifyPopularTracks: tracks as any, // Cast to any for Prisma JSON field
               spotifyTracksUpdatedAt: new Date(),
             },
           })
@@ -334,13 +334,7 @@ export async function getSyncStatus(): Promise<{
     trackCount: number
   }[]
 }> {
-  const playlists = await prisma.spotifyPlaylist.findMany({
-    include: {
-      _count: {
-        select: { /* This won't work without a relation */ },
-      },
-    },
-  })
+  const playlists = await prisma.spotifyPlaylist.findMany()
 
   // Get track counts separately
   const trackCounts = await prisma.spotifyPlaylistTrack.groupBy({

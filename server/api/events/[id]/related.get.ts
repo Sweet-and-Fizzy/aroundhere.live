@@ -28,14 +28,14 @@ export default defineEventHandler(async (event) => {
     WHERE id = ${id}
   `
 
-  if (!sourceEvent || sourceEvent.length === 0) {
+  if (!sourceEvent || sourceEvent.length === 0 || !sourceEvent[0]) {
     throw createError({
       statusCode: 404,
       message: 'Event not found',
     })
   }
 
-  const { embedding, venueId } = sourceEvent[0]
+  const { embedding, venueId } = sourceEvent[0]!
 
   if (!embedding) {
     // No embedding - fall back to same venue events

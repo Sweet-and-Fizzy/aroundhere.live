@@ -77,6 +77,7 @@ export async function classifyPendingEvents(
       // Update events with classification and embeddings
       for (let i = 0; i < results.length; i++) {
         const result = results[i]
+        if (!result) continue
         const musicIndex = musicResults.findIndex(r => r.eventId === result.eventId)
         const embedding = musicIndex >= 0 && embeddings[musicIndex]
           ? embeddings[musicIndex]

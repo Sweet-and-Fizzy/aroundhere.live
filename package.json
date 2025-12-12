@@ -19,13 +19,18 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.54",
     "@anthropic-ai/sdk": "^0.70.1",
     "@google/generative-ai": "^0.24.1",
     "@internationalized/date": "^3.10.0",
+    "@modelcontextprotocol/sdk": "^1.24.3",
     "@nuxt/ui": "^4.2.1",
+    "@nuxt/ui-pro": "^3.3.7",
+    "@nuxtjs/mdc": "^0.19.1",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@types/leaflet": "^1.9.21",
+    "ai": "^5.0.109",
     "cheerio": "^1.1.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",

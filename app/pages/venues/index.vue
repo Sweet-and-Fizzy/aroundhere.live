@@ -6,14 +6,56 @@ const allVenues = computed(() => response.value?.venues || [])
 // Track which venues are visible on the map
 const visibleVenueIds = ref<string[] | null>(null)
 
-// Filter venues to only those visible on map (or all if map hasn't emitted yet)
+// Track sidebar filters
+const sidebarFilters = ref<Record<string, any>>({})
+
+// Track active sidebar tab for dynamic width
+const sidebarTab = ref<'filters' | 'chat'>('filters')
+
+function handleTabChange(tab: 'filters' | 'chat') {
+  sidebarTab.value = tab
+}
+
+// Filter venues based on both map visibility and sidebar filters
 const venues = computed(() => {
-  if (visibleVenueIds.value === null) return allVenues.value
-  return allVenues.value.filter(v => visibleVenueIds.value!.includes(v.id))
+  let filtered = allVenues.value
+
+  // Apply map filtering
+  if (visibleVenueIds.value !== null) {
+    filtered = filtered.filter(v => visibleVenueIds.value!.includes(v.id))
+  }
+
+  // Apply sidebar filters
+  if (sidebarFilters.value.venueTypes?.length > 0) {
+    filtered = filtered.filter(v => sidebarFilters.value.venueTypes.includes(v.venueType))
+  }
+
+  if (sidebarFilters.value.cities?.length > 0) {
+    filtered = filtered.filter(v => v.city && sidebarFilters.value.cities.includes(v.city))
+  }
+
+  if (sidebarFilters.value.hasEvents) {
+    filtered = filtered.filter(v => (v._count?.events || 0) > 0)
+  }
+
+  if (sidebarFilters.value.verified) {
+    filtered = filtered.filter(v => v.verified)
+  }
+
+  if (sidebarFilters.value.searchQuery) {
+    const query = sidebarFilters.value.searchQuery.toLowerCase()
+    filtered = filtered.filter(v => v.name.toLowerCase().includes(query))
+  }
+
+  return filtered
 })
 
 function onVisibleVenues(ids: string[]) {
   visibleVenueIds.value = ids
+}
+
+function handleFilter(filters: Record<string, any>) {
+  sidebarFilters.value = filters
 }
 
 const config = useRuntimeConfig()
@@ -55,8 +97,8 @@ useHead({
       </div>
     </div>
 
-    <main>
-      <!-- Map -->
+    <!-- Map - Full Width -->
+    <div class="mb-6">
       <ClientOnly>
         <VenueMap
           v-if="allVenues.length > 0"
@@ -66,71 +108,96 @@ useHead({
           @visible-venues="onVisibleVenues"
         />
       </ClientOnly>
+    </div>
 
-      <!-- Showing count when filtered by map -->
-      <p
-        v-if="visibleVenueIds !== null && venues.length !== allVenues.length"
-        class="text-sm text-gray-600 mb-4"
-      >
-        Showing {{ venues.length }} of {{ allVenues.length }} venues in view
+    <!-- Filters Count / Status -->
+    <div class="mb-4">
+      <p class="text-sm text-gray-600">
+        Showing {{ venues.length }} of {{ allVenues.length }} venues
       </p>
+    </div>
 
-      <div
-        v-if="venues.length === 0"
-        class="empty"
+    <!-- Two-column layout: Sidebar + Venue List -->
+    <div class="lg:flex lg:gap-6">
+      <!-- Sidebar with Tabs - Desktop only -->
+      <aside
+        class="hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out"
+        :class="sidebarTab === 'chat' ? 'lg:w-[28rem]' : 'lg:w-72'"
       >
-        No venues found.
-      </div>
-
-      <ul
-        v-else
-        class="venue-list"
-      >
-        <li
-          v-for="venue in venues"
-          :key="venue.id"
-          class="venue-item"
+        <div
+          class="sticky top-4 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden flex flex-col"
+          :class="sidebarTab === 'chat' ? 'h-[calc(100vh-6rem)]' : ''"
         >
-          <NuxtLink
-            :to="`/venues/${venue.slug}`"
-            class="venue-link"
+          <VenueSidebarTabs
+            :venues="allVenues"
+            @filter="handleFilter"
+            @tab-change="handleTabChange"
+          />
+        </div>
+      </aside>
+
+      <!-- Venue List -->
+      <main class="flex-1 min-w-0">
+        <div
+          v-if="venues.length === 0"
+          class="empty"
+        >
+          No venues found.
+        </div>
+
+        <ul
+          v-else
+          class="venue-list"
+        >
+          <li
+            v-for="venue in venues"
+            :key="venue.id"
+            class="venue-item"
           >
-            <div class="venue-content">
-              <img
-                v-if="venue.logoUrl"
-                :src="venue.logoUrl"
-                :alt="`${venue.name} logo`"
-                class="venue-logo"
-              >
-              <div class="venue-info">
-                <h2 class="venue-name">
-                  {{ venue.name }}
-                </h2>
-                <p
-                  v-if="venue.city"
-                  class="venue-location"
+            <NuxtLink
+              :to="`/venues/${venue.slug}`"
+              class="venue-link"
+            >
+              <div class="venue-content">
+                <img
+                  v-if="venue.logoUrl"
+                  :src="venue.logoUrl"
+                  :alt="`${venue.name} logo`"
+                  class="venue-logo"
                 >
-                  {{ venue.city }}<template v-if="venue.region">
-                    , {{ venue.region.name }}
-                  </template>
-                </p>
-                <p class="venue-type">
-                  {{ venue.venueType.replace('_', ' ') }}
-                </p>
-                <p
-                  v-if="venue._count?.events"
-                  class="venue-events"
-                >
-                  {{ venue._count.events }} upcoming event{{ venue._count.events === 1 ? '' : 's' }}
-                </p>
+                <div class="venue-info">
+                  <h2 class="venue-name">
+                    {{ venue.name }}
+                  </h2>
+                  <p
+                    v-if="venue.city"
+                    class="venue-location"
+                  >
+                    {{ venue.city }}<template v-if="venue.region">
+                      , {{ venue.region.name }}
+                    </template>
+                  </p>
+                  <p class="venue-type">
+                    {{ venue.venueType.replace('_', ' ') }}
+                  </p>
+                  <p
+                    v-if="venue._count?.events"
+                    class="venue-events"
+                  >
+                    {{ venue._count.events }} upcoming event{{ venue._count.events === 1 ? '' : 's' }}
+                  </p>
+                </div>
               </div>
-            </div>
-          </NuxtLink>
-        </li>
-      </ul>
-    </main>
+            </NuxtLink>
+          </li>
+        </ul>
+      </main>
+    </div>
 
     <BackToTop />
+
+    <!-- Floating Chat Button - Mobile/Tablet only -->
+    <FloatingChatButton />
   </div>
 </template>
 

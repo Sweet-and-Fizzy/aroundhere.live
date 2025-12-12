@@ -1,16 +1,20 @@
 # AroundHere scheduled tasks
 # Runs inside the cron container, calls the app container via HTTP
+# Uses CRON_SECRET env var for authentication
 
 # Run all scrapers daily at 4am EST
-0 4 * * * curl -sX POST http://app:3000/api/cron/scrapers >> /var/log/cron.log 2>&1
+0 4 * * * curl -sX POST "http://app:3000/api/cron/scrapers?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Match new artists to Spotify daily at 5am EST (after scrapers finish)
-0 5 * * * curl -sX POST http://app:3000/api/cron/spotify?task=match >> /var/log/cron.log 2>&1
+0 5 * * * curl -sX POST "http://app:3000/api/cron/spotify?task=match&token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Sync Spotify playlists daily at 6am EST
-0 6 * * * curl -sX POST http://app:3000/api/cron/spotify?task=sync >> /var/log/cron.log 2>&1
+0 6 * * * curl -sX POST "http://app:3000/api/cron/spotify?task=sync&token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Refresh Spotify tracks weekly on Sunday at 3am EST
-0 3 * * 0 curl -sX POST http://app:3000/api/cron/spotify?task=refresh >> /var/log/cron.log 2>&1
+0 3 * * 0 curl -sX POST "http://app:3000/api/cron/spotify?task=refresh&token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+
+# Send daily chat observability summary at 8am EST
+0 8 * * * curl -sX POST "http://app:3000/api/cron/chat-summary?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Empty line required at end

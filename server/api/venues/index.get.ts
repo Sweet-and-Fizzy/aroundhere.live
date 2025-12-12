@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
             events: {
               where: {
                 startsAt: { gte: new Date() },
-                reviewStatus: 'APPROVED',
+                // Don't filter by reviewStatus - show all future events
               },
             },
           },

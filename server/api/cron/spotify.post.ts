@@ -2,16 +2,19 @@
  * Cron endpoint for Spotify tasks
  * POST /api/cron/spotify
  *
+ * Authentication: Requires CRON_SECRET token via query param or header
+ *
  * Query params:
  *   task: 'match' | 'sync' | 'refresh' | 'all'
  *
  * Recommended crontab (run after daily scraper run):
- *   Match new artists daily at 5am: 0 5 * * * curl -sX POST http://localhost:3000/api/cron/spotify?task=match
- *   Sync playlists daily at 6am:    0 6 * * * curl -sX POST http://localhost:3000/api/cron/spotify?task=sync
- *   Refresh tracks weekly Sunday:   0 3 * * 0 curl -sX POST http://localhost:3000/api/cron/spotify?task=refresh
+ *   Match new artists daily at 5am: 0 5 * * * curl -sX POST "http://localhost:3000/api/cron/spotify?task=match&token=$CRON_SECRET"
+ *   Sync playlists daily at 6am:    0 6 * * * curl -sX POST "http://localhost:3000/api/cron/spotify?task=sync&token=$CRON_SECRET"
+ *   Refresh tracks weekly Sunday:   0 3 * * 0 curl -sX POST "http://localhost:3000/api/cron/spotify?task=refresh&token=$CRON_SECRET"
  */
 
 import { getQuery } from 'h3'
+import { verifyCronAuth } from '../../utils/cron-auth'
 import { matchPendingArtists, getMatchingStats, refreshPopularTracks } from '../../services/spotify/artist-matcher'
 import { syncAllPlaylists } from '../../services/spotify/playlist-sync'
 import { notifyArtistMatchingResults } from '../../services/notifications'
@@ -25,6 +28,9 @@ interface TaskResult {
 }
 
 export default defineEventHandler(async (event) => {
+  // Verify cron authentication
+  verifyCronAuth(event)
+
   const query = getQuery(event)
   const task = query.task as string || 'all'
 
