@@ -17,20 +17,26 @@ const BATCH_SIZE = parseInt(process.env.CLASSIFIER_BATCH_SIZE || '10')
 async function classifyEvents(options: {
   limit?: number
   reclassify?: boolean
+  reclassifyOther?: boolean
   dryRun?: boolean
 }) {
-  const { limit, reclassify = false, dryRun = false } = options
+  const { limit, reclassify = false, reclassifyOther = false, dryRun = false } = options
 
   console.log('=== Event Classifier ===')
   console.log(`Mode: ${dryRun ? 'DRY RUN' : 'LIVE'}`)
   console.log(`Reclassify: ${reclassify}`)
+  console.log(`Reclassify OTHER only: ${reclassifyOther}`)
   console.log(`Batch size: ${BATCH_SIZE}`)
   console.log('')
 
   // Find events to classify
-  const whereClause = reclassify
-    ? {} // Reclassify all
-    : { isMusic: null } // Only unclassified
+  let whereClause = {}
+  if (reclassifyOther) {
+    whereClause = { eventType: 'OTHER' } // Only reclassify OTHER events
+  } else if (!reclassify) {
+    whereClause = { isMusic: null } // Only unclassified
+  }
+  // reclassify = all events (empty whereClause)
 
   const events = await prisma.event.findMany({
     where: {
@@ -123,12 +129,15 @@ async function main() {
   const options = {
     limit: undefined as number | undefined,
     reclassify: false,
+    reclassifyOther: false,
     dryRun: false,
   }
 
   for (const arg of args) {
     if (arg === '--reclassify') {
       options.reclassify = true
+    } else if (arg === '--reclassify-other') {
+      options.reclassifyOther = true
     } else if (arg === '--dry-run') {
       options.dryRun = true
     } else if (arg.startsWith('--limit=')) {
@@ -138,10 +147,11 @@ async function main() {
 Usage: npx tsx scripts/classify-events.ts [options]
 
 Options:
-  --limit=N      Process at most N events
-  --reclassify   Reclassify all events (not just unclassified)
-  --dry-run      Don't save results to database
-  --help         Show this help message
+  --limit=N           Process at most N events
+  --reclassify        Reclassify all events (not just unclassified)
+  --reclassify-other  Reclassify only events with eventType=OTHER
+  --dry-run           Don't save results to database
+  --help              Show this help message
 
 Environment variables:
   ANTHROPIC_API_KEY     Required for Claude API
