@@ -29,11 +29,17 @@ export const EVENT_TYPES = [
   'OPEN_MIC',
   'COMEDY',
   'THEATER',
-  'TRIVIA',
+  'GAMES',
   'KARAOKE',
   'PRIVATE',
   'FILM',
   'SPOKEN_WORD',
+  'DANCE',
+  'MARKET',
+  'WORKSHOP',
+  'PARTY',
+  'FITNESS',
+  'DRAG',
   'OTHER',
 ] as const
 

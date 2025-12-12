@@ -35,20 +35,28 @@ EVENT TYPES:
 - OPEN_MIC: Open mic night (music-focused)
 - COMEDY: Stand-up comedy, improv show
 - THEATER: Plays, musicals, theatrical performances
-- TRIVIA: Trivia night
+- GAMES: Trivia night, bingo, board game nights, pub games
 - KARAOKE: Karaoke night (still music)
 - PRIVATE: Private event, rental, closed to public
 - FILM: Movie screening
-- SPOKEN_WORD: Poetry readings, book readings
+- SPOKEN_WORD: Poetry readings, book readings, story slams
+- DANCE: Ballet, modern dance, movement classes, 5RHYTHMS, ecstatic dance
+- MARKET: Craft fairs, maker markets, vendor fairs, pop-up shops
+- WORKSHOP: Art classes, paint & sip, craft workshops, educational classes
+- PARTY: NYE parties, house parties, variety shows, themed events
+- FITNESS: Yoga classes, dance fitness, movement/wellness classes
+- DRAG: Drag shows, drag brunches, drag performances
 - OTHER: Doesn't fit other categories
 
 MUSIC CLASSIFICATION RULES:
 - TRUE for: live music, DJ sets, bands, solo artists, karaoke, music-focused open mics
-- FALSE for: comedy, trivia, sports/games/leagues, poetry slams, private events, film screenings, plays (non-musical theater)
+- FALSE for: comedy, games/trivia, sports/leagues, poetry slams, private events, film screenings, plays (non-musical theater), dance classes, markets, workshops, yoga/fitness
 - Edge case - Open Mic: If music venue or "open mic music/jam", it's music
 - Edge case - Theater: Musicals = music, plays = not music
 - Edge case - "Private Event" with no details = FALSE (unknown)
-- IMPORTANT: eventType should reflect what the event actually is. A trivia night should be eventType=TRIVIA and isMusic=false, even if it's at a music venue.
+- Edge case - Drag: Drag shows are performances but NOT music events (unless featuring live music)
+- Edge case - Dance: Movement/dance classes are FITNESS or DANCE, not music. Dance parties with DJ = DJ type
+- IMPORTANT: eventType should reflect what the event actually is. A trivia night should be eventType=GAMES and isMusic=false, even if it's at a music venue.
 
 AVAILABLE GENRES (use these exact slugs):
 ${CANONICAL_GENRES.map((g) => `- ${g}: ${GENRE_DESCRIPTIONS[g]}`).join('\n')}

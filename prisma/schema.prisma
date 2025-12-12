@@ -181,11 +181,17 @@ enum EventType {
   OPEN_MIC
   COMEDY
   THEATER
-  TRIVIA
+  GAMES
   KARAOKE
   PRIVATE
   FILM
   SPOKEN_WORD
+  DANCE
+  MARKET
+  WORKSHOP
+  PARTY
+  FITNESS
+  DRAG
   OTHER
 }
 
@@ -529,4 +535,39 @@ model ArtistReview {
   @@unique([artistId, reviewId])
   @@index([reviewId])
   @@map("artist_reviews")
+}
+
+// Chat logs for AI assistant interactions
+model ChatLog {
+  id                 String   @id @default(cuid())
+  sessionId          String   // Group conversations together
+  timestamp          DateTime @default(now())
+  ipAddress          String?  // For rate limiting by IP
+
+  // Request
+  userMessage        String
+  conversationLength Int      // How many turns in
+
+  // LLM Usage (cost tracking)
+  inputTokens        Int
+  outputTokens       Int
+  estimatedCostUsd   Float    // Calculated from token counts
+  llmCallsCount      Int      // 1 = direct answer, 2+ = tool use
+  model              String
+
+  // Tools
+  toolsUsed          String[] // ["search_events", "get_venue_events"]
+  toolInputs         Json?    // For debugging
+
+  // Response
+  responseText       String
+  latencyMs          Int
+
+  // Quality signals
+  userRating         Int?     // 1-5 or thumbs up/down
+
+  @@index([sessionId])
+  @@index([timestamp])
+  @@index([ipAddress, timestamp]) // For IP-based rate limiting
+  @@map("chat_logs")
 }
