@@ -159,6 +159,8 @@ function handleFilter(filters: Record<string, any>) {
 
 .chat-active .tab-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-panel {
@@ -166,6 +168,8 @@ function handleFilter(filters: Record<string, any>) {
 
 .chat-active .tab-panel {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-panel:not(.chat-panel) {
@@ -176,6 +180,9 @@ function handleFilter(filters: Record<string, any>) {
 .chat-panel {
   padding: 0;
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Smooth scrollbar for filters */

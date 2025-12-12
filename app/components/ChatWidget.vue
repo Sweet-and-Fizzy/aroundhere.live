@@ -191,26 +191,29 @@ function createChat(prompt: string) {
           :should-auto-scroll="true"
           :user="{ side: 'right', variant: 'soft' }"
           :assistant="{ side: 'left', variant: 'naked', icon: 'i-heroicons-musical-note' }"
-          :spacing-offset="120"
-          class="flex-1 px-4 py-4"
+          :spacing-offset="80"
+          class="flex-1 px-4 py-4 overflow-y-auto min-h-0"
         />
-
-        <UChatPrompt
-          v-model="input"
-          :status="status === 'submitted' ? 'streaming' : 'ready'"
-          variant="subtle"
-          placeholder="Ask about shows, venues, artists..."
-          class="sticky bottom-0 mx-4 mb-4 rounded-lg"
-          @submit="handleSubmit"
-        >
-          <template #footer>
-            <UChatPromptSubmit
-              :status="status"
-              color="neutral"
-            />
-          </template>
-        </UChatPrompt>
       </template>
+    </div>
+
+    <!-- Input fixed at bottom (always visible when there are messages) -->
+    <div v-if="messages.length > 0" class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900">
+      <UChatPrompt
+        v-model="input"
+        :status="status === 'submitted' ? 'streaming' : 'ready'"
+        variant="subtle"
+        placeholder="Ask about shows, venues, artists..."
+        class="rounded-lg"
+        @submit="handleSubmit"
+      >
+        <template #footer>
+          <UChatPromptSubmit
+            :status="status"
+            color="neutral"
+          />
+        </template>
+      </UChatPrompt>
     </div>
   </div>
 </template>

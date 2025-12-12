@@ -340,6 +340,7 @@ function handleKeydown(e: KeyboardEvent) {
   overflow-y: auto;
   padding: 1rem;
   min-height: 0;
+  max-height: 100%;
 }
 
 .empty-state {
@@ -472,7 +473,12 @@ function handleKeydown(e: KeyboardEvent) {
   line-height: 1.5;
 }
 
+.message.assistant .message-text :deep(.prose > *:first-child) {
+  margin-top: 0;
+}
+
 .message.assistant .message-text :deep(.prose p) {
+  margin-top: 0;
   margin-bottom: 0.5rem;
 }
 

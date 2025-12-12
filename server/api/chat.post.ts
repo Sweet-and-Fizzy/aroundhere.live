@@ -68,6 +68,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Use AI SDK's generateText with tools
+    // AI SDK 5 uses stopWhen instead of maxSteps for multi-step tool calls
     const result = await generateText({
       model: anthropic(CHAT_MODEL),
       system: getChatSystemPrompt(),
@@ -76,8 +77,22 @@ export default defineEventHandler(async (event) => {
         content: m.content,
       })),
       tools: chatTools,
-      maxSteps: 5 as any, // Allow multiple steps for tool calls and follow-up (AI SDK v4 typing issue)
+      stopWhen: stepCountIs(5), // Allow up to 5 steps for tool calls and follow-up
+      toolChoice: 'auto', // Let the model decide when to use tools
     })
+
+    // Debug: log step details (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Chat result steps:', result.steps?.length)
+      result.steps?.forEach((step, i) => {
+        console.log(`Step ${i}:`, {
+          text: step.text?.substring(0, 100),
+          toolCalls: step.toolCalls?.map(tc => tc.toolName),
+          toolResultsCount: step.toolResults?.length || 0,
+          finishReason: step.finishReason,
+        })
+      })
+    }
 
     const responseText = result.text || 'Sorry, I could not generate a response.'
     const latencyMs = Date.now() - startTime

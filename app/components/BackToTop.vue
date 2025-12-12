@@ -23,7 +23,7 @@ onUnmounted(() => {
   <Transition name="fade">
     <button
       v-if="isVisible"
-      class="fixed bottom-[5.5rem] right-6 w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors z-40"
+      class="fixed bottom-[5.5rem] lg:bottom-6 right-6 w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors z-40"
       title="Back to top"
       @click="scrollToTop"
     >
