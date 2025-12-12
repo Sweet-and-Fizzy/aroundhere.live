@@ -42,8 +42,5 @@ docker-compose*.yml
 *.md
 !README.md
 
-# Scripts (not needed in container)
-scripts/
-
 # Backups
 backups/
