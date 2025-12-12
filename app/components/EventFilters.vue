@@ -97,8 +97,12 @@ function filterVenuesByRadius() {
   const { lat, lng, radius } = mapCenter.value
   const venuesInRadius = venuesWithCoords.value.filter(v => {
     if (!v.latitude || !v.longitude) return false
-    const distance = getDistanceMiles(lat, lng, v.latitude, v.longitude)
-    return distance <= radius
+    // Only filter by radius if it's a number (not 'view')
+    if (typeof radius === 'number') {
+      const distance = getDistanceMiles(lat, lng, v.latitude, v.longitude)
+      return distance <= radius
+    }
+    return true // If radius is 'view', include all venues
   })
 
   mapFilteredVenueIds.value = venuesInRadius.map(v => v.id)
@@ -196,6 +200,12 @@ const nonMusicEventTypes = [
   { label: 'Comedy', value: 'COMEDY' },
   { label: 'Theater', value: 'THEATER' },
   { label: 'Games', value: 'GAMES' },
+  { label: 'Dance', value: 'DANCE' },
+  { label: 'Market', value: 'MARKET' },
+  { label: 'Workshop', value: 'WORKSHOP' },
+  { label: 'Party', value: 'PARTY' },
+  { label: 'Fitness', value: 'FITNESS' },
+  { label: 'Drag', value: 'DRAG' },
 ]
 
 // Event type options - includes common non-music events

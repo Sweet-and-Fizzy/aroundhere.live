@@ -347,7 +347,13 @@ const allMusicEventTypes = [
 const allNonMusicEventTypes = [
   { label: 'Comedy', value: 'COMEDY' },
   { label: 'Theater', value: 'THEATER' },
-  { label: 'Trivia', value: 'TRIVIA' },
+  { label: 'Games', value: 'GAMES' },
+  { label: 'Dance', value: 'DANCE' },
+  { label: 'Market', value: 'MARKET' },
+  { label: 'Workshop', value: 'WORKSHOP' },
+  { label: 'Party', value: 'PARTY' },
+  { label: 'Fitness', value: 'FITNESS' },
+  { label: 'Drag', value: 'DRAG' },
 ]
 
 // Filter to only show event types with events AND that would narrow results
