@@ -19,6 +19,7 @@ import { MarigoldScraper } from './venues/marigold'
 import { ProgressionBrewingScraper } from './venues/progression-brewing'
 import { StoneChurchScraper } from './venues/stone-church'
 import { MarigoldBrattleboroScraper } from './venues/marigold-brattleboro'
+import { FameScraper } from './venues/fame'
 
 // Initialize Prisma with its own pool for CLI usage
 // (CLI scripts need explicit cleanup, unlike long-running server processes)
@@ -45,6 +46,7 @@ const scrapers: BaseScraper[] = [
   new ProgressionBrewingScraper(),
   new StoneChurchScraper(),
   new MarigoldBrattleboroScraper(),
+  new FameScraper(),
 ]
 
 export interface RunnerResult {
