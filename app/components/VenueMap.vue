@@ -412,6 +412,14 @@ onMounted(async () => {
   map.value.on('moveend', () => {
     emitVisibleVenues()
     handleBoundsChange()
+    // Emit center changed so region can update
+    if (map.value) {
+      emit('centerChanged', {
+        lat: map.value.getCenter().lat,
+        lng: map.value.getCenter().lng,
+        radius: searchRadius.value,
+      })
+    }
   })
 })
 
