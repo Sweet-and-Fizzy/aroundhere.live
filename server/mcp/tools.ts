@@ -24,7 +24,7 @@ export const chatTools = {
       endDate: z.string().optional().describe('End date in ISO format (YYYY-MM-DD). Use for "this weekend" or date range queries.'),
       genres: z.array(z.string()).optional().describe('Filter by genres: jazz, rock, folk, blues, country, electronic, hip-hop, classical, etc.'),
       venueIds: z.array(z.string()).optional().describe('Filter by specific venue IDs (use list_venues to get IDs)'),
-      limit: z.number().optional().describe('Maximum number of results to return (default 10, max 20)'),
+      limit: z.number().optional().describe('Maximum number of results to return (default 20, max 20). Always use 20 for broad queries like "what\'s happening" or date-range queries.'),
     }),
     execute: async (input) => {
       const params = new URLSearchParams()
@@ -38,7 +38,7 @@ export const chatTools = {
       if (input.venueIds && input.venueIds.length > 0) {
         params.set('venueIds', input.venueIds.join(','))
       }
-      params.set('limit', String(Math.min(input.limit || 10, 20)))
+      params.set('limit', String(Math.min(input.limit || 20, 20)))
       params.set('musicOnly', 'false')
 
       const endpoint = input.q ? '/api/search' : '/api/events'
