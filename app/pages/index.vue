@@ -9,6 +9,18 @@ const { data: genresData } = await useFetch('/api/genres')
 const genres = computed(() => genresData.value?.genres ?? [])
 const genreLabels = computed(() => genresData.value?.genreLabels ?? {})
 
+// View mode toggle - persist in localStorage
+const viewMode = ref<'card' | 'compact'>('card')
+onMounted(() => {
+  const saved = localStorage.getItem('eventViewMode')
+  if (saved === 'compact' || saved === 'card') {
+    viewMode.value = saved
+  }
+})
+watch(viewMode, (newMode) => {
+  localStorage.setItem('eventViewMode', newMode)
+})
+
 // Track current filters for pagination and facets
 const currentFilters = ref<Record<string, any>>({})
 
@@ -25,11 +37,19 @@ const floatingChatRef = ref<{
 
 // Hero chat input
 const heroChatInput = ref('')
+const heroChatInputRef = ref<HTMLInputElement | null>(null)
 const heroSuggestions = [
   { icon: '⭐', text: "What's happening this weekend?" },
   { icon: '🎵', text: 'When can I hear Jazz?' },
   { icon: '💃', text: 'Where can I go dancing?' },
 ]
+
+function focusHeroInput() {
+  // Only focus if user is at the top of the page
+  if (window.scrollY < 100) {
+    heroChatInputRef.value?.focus()
+  }
+}
 
 function submitHeroChat(messageOrEvent?: string | Event) {
   const query = typeof messageOrEvent === 'string' ? messageOrEvent : heroChatInput.value.trim()
@@ -39,6 +59,10 @@ function submitHeroChat(messageOrEvent?: string | Event) {
   const isDesktop = window.innerWidth >= 1024
 
   if (isDesktop) {
+    // Expand sidebar if collapsed
+    if (sidebarCollapsed.value) {
+      sidebarCollapsed.value = false
+    }
     // Open the chat sidebar on desktop
     sidebarRef.value?.openChatWithMessage(query)
   } else {
@@ -55,6 +79,18 @@ const sidebarTab = ref<'filters' | 'chat'>('filters')
 function handleTabChange(tab: 'filters' | 'chat') {
   sidebarTab.value = tab
 }
+
+// Sidebar collapse state - persist in localStorage
+const sidebarCollapsed = ref(false)
+onMounted(() => {
+  const saved = localStorage.getItem('sidebarCollapsed')
+  if (saved === 'true') {
+    sidebarCollapsed.value = true
+  }
+})
+watch(sidebarCollapsed, (newValue) => {
+  localStorage.setItem('sidebarCollapsed', String(newValue))
+})
 
 // Track if we're in search mode
 const isSearching = computed(() => !!currentFilters.value.q)
@@ -107,7 +143,7 @@ async function loadMore() {
 
 const config = useRuntimeConfig()
 const siteUrl = config.public.siteUrl
-const { regionName } = useCurrentRegion()
+const { regionName, loaded: regionLoaded } = useCurrentRegion()
 
 useSeoMeta({
   title: 'AroundHere - Live Shows',
@@ -144,13 +180,14 @@ useHead({
         <!-- Chat Input Section -->
         <div class="flex-1 w-full">
           <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
-            Ask me about local events
+            Ask me about local events<TypeWriter v-if="regionLoaded" :text="` in ${regionName}`" :delay="40" :start-delay="100" @complete="focusHeroInput" />
           </h2>
 
           <!-- Input Form -->
           <form class="flex gap-2 mb-3" @submit.prevent="submitHeroChat">
             <div class="flex-1 relative">
               <input
+                ref="heroChatInputRef"
                 v-model="heroChatInput"
                 type="text"
                 placeholder="Type your question here"
@@ -186,23 +223,52 @@ useHead({
     <div class="lg:flex lg:gap-6">
       <!-- Sidebar with Tabs - Desktop only -->
       <aside
-        class="hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out"
-        :class="sidebarTab === 'chat' ? 'lg:w-[28rem]' : 'lg:w-72'"
+        class="hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out relative"
+        :class="sidebarCollapsed ? 'lg:w-0' : (sidebarTab === 'chat' ? 'lg:w-[28rem]' : 'lg:w-72')"
       >
-        <div
-          class="sticky top-4 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden flex flex-col"
-          :class="sidebarTab === 'chat' ? 'h-[calc(100vh-6rem)]' : ''"
-        >
-          <SidebarTabs
-            ref="sidebarRef"
-            :venues="venues"
-            :genres="genres"
-            :genre-labels="genreLabels"
-            :facets="facets"
-            :result-count="events.length"
-            @filter="handleFilter"
-            @tab-change="handleTabChange"
-          />
+        <div class="sticky top-4 flex flex-col relative">
+          <div
+            v-show="!sidebarCollapsed"
+            class="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden flex flex-col"
+            :class="sidebarTab === 'chat' ? 'h-[calc(100vh-6rem)]' : ''"
+          >
+            <SidebarTabs
+              ref="sidebarRef"
+              :venues="venues"
+              :genres="genres"
+              :genre-labels="genreLabels"
+              :facets="facets"
+              :result-count="events.length"
+              @filter="handleFilter"
+              @tab-change="handleTabChange"
+            />
+          </div>
+
+          <!-- Collapse Button - sticks out from left edge -->
+          <button
+            v-show="!sidebarCollapsed"
+            class="absolute left-0 top-32 -translate-x-full bg-white border border-gray-200 border-r-0 rounded-l-md py-4 px-1.5 shadow-sm hover:bg-gray-50 transition-colors"
+            :title="'Collapse sidebar'"
+            @click="sidebarCollapsed = !sidebarCollapsed"
+          >
+            <UIcon
+              name="i-heroicons-chevron-left"
+              class="w-3.5 h-3.5 text-gray-600"
+            />
+          </button>
+
+          <!-- Expand Button - shows as a vertical tab when collapsed -->
+          <button
+            v-show="sidebarCollapsed"
+            class="absolute -left-6 top-32 z-30 bg-white border border-gray-200 border-l-0 rounded-r-md py-4 px-1.5 shadow-sm hover:bg-gray-50 transition-colors"
+            :title="'Expand sidebar'"
+            @click="sidebarCollapsed = !sidebarCollapsed"
+          >
+            <UIcon
+              name="i-heroicons-chevron-right"
+              class="w-3.5 h-3.5 text-gray-600"
+            />
+          </button>
         </div>
       </aside>
 
@@ -230,6 +296,34 @@ useHead({
                 {{ events.length }} of {{ pagination.total }} events
               </span>
             </h2>
+
+            <!-- View Toggle Buttons -->
+            <div class="flex gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                :class="[
+                  'p-1.5 rounded transition-colors',
+                  viewMode === 'card'
+                    ? 'bg-white shadow-sm text-primary-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                ]"
+                title="Card view"
+                @click="viewMode = 'card'"
+              >
+                <UIcon name="i-heroicons-squares-2x2" class="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <button
+                :class="[
+                  'p-1.5 rounded transition-colors',
+                  viewMode === 'compact'
+                    ? 'bg-white shadow-sm text-primary-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                ]"
+                title="Compact view"
+                @click="viewMode = 'compact'"
+              >
+                <UIcon name="i-heroicons-bars-3" class="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
           </div>
           <!-- Hint when no results but there are results without filters -->
           <div
@@ -248,7 +342,7 @@ useHead({
           <!-- Hint when there ARE results but more exist outside filters -->
           <div
             v-else-if="isSearching && moreResultsOutsideFilters > 0 && !loading"
-            class="flex items-center gap-2 text-sm text-gray-500"
+            class="flex items-center gap-2 text-sm text-gray-600"
           >
             <UIcon name="i-heroicons-information-circle" class="w-4 h-4" />
             <span>{{ moreResultsOutsideFilters }} more result{{ moreResultsOutsideFilters !== 1 ? 's' : '' }} outside current filters</span>
@@ -265,6 +359,7 @@ useHead({
         <EventList
           :events="events"
           :loading="loading"
+          :view-mode="viewMode"
         />
 
         <!-- Load More / Pagination -->
@@ -281,7 +376,7 @@ useHead({
           >
             Load More Events
           </UButton>
-          <p class="text-xs sm:text-sm text-gray-500 mt-2">
+          <p class="text-xs sm:text-sm text-gray-600 mt-2">
             Showing {{ events.length }} of {{ pagination.total }} events
           </p>
         </div>
@@ -304,5 +399,13 @@ useHead({
 
 .hero-chat-input::placeholder {
   color: #9ca3af !important;
+}
+
+/* Fade transition for region name */
+.fade-enter-active {
+  transition: opacity 0.4s ease;
+}
+.fade-enter-from {
+  opacity: 0;
 }
 </style>

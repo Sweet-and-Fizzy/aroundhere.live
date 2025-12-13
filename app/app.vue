@@ -1,7 +1,30 @@
 <script setup lang="ts">
 const { user } = useUserSession()
 const route = useRoute()
-const { regionName } = useCurrentRegion()
+const { regionName, loaded: regionLoaded, updateRegion } = useCurrentRegion()
+
+// Initialize region on app mount
+onMounted(() => {
+  if (import.meta.client) {
+    const MAP_BOUNDS_KEY = 'mapBounds'
+    try {
+      const savedBounds = localStorage.getItem(MAP_BOUNDS_KEY)
+      if (savedBounds) {
+        const bounds = JSON.parse(savedBounds)
+        // Calculate center from bounds (format: { north, south, east, west })
+        const centerLat = (bounds.north + bounds.south) / 2
+        const centerLng = (bounds.east + bounds.west) / 2
+        updateRegion(centerLat, centerLng, true)
+      } else {
+        // Use default center (Northampton area)
+        updateRegion(42.32, -72.63, true)
+      }
+    } catch {
+      // Fallback to default center
+      updateRegion(42.32, -72.63, true)
+    }
+  }
+})
 
 const isAdmin = computed(() => {
   const role = user.value?.role as string
@@ -217,7 +240,7 @@ watch(() => route.fullPath, () => {
       <footer class="bg-gray-100 border-t border-gray-200">
         <div class="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm space-y-2">
           <p>Event details may change. Always check the venue website before heading out.</p>
-          <p>AroundHere - {{ regionName }}</p>
+          <p>AroundHere<Transition name="fade"><span v-if="regionLoaded"> - {{ regionName }}</span></Transition></p>
         </div>
       </footer>
     </div>
@@ -264,5 +287,13 @@ textarea::placeholder {
 
 :root {
   --ui-border-inset: #111827;
+}
+
+/* Fade transition for region name */
+.fade-enter-active {
+  transition: opacity 0.4s ease;
+}
+.fade-enter-from {
+  opacity: 0;
 }
 </style>

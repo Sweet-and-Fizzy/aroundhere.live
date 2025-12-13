@@ -15,6 +15,7 @@ interface RegionState {
   region: Region | null
   distance: number | null
   loading: boolean
+  loaded: boolean  // True once we've fetched the region at least once
   error: string | null
 }
 
@@ -23,6 +24,7 @@ const state = reactive<RegionState>({
   region: null,
   distance: null,
   loading: false,
+  loaded: false,
   error: null,
 })
 
@@ -55,6 +57,7 @@ export function useCurrentRegion() {
 
         state.region = data.region
         state.distance = data.distance
+        state.loaded = true
       } catch (err) {
         console.error('Failed to fetch nearest region:', err)
         state.error = 'Failed to determine region'
@@ -92,6 +95,7 @@ export function useCurrentRegion() {
     regionSlug,
     distance: computed(() => state.distance),
     loading: computed(() => state.loading),
+    loaded: computed(() => state.loaded),
     error: computed(() => state.error),
 
     // Actions

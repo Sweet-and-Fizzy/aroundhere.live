@@ -1,6 +1,4 @@
 <script setup lang="ts">
-const { regionName } = useCurrentRegion()
-
 // Get first enabled playlist
 const { data: playlistData } = await useFetch('/api/spotify/playlists')
 
@@ -21,9 +19,9 @@ const spotifyUrl = computed(() => {
 
 useSeoMeta({
   title: 'Live Music Playlist - AroundHere',
-  description: () => `A Spotify playlist featuring artists playing live shows in ${regionName.value}. Updated daily with upcoming performances.`,
+  description: 'A Spotify playlist featuring artists playing live shows nearby. Updated daily with upcoming performances.',
   ogTitle: 'Live Music Playlist - AroundHere',
-  ogDescription: () => `A Spotify playlist featuring artists playing live shows in ${regionName.value}.`,
+  ogDescription: 'A Spotify playlist featuring artists playing live shows nearby.',
   ogType: 'website',
 })
 </script>
@@ -35,7 +33,7 @@ useSeoMeta({
         Live Music Playlist
       </h1>
       <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-        Discover artists playing live shows in {{ regionName }}. This playlist is automatically updated daily with tracks from musicians with upcoming performances.
+        Discover artists playing live shows nearby. This playlist is automatically updated daily with tracks from musicians with upcoming performances.
       </p>
     </header>
 

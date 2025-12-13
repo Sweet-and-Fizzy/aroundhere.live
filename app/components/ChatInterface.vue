@@ -202,7 +202,7 @@ defineExpose({
     <div v-if="!hideHeader" class="chat-header">
       <div class="flex items-center gap-2">
         <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-primary-600" />
-        <h3 class="font-semibold text-gray-900">AI Assistant</h3>
+        <h3 class="font-semibold text-gray-900">Ask AroundHere</h3>
       </div>
       <button
         v-if="messages.length > 0"
@@ -220,7 +220,7 @@ defineExpose({
       <!-- Empty state with examples -->
       <div v-if="messages.length === 0" class="empty-state">
         <div class="empty-icon">
-          <UIcon name="i-heroicons-sparkles" class="w-12 h-12 text-gray-400" />
+          <UIcon name="i-heroicons-sparkles" class="w-12 h-12 text-gray-500" />
         </div>
         <h4 class="empty-title">Ask me about local events</h4>
         <p class="empty-subtitle">Try asking:</p>
@@ -309,7 +309,7 @@ defineExpose({
         </button>
       </div>
       <p class="chat-disclaimer">
-        AI can make mistakes. Check event details before attending.
+        Always verify event details before attending.
       </p>
     </div>
 
@@ -550,11 +550,13 @@ defineExpose({
 
 .message.assistant .message-text :deep(.prose a) {
   color: #2563eb;
-  text-decoration: underline;
+  text-decoration: none;
+  border-bottom: 1px solid #2563eb;
 }
 
 .message.assistant .message-text :deep(.prose a:hover) {
   color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
 }
 
 .message.assistant .message-text :deep(.prose h1),

@@ -38,9 +38,9 @@ export interface NamedCluster extends Cluster {
 }
 
 const DEFAULT_CONFIG: ClusterConfig = {
-  epsilonMiles: 25,
-  minVenues: 3,
-  maxOrphanDistance: 50,
+  epsilonMiles: 15,      // Max distance between venues to be in same cluster
+  minVenues: 3,          // Minimum venues to form a region
+  maxOrphanDistance: 30, // Max distance for orphan to join nearest cluster
 }
 
 /**
@@ -210,12 +210,14 @@ ${venueList}
 Cities in this cluster: ${cluster.cities.join(', ')}
 States in this cluster: ${cluster.states.join(', ')}
 
-What is the commonly-used regional name for this area? Consider:
-- Local/colloquial names people actually use (e.g., "Pioneer Valley", "The Berkshires", "Upper Valley")
-- If no well-known regional name exists, create a simple geographic descriptor (e.g., "Southern Vermont", "Western Massachusetts")
-- Keep it short and recognizable (2-4 words max)
+What is the commonly-used regional name for this area? The name will be used in phrases like "events in [region]" so it must:
+- Work grammatically after "in" - include "the" if needed (e.g., "the Pioneer Valley", "the Berkshires", "the Bay Area")
+- Some regions don't need "the" (e.g., "Western Massachusetts", "Southern Vermont")
+- Be a recognizable local/colloquial name people actually use
+- If no well-known regional name exists, use a simple geographic descriptor
+- Be short (2-4 words max, not counting "the")
 
-Return ONLY the region name, nothing else.`
+Return ONLY the region name exactly as it should appear after "in", nothing else.`
 
   try {
     const response = await llmService.complete({

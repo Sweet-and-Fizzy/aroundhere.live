@@ -112,10 +112,11 @@ function isBarVisible(stackIndex: number, barIndex: number): boolean {
   return threshold < level
 }
 
-// Start/stop animation based on playing prop
+// Start/stop animation based on playing prop (client-side only)
 watch(
   () => props.playing,
   (playing) => {
+    if (!import.meta.client) return
     if (playing) {
       // Start animation
       updateLevels()

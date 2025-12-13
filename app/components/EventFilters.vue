@@ -5,6 +5,8 @@ import type { DateRange } from 'reka-ui'
 
 type CalendarDateRange = DateRange | any
 
+const { updateRegion } = useCurrentRegion()
+
 const emit = defineEmits<{
   filter: [filters: Record<string, any>]
 }>()
@@ -122,6 +124,8 @@ const mapHasCustomCenter = computed(() => mapCenter.value !== null)
 
 function onMapCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
   mapCenter.value = center
+  // Update global region based on map center
+  updateRegion(center.lat, center.lng)
   if (center.radius === 'view') {
     // In view mode, clear radius filter - will be set by onMapVisibleVenues
     // But we need to trigger a filter update immediately based on current view
@@ -407,9 +411,35 @@ watch(searchQuery, () => {
   searchTimeout = setTimeout(applyFilters, 300)
 })
 
+// Get events state to check if data already exists
+const { events: existingEvents } = useEvents()
+
 // Initial filter application
 onMounted(() => {
-  applyFilters()
+  // Only fetch if no events exist (events persist via useState across navigations)
+  if (existingEvents.value.length === 0) {
+    applyFilters()
+  }
+
+  // Initialize region from saved map bounds or default center
+  if (import.meta.client) {
+    try {
+      const savedBounds = localStorage.getItem(MAP_BOUNDS_KEY)
+      if (savedBounds) {
+        const bounds = JSON.parse(savedBounds)
+        // Calculate center from bounds (format: { north, south, east, west })
+        const centerLat = (bounds.north + bounds.south) / 2
+        const centerLng = (bounds.east + bounds.west) / 2
+        updateRegion(centerLat, centerLng, true)
+      } else {
+        // Use default center (Northampton area)
+        updateRegion(42.32, -72.63, true)
+      }
+    } catch {
+      // Fallback to default center
+      updateRegion(42.32, -72.63, true)
+    }
+  }
 })
 </script>
 
@@ -530,7 +560,7 @@ onMounted(() => {
               </div>
 
               <div class="border-t pt-3">
-                <p class="text-sm text-gray-500 mb-2">
+                <p class="text-sm text-gray-600 mb-2">
                   Or select a custom range:
                 </p>
                 <UCalendar
@@ -596,7 +626,7 @@ onMounted(() => {
             <div class="flex items-center justify-between mt-2">
               <p
                 v-if="mapFilteredVenueIds !== null"
-                class="text-xs text-gray-500"
+                class="text-xs text-gray-600"
               >
                 Showing events from {{ mapFilteredVenueIds.length }} venue{{ mapFilteredVenueIds.length === 1 ? '' : 's' }} in view
               </p>

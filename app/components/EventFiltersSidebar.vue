@@ -5,6 +5,8 @@ import type { DateRange } from 'reka-ui'
 
 type CalendarDateRange = DateRange | any
 
+const { updateRegion } = useCurrentRegion()
+
 const emit = defineEmits<{
   filter: [filters: Record<string, any>]
 }>()
@@ -267,6 +269,8 @@ function onMapVisibleVenues(venueIds: string[]) {
 
 function onMapCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
   mapCenter.value = center
+  // Update global region based on map center
+  updateRegion(center.lat, center.lng)
   if (center.radius === 'view') {
     // In 'view' mode, mapFilteredVenueIds will be set by onMapVisibleVenues
     // Don't clear it here - just wait for the visible venues event
@@ -719,8 +723,34 @@ watch(searchQuery, () => {
   searchTimeout = setTimeout(applyFilters, 300)
 })
 
+// Get events state to check if data already exists
+const { events: existingEvents } = useEvents()
+
 onMounted(() => {
-  applyFilters()
+  // Only fetch if no events exist (events persist via useState across navigations)
+  if (existingEvents.value.length === 0) {
+    applyFilters()
+  }
+
+  // Initialize region from saved map bounds or default center
+  if (import.meta.client) {
+    try {
+      const savedBounds = localStorage.getItem(MAP_BOUNDS_KEY)
+      if (savedBounds) {
+        const bounds = JSON.parse(savedBounds)
+        // Calculate center from bounds (format: { north, south, east, west })
+        const centerLat = (bounds.north + bounds.south) / 2
+        const centerLng = (bounds.east + bounds.west) / 2
+        updateRegion(centerLat, centerLng, true)
+      } else {
+        // Use default center (Northampton area)
+        updateRegion(42.32, -72.63, true)
+      }
+    } catch {
+      // Fallback to default center
+      updateRegion(42.32, -72.63, true)
+    }
+  }
 })
 
 // Clear filters but keep search query (for "search all events" action)
@@ -773,7 +803,7 @@ defineExpose({
           <span v-if="!isSectionExpanded('date')" class="section-summary">{{ dateSummary }}</span>
           <UIcon
             :name="isSectionExpanded('date') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-400"
+            class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
@@ -797,7 +827,7 @@ defineExpose({
           Custom Range
           <UIcon
             :name="showCustomCalendar ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-3 h-3 ml-auto text-gray-400"
+            class="w-3 h-3 ml-auto text-gray-500"
           />
         </button>
         <div v-if="showCustomCalendar" class="calendar-wrapper">
@@ -826,7 +856,7 @@ defineExpose({
           <span v-else-if="!isSectionExpanded('venue')" class="section-summary muted">All venues</span>
           <UIcon
             :name="isSectionExpanded('venue') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-400"
+            class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
@@ -931,7 +961,7 @@ defineExpose({
           <span v-if="!isSectionExpanded('type')" class="section-summary">{{ typeSummary }}</span>
           <UIcon
             :name="isSectionExpanded('type') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-400"
+            class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
@@ -1004,7 +1034,7 @@ defineExpose({
           <span v-else-if="!isSectionExpanded('genre')" class="section-summary muted">All genres</span>
           <UIcon
             :name="isSectionExpanded('genre') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-400"
+            class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>

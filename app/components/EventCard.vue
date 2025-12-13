@@ -113,7 +113,7 @@ const hasMoreContent = computed(() => {
       <NuxtLink
         v-if="event.imageUrl"
         :to="`/events/${event.slug}`"
-        class="flex-shrink-0 w-full md:w-64 lg:w-72 overflow-hidden bg-gray-900 flex items-center justify-center aspect-square relative"
+        class="flex-shrink-0 w-full md:w-56 lg:w-64 overflow-hidden bg-gray-900 flex items-center justify-center aspect-video md:aspect-square relative"
       >
         <!-- Placeholder shown only while loading -->
         <div
@@ -134,7 +134,7 @@ const hasMoreContent = computed(() => {
       <NuxtLink
         v-else
         :to="`/events/${event.slug}`"
-        class="flex-shrink-0 w-full md:w-64 lg:w-72 aspect-video md:aspect-square bg-black flex items-center justify-center p-4"
+        class="flex-shrink-0 w-full md:w-56 lg:w-64 aspect-video md:aspect-square bg-black flex items-center justify-center p-4"
       >
         <div class="text-center">
           <div class="text-white font-bold text-xl sm:text-2xl leading-tight line-clamp-3">
@@ -150,20 +150,20 @@ const hasMoreContent = computed(() => {
       </NuxtLink>
 
       <!-- Event Details - add padding since card body has no padding when image/fallback is present -->
-      <div class="flex-1 min-w-0 p-4 md:py-4 md:pr-4 md:pl-4 lg:pl-6">
+      <div class="flex-1 min-w-0 p-3 md:py-3 md:pr-3 md:pl-3 lg:pl-4">
         <!-- Date/Time row -->
-        <div class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm text-gray-600 mb-1">
+        <div class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm text-gray-700 mb-0.5">
           <UIcon
             name="i-heroicons-calendar"
             class="w-4 h-4 text-primary-500"
           />
           <span class="font-medium">{{ formattedDate.weekday }}, {{ formattedDate.month }} {{ formattedDate.day }}</span>
           <template v-if="formattedTime">
-            <span class="text-gray-400">at</span>
+            <span class="text-gray-500">at</span>
             <span>{{ formattedTime }}</span>
             <span
               v-if="doorsTime"
-              class="text-gray-400 hidden sm:inline"
+              class="text-gray-500 hidden sm:inline"
             >(doors {{ doorsTime }})</span>
           </template>
         </div>
@@ -173,7 +173,7 @@ const hasMoreContent = computed(() => {
             :to="`/events/${event.slug}`"
             class="block group flex-1 min-w-0"
           >
-            <h3 class="font-bold text-xl sm:text-2xl text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2">
+            <h3 class="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2">
               {{ event.title }}
             </h3>
           </NuxtLink>
@@ -191,11 +191,11 @@ const hasMoreContent = computed(() => {
 
         <div
           v-if="event.venue"
-          class="mt-1"
+          class="mt-0.5"
         >
           <NuxtLink
             :to="`/venues/${event.venue.slug}`"
-            class="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
+            class="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-primary-600 transition-colors"
           >
             <UIcon
               name="i-heroicons-map-pin"
@@ -204,7 +204,7 @@ const hasMoreContent = computed(() => {
             <span class="font-medium">{{ event.venue.name }}</span>
             <span
               v-if="event.venue.city"
-              class="text-gray-400 hidden sm:inline"
+              class="text-gray-500 hidden sm:inline"
             >
               - {{ event.venue.city }}
             </span>
@@ -212,7 +212,7 @@ const hasMoreContent = computed(() => {
         </div>
 
         <!-- Badges -->
-        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
           <UBadge
             v-if="event.coverCharge"
             color="success"
@@ -251,9 +251,9 @@ const hasMoreContent = computed(() => {
         <!-- Expandable Description -->
         <div
           v-if="displaySummary || fullDescription"
-          class="mt-3"
+          class="mt-2"
         >
-          <div class="text-sm text-gray-600 prose prose-sm prose-gray max-w-none">
+          <div class="text-sm text-gray-700 prose prose-sm prose-gray max-w-none">
             <div
               v-if="!expanded"
               v-html="displaySummary"
@@ -273,7 +273,7 @@ const hasMoreContent = computed(() => {
         </div>
 
         <!-- Action buttons - Inline on mobile, separate column on lg+ -->
-        <div class="flex flex-wrap gap-2 mt-3 lg:hidden">
+        <div class="flex flex-wrap gap-2 mt-2 lg:hidden">
           <UButton
             v-if="event.ticketUrl"
             :to="event.ticketUrl"
@@ -296,7 +296,7 @@ const hasMoreContent = computed(() => {
       </div>
 
       <!-- Actions - Desktop only (hidden on mobile, shown at lg+) -->
-      <div class="hidden lg:flex flex-shrink-0 flex-col justify-center gap-2 p-4 pl-0">
+      <div class="hidden lg:flex flex-shrink-0 flex-col justify-center gap-2 p-3 pl-0">
         <UButton
           v-if="event.ticketUrl"
           :to="event.ticketUrl"

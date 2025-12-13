@@ -69,15 +69,16 @@ export interface Event {
 }
 
 export function useEvents() {
-  const events = ref<Event[]>([])
+  // Use useState for persistence across navigations
+  const events = useState<Event[]>('events', () => [])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const pagination = ref({
+  const pagination = useState('events-pagination', () => ({
     total: 0,
     limit: 50,
     offset: 0,
     hasMore: false,
-  })
+  }))
 
   async function fetchEvents(filters: EventFilters = {}, append = false) {
     loading.value = true
@@ -116,7 +117,7 @@ export function useEvents() {
     }
   }
 
-  const searchTotalCount = ref(0)
+  const searchTotalCount = useState('events-search-total', () => 0)
 
   async function searchEvents(filters: EventFilters) {
     loading.value = true

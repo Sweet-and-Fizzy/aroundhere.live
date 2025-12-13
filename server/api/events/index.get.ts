@@ -12,7 +12,11 @@ export default defineEventHandler(async (event) => {
   // Support both single venueId and multiple venueIds
   const venueId = query.venueId as string | undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
-  const startDate = query.startDate ? new Date(query.startDate as string) : new Date()
+  const startDate = query.startDate ? new Date(query.startDate as string) : (() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return today
+  })()
   // Set endDate to end of day (23:59:59.999 UTC) to include all events on that date
   const endDate = query.endDate ? (() => {
     const d = new Date(query.endDate as string)

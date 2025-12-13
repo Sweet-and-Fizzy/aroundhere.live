@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
         <div class="chat-drawer-header">
           <div class="flex items-center gap-2">
             <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-primary-600" />
-            <h3 class="font-semibold text-gray-900">AI Assistant</h3>
+            <h3 class="font-semibold text-gray-900">Ask AroundHere</h3>
           </div>
           <button
             class="chat-drawer-close"

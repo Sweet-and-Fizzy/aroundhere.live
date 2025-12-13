@@ -64,11 +64,44 @@ export function normalizeForComparison(text: string): string {
 }
 
 /**
+ * Sanitize HTML by removing potentially problematic elements
+ * - Remove iframes that could embed our own site (infinite loop)
+ * - Remove script tags
+ * - Remove event handlers
+ */
+export function sanitizeHtml(html: string, ownDomain?: string): string {
+  let sanitized = html
+    // Remove script tags
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    // Remove event handlers (onclick, onerror, etc.)
+    .replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\s+on\w+\s*=\s*[^\s>]*/gi, '')
+
+  // Remove iframes that reference our own domain to prevent infinite embedding
+  if (ownDomain) {
+    const domainPattern = new RegExp(
+      `<iframe[^>]*\\ssrc=["'][^"']*${ownDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"']*["'][^>]*>.*?</iframe>`,
+      'gi'
+    )
+    sanitized = sanitized.replace(domainPattern, '')
+    // Also handle self-closing iframes
+    const selfClosingPattern = new RegExp(
+      `<iframe[^>]*\\ssrc=["'][^"']*${ownDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"']*["'][^>]*/?>`,
+      'gi'
+    )
+    sanitized = sanitized.replace(selfClosingPattern, '')
+  }
+
+  return sanitized
+}
+
+/**
  * Process description - if it contains HTML, preserve it in descriptionHtml
  * and create a clean plain text version for description.
  */
 export function processDescriptions(
-  description?: string | null
+  description?: string | null,
+  ownDomain?: string
 ): { description: string | null; descriptionHtml: string | null } {
   if (!description) {
     return { description: null, descriptionHtml: null }
@@ -76,11 +109,11 @@ export function processDescriptions(
 
   const cleanDescription = stripHtmlAndClean(description)
 
-  // If description contains HTML, preserve it as descriptionHtml
+  // If description contains HTML, preserve it as descriptionHtml (sanitized)
   if (containsHtml(description)) {
     return {
       description: cleanDescription,
-      descriptionHtml: description,
+      descriptionHtml: sanitizeHtml(description, ownDomain),
     }
   }
 

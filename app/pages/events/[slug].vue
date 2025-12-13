@@ -196,6 +196,18 @@ const outlookCalendarUrl = computed(() => {
 
 const config = useRuntimeConfig()
 
+// Sanitize HTML to remove self-referencing iframes
+const sanitizedDescriptionHtml = computed(() => {
+  if (!event.value?.descriptionHtml) return null
+  const domain = config.public.siteUrl?.replace(/^https?:\/\//, '') || 'aroundhere.live'
+  // Remove iframes that embed our own site
+  return event.value.descriptionHtml
+    .replace(new RegExp(`<iframe[^>]*src=["'][^"']*${domain}[^"']*["'][^>]*>.*?</iframe>`, 'gi'), '')
+    .replace(new RegExp(`<iframe[^>]*src=["'][^"']*${domain}[^"']*["'][^>]*/?>`, 'gi'), '')
+    .replace(new RegExp(`<iframe[^>]*src=["'][^"']*localhost[^"']*["'][^>]*>.*?</iframe>`, 'gi'), '')
+    .replace(new RegExp(`<iframe[^>]*src=["'][^"']*localhost[^"']*["'][^>]*/?>`, 'gi'), '')
+})
+
 // Fetch related events with pagination
 const relatedLimit = ref(6)
 const { data: relatedEvents } = await useFetch(() => `/api/events/${event.value?.id}/related?limit=${relatedLimit.value}`, {
@@ -385,7 +397,7 @@ useHead({
       <!-- Main Content -->
       <div class="grid gap-6">
         <!-- Description -->
-        <UCard v-if="event.descriptionHtml || event.description">
+        <UCard v-if="sanitizedDescriptionHtml || event.description">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon
@@ -397,10 +409,10 @@ useHead({
           </template>
           <!-- Rich HTML description with images/videos -->
           <div
-            v-if="event.descriptionHtml"
+            v-if="sanitizedDescriptionHtml"
             class="prose prose-gray max-w-none"
           >
-            <div v-html="event.descriptionHtml" />
+            <div v-html="sanitizedDescriptionHtml" />
           </div>
           <!-- Fallback to plain text description -->
           <div
