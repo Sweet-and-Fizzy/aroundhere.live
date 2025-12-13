@@ -143,7 +143,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
 
       // Parse date from title like "SAT NOV 22" or "FRI NOV 21" or "THU SEPT 25"
       const dateMatch = cleanDateTitle.match(/(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)\s+(\d{1,2})/i)
-      if (!dateMatch) {
+      if (!dateMatch?.[1] || !dateMatch[2]) {
         console.log(`[${this.config.name}] Could not parse date from: ${cleanDateTitle}`)
         return null
       }
@@ -171,7 +171,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       // 1. Check description for year (2024, 2025, 2026, etc.)
       const descriptionText = galleryEvent.description.replace(/<[^>]+>/g, ' ')
       const yearMatch = descriptionText.match(/\b(20[2-9]\d)\b/)
-      if (yearMatch) {
+      if (yearMatch?.[1]) {
         const foundYear = parseInt(yearMatch[1], 10)
         if (foundYear >= 2020 && foundYear <= 2030) {
           year = foundYear
@@ -181,7 +181,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       // 2. Check image URL for year (e.g., /2025/09/ in upload path)
       if (!year && galleryEvent.imageUrl) {
         const imageYearMatch = galleryEvent.imageUrl.match(/\/(\d{4})\//)
-        if (imageYearMatch) {
+        if (imageYearMatch?.[1]) {
           const foundYear = parseInt(imageYearMatch[1], 10)
           if (foundYear >= 2020 && foundYear <= 2030) {
             year = foundYear

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
+
 const props = defineProps<{
   initialMessages?: Array<{ role: 'user' | 'assistant'; content: string }>
   hideHeader?: boolean
@@ -17,6 +19,7 @@ const input = ref('')
 const loading = ref(false)
 const sessionId = ref<string | undefined>(undefined)
 const messagesContainer = ref<HTMLElement | null>(null)
+const messagesEndRef = ref<HTMLElement | null>(null)
 
 // Latest message for screen readers
 const latestMessage = computed(() => {
@@ -79,8 +82,8 @@ function saveSession() {
 // Scroll to bottom of messages
 function scrollToBottom() {
   nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    if (messagesEndRef.value) {
+      messagesEndRef.value.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }
   })
 }
@@ -102,11 +105,13 @@ async function sendMessage() {
   loading.value = true
 
   try {
+    const { regionName } = useCurrentRegion()
     const response = await $fetch('/api/chat', {
       method: 'POST',
       body: {
         messages: messages.value.map(m => ({ role: m.role, content: m.content })),
         sessionId: sessionId.value,
+        regionName: regionName.value,
       },
       timeout: 30000, // 30 second timeout
     })
@@ -175,6 +180,20 @@ function handleKeydown(e: KeyboardEvent) {
     sendMessage()
   }
 }
+
+// Send a message programmatically (from external component)
+function sendMessageFromExternal(message: string) {
+  input.value = message
+  sendMessage()
+  // Extra scroll after a delay to ensure panel is fully visible
+  setTimeout(scrollToBottom, 100)
+}
+
+// Expose methods for parent components
+defineExpose({
+  sendMessage: sendMessageFromExternal,
+  scrollToBottom,
+})
 </script>
 
 <template>
@@ -260,6 +279,9 @@ function handleKeydown(e: KeyboardEvent) {
             </div>
           </div>
         </div>
+
+        <!-- Scroll anchor -->
+        <div ref="messagesEndRef" />
       </div>
     </div>
 

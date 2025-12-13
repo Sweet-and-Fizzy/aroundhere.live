@@ -110,11 +110,6 @@ async function runHardcodedScraper(venueSlug: string, venueName: string) {
   }
 }
 
-// Check if venue has any scraper (AI-generated or hardcoded)
-function hasAnyScraper(venue: any): boolean {
-  return !!venue.scraper?.id || hardcodedScraperSlugs.value.has(venue.slug)
-}
-
 function isScraperRunning(venue: any): boolean {
   if (venue.scraper?.id && runningScrapers.value.has(venue.scraper.id)) return true
   if (hardcodedScraperSlugs.value.has(venue.slug) && runningScrapers.value.has(`hardcoded-${venue.slug}`)) return true

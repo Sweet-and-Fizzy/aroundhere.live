@@ -153,7 +153,7 @@ export async function matchSingleArtist(
         spotifyName: match.artist.name,
         spotifyMatchConfidence: match.confidence,
         spotifyMatchStatus: status,
-        spotifyPopularTracks: popularTracks ?? undefined,
+        spotifyPopularTracks: popularTracks ? JSON.parse(JSON.stringify(popularTracks)) : undefined,
         spotifyTracksUpdatedAt: popularTracks ? new Date() : null,
       },
     })
@@ -224,7 +224,7 @@ export async function manuallyMatchArtist(
         spotifyName,
         spotifyMatchConfidence: 1.0,  // Manual = 100% confidence
         spotifyMatchStatus: 'VERIFIED',
-        spotifyPopularTracks: popularTracks ?? undefined,
+        spotifyPopularTracks: popularTracks ? JSON.parse(JSON.stringify(popularTracks)) : undefined,
         spotifyTracksUpdatedAt: popularTracks ? new Date() : null,
       },
     })
@@ -341,7 +341,7 @@ export async function refreshPopularTracks(
       await prisma.artist.update({
         where: { id: artist.id },
         data: {
-          spotifyPopularTracks: tracks,
+          spotifyPopularTracks: JSON.parse(JSON.stringify(tracks)),
           spotifyTracksUpdatedAt: new Date(),
         },
       })

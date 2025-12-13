@@ -65,6 +65,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     databaseUrl: process.env.DATABASE_URL,
     emailFrom: process.env.EMAIL_FROM || 'AroundHere <whatsup@aroundhere.live>',
     superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
+    // Session configuration for nuxt-auth-utils
+    session: {
+      maxAge: 60 * 60 * 24 * 30, // 30 days in seconds
+      cookie: {
+        sameSite: 'lax',
+      },
+    },
     // Public (exposed to client)
     public: {
       regionName: 'Western Massachusetts',
@@ -73,15 +80,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   },
 
   modules: ['@nuxt/ui', '@nuxt/ui-pro', '@nuxtjs/mdc', 'nuxt-auth-utils'],
-
-  // Auth configuration for nuxt-auth-utils
-  auth: {
-    // 30 days in seconds
-    maxAge: 60 * 60 * 24 * 30,
-    cookie: {
-      sameSite: 'lax',
-    },
-  },
 
   // Force light mode by default
   colorMode: {

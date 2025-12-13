@@ -85,16 +85,6 @@ const cityCounts = computed(() => {
   return counts
 })
 
-// Count venues with events
-const venuesWithEventsCount = computed(() => {
-  return props.venues?.filter(v => (v._count?.events || 0) > 0).length || 0
-})
-
-// Count verified venues
-const verifiedVenuesCount = computed(() => {
-  return props.venues?.filter(v => v.verified).length || 0
-})
-
 // Filter available venue types to only show those that exist
 const availableVenueTypes = computed(() => {
   return venueTypes.filter(t => (venueTypeCounts.value[t.value] || 0) > 0)

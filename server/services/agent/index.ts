@@ -85,7 +85,8 @@ export class AgentService {
 
       if (bestPreviousSession?.generatedCode) {
         bestPreviousCode = bestPreviousSession.generatedCode
-        console.log(`[Agent] Found previous session with ${(bestPreviousSession.completenessScore * 100).toFixed(0)}% score, using as baseline`)
+        const score = bestPreviousSession.completenessScore ?? 0
+        console.log(`[Agent] Found previous session with ${(score * 100).toFixed(0)}% score, using as baseline`)
       }
     }
 
@@ -344,7 +345,7 @@ export class AgentService {
           // and on the same domain (to avoid external ticket sites)
           const listingDomain = new URL(url).hostname
           const eventWithDetailUrl = execution.data.find((event: Record<string, unknown>) => {
-            if (!event.sourceUrl || event.sourceUrl === url) return false
+            if (!event.sourceUrl || typeof event.sourceUrl !== 'string' || event.sourceUrl === url) return false
             try {
               const eventDomain = new URL(event.sourceUrl).hostname
               return eventDomain === listingDomain
@@ -407,8 +408,8 @@ export class AgentService {
           await prisma.agentSession.update({
             where: { id: session.id },
             data: {
-              venueData: sessionType === 'VENUE_INFO' ? (bestData ?? undefined) : undefined,
-              eventData: sessionType === 'EVENT_SCRAPER' ? (bestData ?? undefined) : undefined,
+              venueData: sessionType === 'VENUE_INFO' && bestData ? JSON.parse(JSON.stringify(bestData)) : undefined,
+              eventData: sessionType === 'EVENT_SCRAPER' && bestData ? JSON.parse(JSON.stringify(bestData)) : undefined,
               completenessScore: bestScore,
             },
           })
@@ -428,8 +429,8 @@ export class AgentService {
               status: 'SUCCESS',
               currentIteration: attempt,
               generatedCode: bestCode,
-              venueData: sessionType === 'VENUE_INFO' ? (bestData ?? undefined) : undefined,
-              eventData: sessionType === 'EVENT_SCRAPER' ? (bestData ?? undefined) : undefined,
+              venueData: sessionType === 'VENUE_INFO' && bestData ? JSON.parse(JSON.stringify(bestData)) : undefined,
+              eventData: sessionType === 'EVENT_SCRAPER' && bestData ? JSON.parse(JSON.stringify(bestData)) : undefined,
               completenessScore: bestScore,
               thinking: JSON.parse(JSON.stringify(thinking)),
               completedAt: new Date(),
@@ -440,8 +441,8 @@ export class AgentService {
             success: true,
             sessionId: session.id,
             generatedCode: bestCode,
-            venueData: sessionType === 'VENUE_INFO' ? (bestData ?? undefined) : undefined,
-            eventData: sessionType === 'EVENT_SCRAPER' ? (bestData ?? undefined) : undefined,
+            venueData: sessionType === 'VENUE_INFO' ? (bestData as VenueInfo | undefined) : undefined,
+            eventData: sessionType === 'EVENT_SCRAPER' ? (bestData as Record<string, unknown>[] | undefined) : undefined,
             completenessScore: bestScore,
             thinking,
           }
@@ -467,8 +468,8 @@ export class AgentService {
             status: 'SUCCESS',
             currentIteration: maxIterations,
             generatedCode: bestCode,
-            venueData: sessionType === 'VENUE_INFO' ? (bestData ?? undefined) : undefined,
-            eventData: sessionType === 'EVENT_SCRAPER' ? (bestData ?? undefined) : undefined,
+            venueData: sessionType === 'VENUE_INFO' && bestData ? JSON.parse(JSON.stringify(bestData)) : undefined,
+            eventData: sessionType === 'EVENT_SCRAPER' && bestData ? JSON.parse(JSON.stringify(bestData)) : undefined,
             completenessScore: bestScore,
             thinking: JSON.parse(JSON.stringify(thinking)),
             completedAt: new Date(),
@@ -479,8 +480,8 @@ export class AgentService {
           success: true,
           sessionId: session.id,
           generatedCode: bestCode,
-          venueData: sessionType === 'VENUE_INFO' ? (bestData ?? undefined) : undefined,
-          eventData: sessionType === 'EVENT_SCRAPER' ? (bestData ?? undefined) : undefined,
+          venueData: sessionType === 'VENUE_INFO' ? (bestData as VenueInfo | undefined) : undefined,
+          eventData: sessionType === 'EVENT_SCRAPER' ? (bestData as Record<string, unknown>[] | undefined) : undefined,
           completenessScore: bestScore,
           thinking,
         }

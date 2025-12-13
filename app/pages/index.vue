@@ -12,8 +12,42 @@ const genreLabels = computed(() => genresData.value?.genreLabels ?? {})
 // Track current filters for pagination and facets
 const currentFilters = ref<Record<string, any>>({})
 
-// Ref to sidebar component for calling methods
-const sidebarRef = ref<{ clearFiltersKeepSearch: () => void } | null>(null)
+// Ref to sidebar component for calling methods (desktop)
+const sidebarRef = ref<{
+  clearFiltersKeepSearch: () => void
+  openChatWithMessage: (message: string) => void
+} | null>(null)
+
+// Ref to floating chat button for calling methods (mobile/tablet)
+const floatingChatRef = ref<{
+  openWithMessage: (message: string) => void
+} | null>(null)
+
+// Hero chat input
+const heroChatInput = ref('')
+const heroSuggestions = [
+  { icon: '⭐', text: "What's happening this weekend?" },
+  { icon: '🎵', text: 'When can I hear Jazz?' },
+  { icon: '💃', text: 'Where can I go dancing?' },
+]
+
+function submitHeroChat(messageOrEvent?: string | Event) {
+  const query = typeof messageOrEvent === 'string' ? messageOrEvent : heroChatInput.value.trim()
+  if (!query) return
+
+  // Check if we're on desktop (lg breakpoint = 1024px) or mobile/tablet
+  const isDesktop = window.innerWidth >= 1024
+
+  if (isDesktop) {
+    // Open the chat sidebar on desktop
+    sidebarRef.value?.openChatWithMessage(query)
+  } else {
+    // Open the floating chat drawer on mobile/tablet
+    floatingChatRef.value?.openWithMessage(query)
+  }
+
+  heroChatInput.value = ''
+}
 
 // Track active sidebar tab for dynamic width
 const sidebarTab = ref<'filters' | 'chat'>('filters')
@@ -73,17 +107,18 @@ async function loadMore() {
 
 const config = useRuntimeConfig()
 const siteUrl = config.public.siteUrl
+const { regionName } = useCurrentRegion()
 
 useSeoMeta({
-  title: 'AroundHere - Western MA Live Shows',
-  description: 'Find live music events, concerts, and shows in Western Massachusetts. Browse upcoming shows at Iron Horse, The Drake, and more.',
+  title: 'AroundHere - Live Shows',
+  description: () => `Find live music events, concerts, and shows in ${regionName.value}. Browse upcoming shows at local venues.`,
   // Open Graph
-  ogTitle: 'AroundHere - Live Music in Western Massachusetts',
-  ogDescription: 'Discover live music events, concerts, and shows in Western Massachusetts. Browse upcoming shows at local venues.',
+  ogTitle: () => `AroundHere - Live Music in ${regionName.value}`,
+  ogDescription: () => `Discover live music events, concerts, and shows in ${regionName.value}. Browse upcoming shows at local venues.`,
   ogUrl: siteUrl,
   // Twitter
-  twitterTitle: 'AroundHere - Live Music in Western Massachusetts',
-  twitterDescription: 'Discover live music events, concerts, and shows in Western Massachusetts.',
+  twitterTitle: () => `AroundHere - Live Music in ${regionName.value}`,
+  twitterDescription: () => `Discover live music events, concerts, and shows in ${regionName.value}.`,
 })
 
 useHead({
@@ -95,18 +130,55 @@ useHead({
 
 <template>
   <div class="px-2 sm:px-0">
-    <!-- Hero Section - Smaller on mobile -->
+    <!-- Hero Section -->
     <div
-      class="text-white py-6 px-4 sm:py-10 sm:px-6 rounded-lg sm:rounded-xl mb-4 sm:mb-8"
+      class="text-white py-6 px-4 sm:py-8 sm:px-6 rounded-lg sm:rounded-xl mb-4 sm:mb-8"
       style="background: radial-gradient(ellipse at center, #374151 0%, #1f2937 60%, #111827 100%);"
     >
-      <div class="text-center">
-        <h1 class="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
-          AroundHere
-        </h1>
-        <p class="text-sm sm:text-lg text-white/90">
-          Discover live shows in Western Massachusetts
-        </p>
+      <div class="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+        <!-- Logo -->
+        <div class="flex-shrink-0 mx-auto md:mx-0">
+          <AnimatedLogo :playing="true" class="w-40 md:w-56" />
+        </div>
+
+        <!-- Chat Input Section -->
+        <div class="flex-1 w-full">
+          <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
+            Ask me about local events
+          </h2>
+
+          <!-- Input Form -->
+          <form class="flex gap-2 mb-3" @submit.prevent="submitHeroChat">
+            <div class="flex-1 relative">
+              <input
+                v-model="heroChatInput"
+                type="text"
+                placeholder="Type your question here"
+                class="hero-chat-input w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+            </div>
+            <button
+              type="submit"
+              class="px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors flex items-center justify-center"
+              :disabled="!heroChatInput.trim()"
+            >
+              <UIcon name="i-heroicons-arrow-right" class="w-5 h-5 text-white" />
+            </button>
+          </form>
+
+          <!-- Suggestion Chips -->
+          <div class="flex flex-wrap gap-2 justify-center md:justify-start">
+            <button
+              v-for="suggestion in heroSuggestions"
+              :key="suggestion.text"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-gray-600 rounded-full text-sm text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors"
+              @click="submitHeroChat(suggestion.text)"
+            >
+              <span>{{ suggestion.icon }}</span>
+              {{ suggestion.text }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -219,7 +291,18 @@ useHead({
     <BackToTop />
 
     <!-- Floating Chat Button - Mobile/Tablet only (hidden on desktop) -->
-    <FloatingChatButton />
+    <FloatingChatButton ref="floatingChatRef" />
   </div>
 </template>
 
+<style>
+/* Override global input styles for hero chat input */
+.hero-chat-input {
+  color: white !important;
+  caret-color: white;
+}
+
+.hero-chat-input::placeholder {
+  color: #9ca3af !important;
+}
+</style>

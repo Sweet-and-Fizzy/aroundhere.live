@@ -164,7 +164,7 @@ export class StoneChurchScraper extends PlaywrightScraper {
     for (let i = 0; i < eventRows.length; i++) {
       const rowData = eventRows[i]
 
-      if (!rowData.eventId) {
+      if (!rowData || !rowData.eventId) {
         console.log(`[${this.config.name}] Event ${i + 1} has no event ID, skipping`)
         continue
       }
@@ -237,7 +237,7 @@ export class StoneChurchScraper extends PlaywrightScraper {
           if (coverImg) {
             const bgStyle = coverImg.style.backgroundImage
             const urlMatch = bgStyle.match(/url\(['"]?([^'"()]+)['"]?\)/)
-            if (urlMatch) {
+            if (urlMatch?.[1]) {
               imageUrl = urlMatch[1]
             }
           }
@@ -299,7 +299,7 @@ export class StoneChurchScraper extends PlaywrightScraper {
         }
 
         const dateMatch = rowData.monthDay.match(/([A-Za-z]+)\s*(\d+)/i)
-        if (!dateMatch) {
+        if (!dateMatch?.[1] || !dateMatch[2]) {
           console.log(`[${this.config.name}] Could not parse date: ${rowData.monthDay}`)
           continue
         }
@@ -315,7 +315,7 @@ export class StoneChurchScraper extends PlaywrightScraper {
         // Parse time (prefer show time from modal, fall back to row time)
         const timeStr = modalData.showTime || rowData.time
         const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
-        if (!timeMatch) {
+        if (!timeMatch?.[1] || !timeMatch[2] || !timeMatch[3]) {
           console.log(`[${this.config.name}] Could not parse time: ${timeStr}`)
           continue
         }

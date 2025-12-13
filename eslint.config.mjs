@@ -79,9 +79,20 @@ const nuxtGlobals = {
   URL: 'readonly',
   // Nuxt server utilities
   setHeader: 'readonly',
+  getHeader: 'readonly',
+  defineNitroPlugin: 'readonly',
   // Auto-imported utilities
   stripHtmlAndClean: 'readonly',
   sendMagicLinkEmail: 'readonly',
+  // Custom composables
+  useCurrentRegion: 'readonly',
+  // Browser/DOM globals
+  KeyboardEvent: 'readonly',
+  Event: 'readonly',
+  HTMLInputElement: 'readonly',
+  GeolocationPosition: 'readonly',
+  navigator: 'readonly',
+  Response: 'readonly',
 }
 
 export default [
@@ -136,6 +147,8 @@ export default [
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'warn',
       'vue/require-default-prop': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'error',
     },
   },
 ]

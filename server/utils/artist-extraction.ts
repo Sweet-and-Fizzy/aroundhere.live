@@ -31,19 +31,19 @@ export function extractArtistName(title: string): string | null {
 
   // Handle "Live Music: X" or "LIVE Music - X" pattern
   const liveMusicMatch = artist.match(/^live\s+music[:\s-]+\s*(.+)$/i)
-  if (liveMusicMatch) {
+  if (liveMusicMatch?.[1]) {
     artist = liveMusicMatch[1].trim()
   }
 
   // Handle "An Evening with X" pattern
   const eveningMatch = artist.match(/^an evening with\s+(.+?)(\s*\(.*\))?$/i)
-  if (eveningMatch) {
+  if (eveningMatch?.[1]) {
     artist = eveningMatch[1].trim()
   }
 
   // Handle "X - w/ Y" pattern (take headliner only)
   const wMatch = artist.match(/^(.+?)\s+-\s+w\/\s+/i)
-  if (wMatch) {
+  if (wMatch?.[1]) {
     artist = wMatch[1].trim()
   }
 

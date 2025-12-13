@@ -33,7 +33,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     dimensions: EMBEDDING_DIMENSIONS,
   })
 
-  return response.data[0].embedding
+  return response.data[0]!.embedding
 }
 
 /**

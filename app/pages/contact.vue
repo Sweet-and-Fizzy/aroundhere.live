@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
 const canonicalUrl = `${config.public.siteUrl}/contact`
+const { regionName } = useCurrentRegion()
 
 useSeoMeta({
   title: 'Contact - AroundHere',
@@ -38,7 +39,7 @@ useHead({
       <UCard class="mb-6">
         <div class="prose prose-gray max-w-none">
           <p class="text-lg text-gray-700">
-            AroundHere is a community project built to help folks discover live music in Western Massachusetts. We're always looking to make it better!
+            AroundHere is a community project built to help folks discover live music in {{ regionName }}. We're always looking to make it better!
           </p>
         </div>
       </UCard>

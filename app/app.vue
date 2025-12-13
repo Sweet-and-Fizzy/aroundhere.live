@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { user } = useUserSession()
 const route = useRoute()
+const { regionName } = useCurrentRegion()
 
 const isAdmin = computed(() => {
   const role = user.value?.role as string
@@ -46,9 +47,9 @@ watch(() => route.fullPath, () => {
           <div class="flex justify-between items-center h-16">
             <NuxtLink
               to="/"
-              class="font-bold text-xl hover:text-primary-400 transition-colors"
+              class="hover:opacity-80 transition-opacity"
             >
-              AroundHere
+              <img src="/around-here-logo.svg" alt="AroundHere.Live" class="h-6" />
             </NuxtLink>
 
             <!-- Desktop Navigation -->
@@ -216,7 +217,7 @@ watch(() => route.fullPath, () => {
       <footer class="bg-gray-100 border-t border-gray-200">
         <div class="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm space-y-2">
           <p>Event details may change. Always check the venue website before heading out.</p>
-          <p>AroundHere - Western Massachusetts</p>
+          <p>AroundHere - {{ regionName }}</p>
         </div>
       </footer>
     </div>

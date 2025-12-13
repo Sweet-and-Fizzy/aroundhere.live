@@ -1,5 +1,7 @@
 <script setup lang="ts">
-const props = defineProps<{
+import { nextTick } from 'vue'
+
+defineProps<{
   venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null }[]
   genres?: string[]
   genreLabels?: Record<string, string>
@@ -52,10 +54,27 @@ watch(activeTab, (newTab) => {
 // Ref to filters component for parent access
 const filtersRef = ref<{ resetFilters: () => void; clearFiltersKeepSearch: () => void } | null>(null)
 
+// Ref to chat component for parent access
+const chatRef = ref<{ sendMessage: (message: string) => void; scrollToBottom: () => void } | null>(null)
+
+// Open chat tab and send a message
+function openChatWithMessage(message: string) {
+  activeTab.value = 'chat'
+  // Use nextTick to ensure chat component is visible before sending
+  nextTick(() => {
+    chatRef.value?.sendMessage(message)
+    // Scroll after a delay to ensure the panel is fully rendered
+    setTimeout(() => {
+      chatRef.value?.scrollToBottom()
+    }, 200)
+  })
+}
+
 // Expose methods from filters component
 defineExpose({
   resetFilters: () => filtersRef.value?.resetFilters(),
   clearFiltersKeepSearch: () => filtersRef.value?.clearFiltersKeepSearch(),
+  openChatWithMessage,
 })
 
 function handleFilter(filters: Record<string, any>) {
@@ -102,7 +121,7 @@ function handleFilter(filters: Record<string, any>) {
 
       <!-- Chat Tab -->
       <div v-show="activeTab === 'chat'" class="tab-panel chat-panel">
-        <ChatInterface />
+        <ChatInterface ref="chatRef" />
       </div>
     </div>
   </div>

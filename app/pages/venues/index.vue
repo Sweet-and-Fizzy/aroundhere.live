@@ -60,17 +60,23 @@ function handleFilter(filters: Record<string, any>) {
 
 const config = useRuntimeConfig()
 const canonicalUrl = `${config.public.siteUrl}/venues`
+const { regionName, updateRegion } = useCurrentRegion()
+
+// Handle map center changes to update region
+function onCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
+  updateRegion(center.lat, center.lng)
+}
 
 useSeoMeta({
   title: 'Venues - AroundHere',
-  description: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more hosting live music.',
+  description: () => `Browse music venues in ${regionName.value}. Find bars, clubs, theaters, and more hosting live music.`,
   // Open Graph
-  ogTitle: 'Music Venues in Western Massachusetts',
-  ogDescription: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more hosting live music.',
+  ogTitle: () => `Music Venues in ${regionName.value}`,
+  ogDescription: () => `Browse music venues in ${regionName.value}. Find bars, clubs, theaters, and more hosting live music.`,
   ogUrl: canonicalUrl,
   // Twitter
-  twitterTitle: 'Music Venues in Western Massachusetts',
-  twitterDescription: 'Browse music venues in Western Massachusetts. Find bars, clubs, theaters, and more.',
+  twitterTitle: () => `Music Venues in ${regionName.value}`,
+  twitterDescription: () => `Browse music venues in ${regionName.value}. Find bars, clubs, theaters, and more.`,
 })
 
 useHead({
@@ -106,6 +112,7 @@ useHead({
           persist-key="mapBounds"
           :show-controls="true"
           @visible-venues="onVisibleVenues"
+          @center-changed="onCenterChanged"
         />
       </ClientOnly>
     </div>

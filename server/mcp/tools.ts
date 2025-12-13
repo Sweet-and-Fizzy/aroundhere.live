@@ -17,13 +17,15 @@ function getBaseUrl() {
 export const chatTools = {
   search_events: tool({
     description:
-      'Search for live music events, concerts, and shows in Western Massachusetts. Use this when the user asks about events, shows, concerts, what\'s happening, or wants to find specific performances.',
+      'Search for live music events, concerts, and shows. Use this when the user asks about events, shows, concerts, what\'s happening, or wants to find specific performances.',
     inputSchema: z.object({
       q: z.string().optional().describe('Search query - artist name, venue, genre keyword, or general term'),
       startDate: z.string().optional().describe('Start date in ISO format (YYYY-MM-DD). Defaults to today.'),
       endDate: z.string().optional().describe('End date in ISO format (YYYY-MM-DD). Use for "this weekend" or date range queries.'),
       genres: z.array(z.string()).optional().describe('Filter by genres: jazz, rock, folk, blues, country, electronic, hip-hop, classical, etc.'),
       venueIds: z.array(z.string()).optional().describe('Filter by specific venue IDs (use list_venues to get IDs)'),
+      state: z.string().optional().describe('Filter by US state abbreviation (e.g., "MA", "VT", "NH"). Use for queries like "events in Vermont"'),
+      city: z.string().optional().describe('Filter by city name (e.g., "Northampton", "Brattleboro"). Use for queries like "events in Brattleboro"'),
       limit: z.number().optional().describe('Maximum number of results to return (default 20, max 20). Always use 20 for broad queries like "what\'s happening" or date-range queries.'),
     }),
     execute: async (input) => {
@@ -38,6 +40,8 @@ export const chatTools = {
       if (input.venueIds && input.venueIds.length > 0) {
         params.set('venueIds', input.venueIds.join(','))
       }
+      if (input.state) params.set('state', input.state)
+      if (input.city) params.set('city', input.city)
       params.set('limit', String(Math.min(input.limit || 20, 20)))
       params.set('musicOnly', 'false')
 
@@ -50,19 +54,23 @@ export const chatTools = {
       const events = data.events || []
 
       return {
-        events: events.map((e: Record<string, unknown>) => ({
-          title: e.title,
-          date: formatEventDate(e.startsAt as string),
-          venue: (e.venue as Record<string, unknown>)?.name || 'TBA',
-          city: (e.venue as Record<string, unknown>)?.city || '',
-          genres: (e.canonicalGenres as string[])?.slice(0, 3) || [],
-          coverCharge: e.coverCharge || 'Check venue',
-          ticketUrl: e.ticketUrl || null,
-          url: `/events/${e.slug}`,
-          artists: ((e.eventArtists as Array<{ artist: { name: string } }>) || [])
-            .map((ea) => ea.artist.name)
-            .slice(0, 3),
-        })),
+        events: events.map((e: Record<string, unknown>) => {
+          const venue = e.venue as Record<string, unknown> | undefined
+          return {
+            title: e.title,
+            date: formatEventDate(e.startsAt as string),
+            venue: venue?.name || 'TBA',
+            city: venue?.city || '',
+            state: venue?.state || '',
+            genres: (e.canonicalGenres as string[])?.slice(0, 3) || [],
+            coverCharge: e.coverCharge || 'Check venue',
+            ticketUrl: e.ticketUrl || null,
+            url: `/events/${e.slug}`,
+            artists: ((e.eventArtists as Array<{ artist: { name: string } }>) || [])
+              .map((ea) => ea.artist.name)
+              .slice(0, 3),
+          }
+        }),
         total: data.totalCount || data.pagination?.total || events.length,
         query: input.q || null,
       }
@@ -71,9 +79,10 @@ export const chatTools = {
 
   list_venues: tool({
     description:
-      'Get a list of music venues in Western Massachusetts. Use when the user asks about venues, places to see shows, or needs venue information.',
+      'Get a list of music venues. Use when the user asks about venues, places to see shows, or needs venue information.',
     inputSchema: z.object({
-      city: z.string().optional().describe('Filter venues by city name (e.g., "Northampton", "Amherst", "Springfield")'),
+      city: z.string().optional().describe('Filter venues by city name (e.g., "Northampton", "Amherst", "Brattleboro")'),
+      state: z.string().optional().describe('Filter venues by US state abbreviation (e.g., "MA", "VT")'),
     }),
     execute: async (input) => {
       const baseUrl = getBaseUrl()
@@ -90,11 +99,20 @@ export const chatTools = {
         )
       }
 
+      if (input.state) {
+        const stateLower = input.state.toLowerCase()
+        venues = venues.filter(
+          (v: Record<string, unknown>) =>
+            v.state && String(v.state).toLowerCase() === stateLower
+        )
+      }
+
       return {
         venues: venues.map((v: Record<string, unknown>) => ({
           id: v.id,
           name: v.name,
           city: v.city,
+          state: v.state,
           type: v.venueType,
           url: `/venues/${v.slug}`,
           upcomingEvents: (v._count as Record<string, number>)?.events || 0,

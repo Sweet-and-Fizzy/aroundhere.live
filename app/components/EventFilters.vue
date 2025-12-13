@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
@@ -114,15 +115,6 @@ function onMapVisibleVenues(venueIds: string[]) {
     mapFilteredVenueIds.value = venueIds
     applyFilters()
   }
-}
-
-function clearMapFilter() {
-  mapFilteredVenueIds.value = null
-  // Clear persisted map bounds
-  if (import.meta.client) {
-    localStorage.removeItem(MAP_BOUNDS_KEY)
-  }
-  applyFilters()
 }
 
 // Track if map has been customized (search, locate, etc.)

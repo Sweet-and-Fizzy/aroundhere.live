@@ -23,6 +23,10 @@ export default defineEventHandler(async (event) => {
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
   const offset = parseInt(query.offset as string) || 0
 
+  // Geographic filters (filter by venue location)
+  const state = query.state as string | undefined
+  const city = query.city as string | undefined
+
   // Classification filters
   // By default, only show music events (isMusic=true or null for unclassified)
   // Pass musicOnly=false to include non-music events
@@ -57,6 +61,9 @@ export default defineEventHandler(async (event) => {
     ...(genres && genres.length > 0 && {
       canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) },
     }),
+    // Filter by venue state/city
+    ...(state && { venue: { state: { equals: state, mode: 'insensitive' } } }),
+    ...(city && { venue: { city: { contains: city, mode: 'insensitive' } } }),
   }
 
   // Fetch events with related data
@@ -70,6 +77,7 @@ export default defineEventHandler(async (event) => {
             name: true,
             slug: true,
             city: true,
+            state: true,
             latitude: true,
             longitude: true,
             logoUrl: true,

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-const props = defineProps<{
+import { nextTick } from 'vue'
+
+defineProps<{
   alwaysVisible?: boolean
 }>()
 
 const showChat = ref(false)
+const chatRef = ref<{ sendMessage: (message: string) => void; scrollToBottom: () => void } | null>(null)
 
 function toggleChat() {
   showChat.value = !showChat.value
@@ -12,6 +15,20 @@ function toggleChat() {
 function closeChat() {
   showChat.value = false
 }
+
+function openWithMessage(message: string) {
+  showChat.value = true
+  nextTick(() => {
+    chatRef.value?.sendMessage(message)
+    setTimeout(() => {
+      chatRef.value?.scrollToBottom()
+    }, 200)
+  })
+}
+
+defineExpose({
+  openWithMessage,
+})
 
 // Close on escape key
 function handleEscape(e: KeyboardEvent) {
@@ -81,7 +98,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="chat-drawer-content">
-          <ChatInterface hide-header />
+          <ChatInterface ref="chatRef" hide-header />
         </div>
       </div>
     </Teleport>

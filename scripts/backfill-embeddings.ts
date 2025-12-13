@@ -13,23 +13,6 @@ const BATCH_SIZE = 50 // OpenAI allows up to 2048 inputs per request
 async function backfillEmbeddings(limit?: number) {
   console.log('Starting embedding backfill...')
 
-  // Find music events without embeddings
-  const query = {
-    where: {
-      isMusic: true,
-      startsAt: { gte: new Date() },
-    },
-    include: {
-      eventArtists: {
-        include: {
-          artist: { select: { name: true } },
-        },
-      },
-    },
-    orderBy: { startsAt: 'asc' as const },
-    take: limit,
-  }
-
   // Check how many need embeddings using raw SQL
   const needsEmbedding = await prisma.$queryRaw<Array<{ count: bigint }>>`
     SELECT COUNT(*) as count FROM events

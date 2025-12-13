@@ -31,7 +31,7 @@ async function test(url: string) {
       console.log(`Type: ${data['@type'] || (Array.isArray(data) ? 'Array' : 'Object')}`)
       console.log(`Preview:\n${preview}`)
       console.log('\n')
-    } catch (e) {
+    } catch {
       console.log(`--- LD+JSON #${i + 1} (parse error) ---`)
       console.log(content.substring(0, 500))
       console.log('\n')
