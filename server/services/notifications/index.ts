@@ -551,3 +551,45 @@ export async function notifyChatQualitySample(params: {
   await sendSlackNotification(message, blocks)
 }
 
+/**
+ * Alert when there are unclassified events that won't be shown publicly
+ */
+export async function notifyUnclassifiedEvents(params: {
+  count: number
+  sampleTitles: string[]
+}): Promise<void> {
+  const { count, sampleTitles } = params
+
+  // Only notify if there are unclassified events
+  if (count === 0) {
+    return
+  }
+
+  const message = `⚠️ ${count} unclassified events`
+
+  const sampleText = sampleTitles.length > 0
+    ? sampleTitles.slice(0, 5).map(t => `• ${t}`).join('\n')
+    : 'None'
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `⚠️ *Unclassified Events Alert*`,
+          '',
+          `*${count} future events* are not being shown publicly because they haven't been classified yet.`,
+          '',
+          `*Sample titles:*`,
+          sampleText,
+          '',
+          `_Run the classifier to make these events visible._`,
+        ].join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+

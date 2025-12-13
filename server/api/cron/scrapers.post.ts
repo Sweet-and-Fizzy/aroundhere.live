@@ -17,7 +17,7 @@ import type { ScrapedEvent } from '../../scrapers/types'
 
 // Import hardcoded scrapers
 import { scrapeFreakscene } from '../../scrapers/reviews/freakscene'
-import { notifyNewReviews } from '../../services/notifications'
+import { notifyNewReviews, notifyUnclassifiedEvents } from '../../services/notifications'
 import { IronHorseScraper } from '../../scrapers/venues/iron-horse'
 import { TheDrakeScraper } from '../../scrapers/venues/the-drake'
 import { NewCityBreweryScraper } from '../../scrapers/venues/new-city-brewery'
@@ -224,6 +224,32 @@ export default defineEventHandler(async (event) => {
 
   // 4. Classify any new events
   await classifyPendingEvents(prisma)
+
+  // 5. Check for any remaining unclassified events and alert
+  const unclassifiedEvents = await prisma.event.findMany({
+    where: {
+      isMusic: null,
+      startsAt: { gte: new Date() },
+      isCancelled: false,
+    },
+    select: { title: true },
+    take: 10,
+  })
+
+  if (unclassifiedEvents.length > 0) {
+    const totalUnclassified = await prisma.event.count({
+      where: {
+        isMusic: null,
+        startsAt: { gte: new Date() },
+        isCancelled: false,
+      },
+    })
+
+    await notifyUnclassifiedEvents({
+      count: totalUnclassified,
+      sampleTitles: unclassifiedEvents.map(e => e.title),
+    })
+  }
 
   const totalDuration = Date.now() - start
   const successful = results.filter(r => r.success).length

@@ -13,7 +13,12 @@ export default defineEventHandler(async (event) => {
   const venueId = query.venueId as string | undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
   const startDate = query.startDate ? new Date(query.startDate as string) : new Date()
-  const endDate = query.endDate ? new Date(query.endDate as string) : undefined
+  // Set endDate to end of day (23:59:59.999 UTC) to include all events on that date
+  const endDate = query.endDate ? (() => {
+    const d = new Date(query.endDate as string)
+    d.setUTCHours(23, 59, 59, 999)
+    return d
+  })() : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
   const offset = parseInt(query.offset as string) || 0
@@ -35,7 +40,9 @@ export default defineEventHandler(async (event) => {
     // Include PENDING events for now until we have a review workflow
     reviewStatus: { in: ['APPROVED', 'PENDING'] },
     isCancelled: false,
-    // Always exclude private events (unless explicitly requesting a type)
+    // Only show classified events (isMusic is set after classification)
+    // This also excludes PRIVATE events since they get classified with eventType=PRIVATE
+    isMusic: { not: null },
     ...(!eventType && !eventTypes && { eventType: { not: 'PRIVATE' as const } }),
     // Filter by music/non-music
     ...(musicOnly && { OR: [{ isMusic: true }, { isMusic: null }] }),

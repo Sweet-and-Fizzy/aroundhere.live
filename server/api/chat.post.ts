@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
       ?.flatMap((step) => step.toolCalls?.map((tc) => tc.toolName) || [])
       .filter(Boolean) || []
     const toolInputs = result.steps
-      ?.flatMap((step) => step.toolCalls?.map((tc) => ({ tool: tc.toolName, input: (tc as any).args })) || [])
+      ?.flatMap((step) => step.toolCalls?.map((tc) => ({ tool: tc.toolName, input: (tc as any).input })) || [])
       .filter(Boolean) || []
 
     // Log to database (non-blocking)

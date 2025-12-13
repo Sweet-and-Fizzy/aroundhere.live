@@ -7,7 +7,12 @@ export default defineEventHandler(async (event) => {
   const q = (query.q as string)?.trim()
   const regionId = query.regionId as string | undefined
   const startDate = query.startDate ? new Date(query.startDate as string) : new Date()
-  const endDate = query.endDate ? new Date(query.endDate as string) : undefined
+  // Set endDate to end of day (23:59:59.999 UTC) to include all events on that date
+  const endDate = query.endDate ? (() => {
+    const d = new Date(query.endDate as string)
+    d.setUTCHours(23, 59, 59, 999)
+    return d
+  })() : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const venueId = query.venueId as string | undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
