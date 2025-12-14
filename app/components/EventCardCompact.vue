@@ -6,6 +6,9 @@ const props = defineProps<{
   hideDate?: boolean
 }>()
 
+const { getGenreLabel } = useGenreLabels()
+const { getEventTypeLabel } = useEventTypeLabels()
+
 const formattedDate = computed(() => {
   const date = new Date(props.event.startsAt)
   return {
@@ -40,15 +43,25 @@ const primaryGenre = computed(() => {
   return null
 })
 
-// Get event type badge color
-const eventTypeBadgeColor = computed(() => {
-  const type = props.event.eventType
-  if (type === 'MUSIC') return 'primary'
-  if (type === 'FILM') return 'purple'
-  if (type === 'THEATER') return 'rose'
-  if (type === 'COMEDY') return 'amber'
-  if (type === 'ART') return 'teal'
-  return 'gray'
+// Get event type label with friendly name
+const eventTypeLabel = computed(() => {
+  return getEventTypeLabel(props.event.eventType)
+})
+
+// Combine category and genre for display with friendly labels
+const categoryDisplay = computed(() => {
+  const genreLabel = primaryGenre.value ? getGenreLabel(primaryGenre.value) : null
+
+  if (eventTypeLabel.value && genreLabel) {
+    return `${eventTypeLabel.value}: ${genreLabel}`
+  }
+  if (eventTypeLabel.value) {
+    return eventTypeLabel.value
+  }
+  if (genreLabel) {
+    return genreLabel
+  }
+  return null
 })
 </script>
 
@@ -79,46 +92,45 @@ const eventTypeBadgeColor = computed(() => {
 
       <!-- Title - Flexible, truncates -->
       <div class="flex-1 min-w-0 pr-2">
-        <div class="font-semibold text-sm sm:text-base text-gray-900 truncate group-hover:text-primary-600 transition-colors">
+        <div
+          class="font-semibold text-sm sm:text-base text-gray-900 truncate group-hover:text-primary-600 transition-colors"
+          :title="event.title"
+        >
           {{ event.title }}
         </div>
       </div>
 
       <!-- Venue - Flexible, truncates on mobile -->
       <div class="hidden sm:block flex-1 min-w-0 pr-2">
-        <div class="text-sm text-gray-700 truncate">
-          <UIcon
-            name="i-heroicons-map-pin"
-            class="w-3.5 h-3.5 inline mr-1"
-          />
-          {{ event.venue?.name || 'TBA' }}
+        <div class="flex items-center gap-1">
+          <div
+            class="text-sm text-gray-700 truncate flex-1"
+            :title="event.venue?.name || 'TBA'"
+          >
+            <UIcon
+              name="i-heroicons-map-pin"
+              class="w-3.5 h-3.5 inline mr-1"
+            />
+            {{ event.venue?.name || 'TBA' }}
+          </div>
+          <span
+            v-if="event.venue?.city"
+            class="flex-shrink-0 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+            :title="event.venue.city"
+          >
+            {{ event.venue.city }}
+          </span>
         </div>
       </div>
 
-      <!-- Type Badge - Fixed width, hidden on mobile -->
-      <div class="hidden md:block flex-shrink-0 w-20">
-        <UBadge
-          v-if="event.eventType"
-          :color="eventTypeBadgeColor"
-          variant="soft"
-          size="xs"
-          class="w-full justify-center"
-        >
-          {{ event.eventType }}
-        </UBadge>
-      </div>
-
-      <!-- Genre - Fixed width, truncates -->
-      <div class="hidden lg:block flex-shrink-0 w-24 xl:w-28">
+      <!-- Category (Type: Genre) - Combined column -->
+      <div class="hidden md:block flex-shrink-0 w-24 lg:w-28 xl:w-32">
         <div
-          v-if="primaryGenre"
-          class="text-xs text-gray-600 truncate"
+          v-if="categoryDisplay"
+          class="text-xs text-gray-700 truncate"
+          :title="categoryDisplay"
         >
-          <UIcon
-            name="i-heroicons-musical-note"
-            class="w-3 h-3 inline mr-1"
-          />
-          {{ primaryGenre }}
+          {{ categoryDisplay }}
         </div>
       </div>
 

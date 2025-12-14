@@ -108,22 +108,45 @@ function formatDateHeader(date: Date): string {
       <div
         v-for="dateGroup in eventsByDate"
         :key="dateGroup.dateKey"
-        class="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm"
+        class="border border-gray-300 rounded-lg bg-white shadow-sm"
       >
-        <!-- Date Header -->
-        <div class="bg-gray-700 border-b border-gray-600 px-4 py-2 sticky top-0 z-10">
+        <!-- Date Header (sticky) -->
+        <div class="bg-gray-700 px-4 py-2 sticky top-0 z-20 rounded-t-lg">
           <h3 class="font-semibold text-white text-sm sm:text-base">
             {{ formatDateHeader(dateGroup.date) }}
           </h3>
         </div>
 
+        <!-- Column Headers (sticky below date header) -->
+        <div class="bg-gray-100 border-y border-gray-300 px-2 sm:px-3 sticky top-[38px] sm:top-[42px] z-10">
+          <div class="flex items-center gap-2 sm:gap-3 md:gap-4 py-1.5 text-xs text-gray-600 font-medium uppercase tracking-wide">
+            <div class="flex-shrink-0 w-14 sm:w-16">
+              Time
+            </div>
+            <div class="flex-1 min-w-0 pr-2">
+              Event
+            </div>
+            <div class="hidden sm:block flex-1 min-w-0 pr-2">
+              Venue
+            </div>
+            <div class="hidden md:block flex-shrink-0 w-24 lg:w-28 xl:w-32">
+              Category
+            </div>
+            <div class="flex-shrink-0 w-4 sm:w-5">
+              <!-- Chevron spacer -->
+            </div>
+          </div>
+        </div>
+
         <!-- Events for this date -->
-        <EventCardCompact
-          v-for="event in dateGroup.events"
-          :key="event.id"
-          :event="event"
-          :hide-date="true"
-        />
+        <div>
+          <EventCardCompact
+            v-for="event in dateGroup.events"
+            :key="event.id"
+            :event="event"
+            :hide-date="true"
+          />
+        </div>
       </div>
     </div>
   </div>

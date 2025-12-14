@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
   // Geographic filters (filter by venue location)
   const state = query.state as string | undefined
   const city = query.city as string | undefined
+  const cities = query.cities ? (query.cities as string).split(',') : undefined
 
   // Classification filters
   // By default, only show music events (isMusic=true or null for unclassified)
@@ -67,7 +68,8 @@ export default defineEventHandler(async (event) => {
     }),
     // Filter by venue state/city
     ...(state && { venue: { state: { equals: state, mode: 'insensitive' } } }),
-    ...(city && { venue: { city: { contains: city, mode: 'insensitive' } } }),
+    ...(cities && cities.length > 0 && { venue: { city: { in: cities } } }),
+    ...(city && !cities && { venue: { city: { contains: city, mode: 'insensitive' } } }),
   }
 
   // Fetch events with related data

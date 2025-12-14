@@ -7,6 +7,8 @@ const props = defineProps<{
 
 const expanded = ref(false)
 const imageLoaded = ref(false)
+const { getGenreLabel } = useGenreLabels()
+const { getEventTypeLabel } = useEventTypeLabels()
 
 function onImageLoad() {
   imageLoaded.value = true
@@ -99,6 +101,11 @@ const hasMoreContent = computed(() => {
   }
   return false
 })
+
+// Get event type label with friendly name
+const eventTypeLabel = computed(() => {
+  return getEventTypeLabel(props.event.eventType)
+})
 </script>
 
 <template>
@@ -156,8 +163,9 @@ const hasMoreContent = computed(() => {
           <UIcon
             name="i-heroicons-calendar"
             class="w-4 h-4 text-primary-500"
+            aria-hidden="true"
           />
-          <span class="font-medium">{{ formattedDate.weekday }}, {{ formattedDate.month }} {{ formattedDate.day }}</span>
+          <time class="font-medium" :datetime="event.startsAt">{{ formattedDate.weekday }}, {{ formattedDate.month }} {{ formattedDate.day }}</time>
           <template v-if="formattedTime">
             <span class="text-gray-500">at</span>
             <span>{{ formattedTime }}</span>
@@ -173,7 +181,10 @@ const hasMoreContent = computed(() => {
             :to="`/events/${event.slug}`"
             class="block group flex-1 min-w-0"
           >
-            <h3 class="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2">
+            <h3
+              class="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2"
+              :title="event.title"
+            >
               {{ event.title }}
             </h3>
           </NuxtLink>
@@ -191,7 +202,7 @@ const hasMoreContent = computed(() => {
 
         <div
           v-if="event.venue"
-          class="mt-0.5"
+          class="mt-0.5 flex items-center gap-1.5"
         >
           <NuxtLink
             :to="`/venues/${event.venue.slug}`"
@@ -200,28 +211,41 @@ const hasMoreContent = computed(() => {
             <UIcon
               name="i-heroicons-map-pin"
               class="w-4 h-4"
+              aria-hidden="true"
             />
             <span class="font-medium">{{ event.venue.name }}</span>
-            <span
-              v-if="event.venue.city"
-              class="text-gray-500 hidden sm:inline"
-            >
-              - {{ event.venue.city }}
-            </span>
           </NuxtLink>
+          <span
+            v-if="event.venue.city"
+            class="flex-shrink-0 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+            :title="event.venue.city"
+          >
+            {{ event.venue.city }}
+          </span>
         </div>
 
         <!-- Badges -->
         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
           <UBadge
+            v-if="eventTypeLabel"
+            color="gray"
+            variant="soft"
+            size="sm"
+            :aria-label="`Event type: ${eventTypeLabel}`"
+          >
+            {{ eventTypeLabel }}
+          </UBadge>
+          <UBadge
             v-if="event.coverCharge"
             color="success"
             variant="soft"
             size="sm"
+            :aria-label="`Price: ${event.coverCharge}`"
           >
             <UIcon
               name="i-heroicons-ticket"
               class="w-3 h-3 mr-1"
+              aria-hidden="true"
             />
             {{ event.coverCharge }}
           </UBadge>
@@ -230,6 +254,7 @@ const hasMoreContent = computed(() => {
             color="warning"
             variant="soft"
             size="sm"
+            :aria-label="`Age restriction: ${event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+')}`"
           >
             {{ event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
           </UBadge>
@@ -239,12 +264,14 @@ const hasMoreContent = computed(() => {
             color="primary"
             variant="soft"
             size="sm"
+            :aria-label="`Genre: ${getGenreLabel(genre)}`"
           >
             <UIcon
               name="i-heroicons-musical-note"
               class="w-3 h-3 mr-1"
+              aria-hidden="true"
             />
-            {{ genre }}
+            {{ getGenreLabel(genre) }}
           </UBadge>
         </div>
 

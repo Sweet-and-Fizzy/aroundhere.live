@@ -22,6 +22,8 @@ const props = defineProps<{
     venueCounts: Record<string, number>
     genreCounts: Record<string, number>
     typeCounts: Record<string, number>
+    cityCounts: Record<string, number>
+    cityRegions: Record<string, string>
     musicCount: number
     nonMusicCount: number
   }
@@ -38,7 +40,7 @@ const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'month', 'all'
 // Load filters from URL params (takes priority over localStorage)
 function loadFiltersFromUrl() {
   const query = route.query
-  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date
+  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities
 
   if (!hasUrlFilters) return null
 
@@ -54,6 +56,7 @@ function loadFiltersFromUrl() {
     searchQuery: (query.q as string) || '',
     // Venues are stored by slug in URL, we'll need to map them to IDs later
     venueSlug: query.venues ? (query.venues as string).split(',') : [],
+    selectedCities: query.cities ? (query.cities as string).split(',') : [],
     selectedGenres: query.genres ? (query.genres as string).split(',') : [],
     selectedEventTypes: validatedTypes.length > 0 ? validatedTypes : ['ALL_MUSIC'],
     datePreset: validatedDate,
@@ -86,6 +89,7 @@ function saveFilters() {
       datePreset: datePreset.value,
       selectedVenueIds: selectedVenueIds.value,
       selectedGenres: selectedGenres.value,
+      selectedCities: selectedCities.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
       expandedSection: expandedSection.value,
@@ -113,6 +117,11 @@ function updateUrl() {
     if (venueSlugs.length > 0) {
       query.venues = venueSlugs.join(',')
     }
+  }
+
+  // Cities
+  if (selectedCities.value.length > 0) {
+    query.cities = selectedCities.value.join(',')
   }
 
   // Genres
@@ -173,6 +182,9 @@ const searchQuery = ref(savedFilters?.searchQuery || '')
 const selectedGenres = ref<string[]>(
   savedFilters?.selectedGenres?.map((g: any) => g.value || g) || []
 )
+const selectedCities = ref<string[]>(
+  savedFilters?.selectedCities?.map((c: any) => c.value || c) || []
+)
 // Event types as simple string array for checkboxes
 const selectedEventTypes = ref<string[]>(
   savedFilters?.selectedEventTypes?.map((e: any) => e.value || e) || ['ALL_MUSIC']
@@ -197,7 +209,7 @@ const showAllGenres = ref(false)
 const INITIAL_GENRE_COUNT = 8
 
 // Filter genres to only show those with events (count > 0) and that would actually narrow results
-// Sort by event count (descending) so most popular genres appear first
+// Sort alphabetically
 const availableGenres = computed(() => {
   const genreCounts = props.facets?.genreCounts ?? {}
   const totalResults = props.resultCount ?? 0
@@ -210,9 +222,7 @@ const availableGenres = computed(() => {
       return count > 0 && (count < totalResults || selectedGenres.value.includes(g))
     })
     .sort((a, b) => {
-      // Sort by event count descending
-      const countDiff = (genreCounts[b] ?? 0) - (genreCounts[a] ?? 0)
-      if (countDiff !== 0) return countDiff
+      // Sort alphabetically
       return a.localeCompare(b)
     })
 })
@@ -305,6 +315,7 @@ const hasActiveFilters = computed(() => {
     searchQuery.value !== '' ||
     selectedVenueIds.value.length > 0 ||
     selectedGenres.value.length > 0 ||
+    selectedCities.value.length > 0 ||
     (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') ||
     datePreset.value !== 'month' ||
     mapFilteredVenueIds.value !== null
@@ -317,6 +328,7 @@ const activeFilterCount = computed(() => {
   if (searchQuery.value !== '') count++
   if (selectedVenueIds.value.length > 0) count++
   if (selectedGenres.value.length > 0) count++
+  if (selectedCities.value.length > 0) count++
   if (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') count++
   if (datePreset.value !== 'month') count++
   if (mapFilteredVenueIds.value !== null) count++
@@ -327,6 +339,7 @@ function resetFilters() {
   searchQuery.value = ''
   selectedVenueIds.value = []
   selectedGenres.value = []
+  selectedCities.value = []
   selectedEventTypes.value = ['ALL_MUSIC']
   datePreset.value = 'month'
   customDateRange.value = undefined
@@ -409,6 +422,99 @@ const showEventTypeSection = computed(() => {
   return showAllMusic.value || showAllEvents.value || musicEventTypes.value.length > 0 || nonMusicEventTypes.value.length > 0
 })
 
+// Filter cities to only show those with events (count > 0) AND that would narrow results
+// Sort alphabetically
+const availableCities = computed(() => {
+  const cityCounts = props.facets?.cityCounts ?? {}
+  const totalResults = props.resultCount ?? 0
+  return Object.keys(cityCounts)
+    .filter((city) => {
+      const count = cityCounts[city] ?? 0
+      // Must have events AND selecting it would actually narrow results
+      // Also show if already selected (so user can deselect)
+      return count > 0 && (count < totalResults || selectedCities.value.includes(city))
+    })
+    .sort((a, b) => {
+      // Sort alphabetically
+      return a.localeCompare(b)
+    })
+})
+
+// Group cities by region for organized display
+const citiesByRegion = computed(() => {
+  const cityRegions = props.facets?.cityRegions ?? {}
+  const grouped: Record<string, string[]> = {}
+
+  for (const city of availableCities.value) {
+    const region = cityRegions[city] || 'Other'
+    if (!grouped[region]) {
+      grouped[region] = []
+    }
+    grouped[region].push(city)
+  }
+
+  const { regionName } = useCurrentRegion()
+  const currentRegionName = regionName.value
+
+  // Convert to sorted array of [region, cities] pairs
+  return Object.entries(grouped).sort((a, b) => {
+    // Current region always goes first
+    if (a[0] === currentRegionName) return -1
+    if (b[0] === currentRegionName) return 1
+    // 'Other' region always goes last
+    if (a[0] === 'Other') return 1
+    if (b[0] === 'Other') return -1
+    // Otherwise sort alphabetically
+    return a[0].localeCompare(b[0])
+  })
+})
+
+// Get count for a specific city
+function getCityCount(city: string): number {
+  return props.facets?.cityCounts?.[city] ?? 0
+}
+
+// Toggle city selection
+function toggleCity(city: string) {
+  const index = selectedCities.value.indexOf(city)
+  if (index === -1) {
+    selectedCities.value.push(city)
+  } else {
+    selectedCities.value.splice(index, 1)
+  }
+  applyFilters()
+}
+
+// Track which regions are expanded (current region expanded by default)
+const expandedRegions = ref<Set<string>>(new Set())
+const { regionName } = useCurrentRegion()
+
+// Initialize only the current region as expanded when cities change
+watch(citiesByRegion, (regions) => {
+  if (expandedRegions.value.size === 0 && regions.length > 0) {
+    // First load - only expand the current region
+    const currentRegion = regions.find(([region]) => region === regionName.value)
+    if (currentRegion) {
+      expandedRegions.value.add(currentRegion[0])
+    } else {
+      // If current region not found, expand the first region
+      expandedRegions.value.add(regions[0][0])
+    }
+  }
+}, { immediate: true })
+
+function toggleRegion(region: string) {
+  if (expandedRegions.value.has(region)) {
+    expandedRegions.value.delete(region)
+  } else {
+    expandedRegions.value.add(region)
+  }
+}
+
+function isRegionExpanded(region: string) {
+  return expandedRegions.value.has(region)
+}
+
 const datePresets = [
   { label: 'Today', value: 'today' },
   { label: 'Tomorrow', value: 'tomorrow' },
@@ -459,9 +565,16 @@ const genreSummary = computed(() => {
   return `${labels[0]} +${labels.length - 1} more`
 })
 
+const citySummary = computed(() => {
+  if (selectedCities.value.length === 0) return null
+  if (selectedCities.value.length === 1) return selectedCities.value[0]
+  if (selectedCities.value.length === 2) return selectedCities.value.join(', ')
+  return `${selectedCities.value[0]} +${selectedCities.value.length - 1} more`
+})
+
 // Filter venues to only show those with events (count > 0) AND within map area if set
 // AND that would actually narrow results
-// Sort by event count (descending) so most active venues appear first
+// Sort alphabetically
 const availableVenues = computed(() => {
   const venueCounts = props.facets?.venueCounts ?? {}
   const totalResults = props.resultCount ?? 0
@@ -477,9 +590,7 @@ const availableVenues = computed(() => {
       return count > 0 && (count < totalResults || selectedVenueIds.value.includes(v.id))
     })
     .sort((a, b) => {
-      // Sort by event count descending, then alphabetically
-      const countDiff = (venueCounts[b.id] ?? 0) - (venueCounts[a.id] ?? 0)
-      if (countDiff !== 0) return countDiff
+      // Sort alphabetically
       return a.name.localeCompare(b.name)
     })
 })
@@ -646,6 +757,7 @@ function applyFilters() {
     venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
     genres: selectedGenres.value.length > 0 ? selectedGenres.value : undefined,
+    cities: selectedCities.value.length > 0 ? selectedCities.value : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
   })
@@ -757,6 +869,7 @@ onMounted(() => {
 function clearFiltersKeepSearch() {
   selectedVenueIds.value = []
   selectedGenres.value = []
+  selectedCities.value = []
   selectedEventTypes.value = ['ALL_EVENTS']
   datePreset.value = 'all'
   mapFilteredVenueIds.value = null
@@ -946,6 +1059,60 @@ defineExpose({
       </div>
     </div>
 
+    <!-- City/Location - only show cities with events, grouped by region -->
+    <div v-if="availableCities.length" class="filter-section">
+      <button
+        class="section-header"
+        @click="toggleSection('city')"
+      >
+        <span class="section-title">
+          <UIcon name="i-heroicons-map" class="w-4 h-4" />
+          Location
+        </span>
+        <span class="section-meta">
+          <span v-if="!isSectionExpanded('city') && citySummary" class="section-summary">{{ citySummary }}</span>
+          <span v-else-if="!isSectionExpanded('city')" class="section-summary muted">All locations</span>
+          <UIcon
+            :name="isSectionExpanded('city') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+            class="w-4 h-4 text-gray-500"
+          />
+        </span>
+      </button>
+      <div v-if="isSectionExpanded('city')" class="section-content">
+        <!-- Group cities by region -->
+        <div
+          v-for="[region, cities] in citiesByRegion"
+          :key="region"
+          class="region-group"
+        >
+          <button
+            class="region-header"
+            @click="toggleRegion(region)"
+          >
+            <span>{{ region }}</span>
+            <UIcon
+              :name="isRegionExpanded(region) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+              class="w-3 h-3"
+            />
+          </button>
+          <TransitionGroup v-if="isRegionExpanded(region)" name="filter-list" tag="div">
+            <button
+              v-for="city in cities"
+              :key="city"
+              class="checkbox-option"
+              :class="{ active: selectedCities.includes(city) }"
+              @click="toggleCity(city)"
+            >
+              <span class="checkbox" :class="{ checked: selectedCities.includes(city) }" />
+              <span class="option-label">{{ city }}</span>
+              <span v-if="getCityCount(city)" class="option-count">
+                {{ getCityCount(city) }}
+              </span>
+            </button>
+          </TransitionGroup>
+        </div>
+      </div>
+    </div>
 
     <!-- Event Type -->
     <div v-if="showEventTypeSection" class="filter-section">
@@ -1073,7 +1240,7 @@ defineExpose({
         @click="showMapModal = true"
       >
         <UIcon name="i-heroicons-map" class="w-4 h-4" />
-        <span>Filter by Location</span>
+        <span>Filter by Map</span>
         <span v-if="mapFilteredVenueIds !== null" class="count-badge">{{ mapFilteredVenueIds.length }}</span>
       </button>
       <div v-if="mapFilteredVenueIds !== null" class="map-active-indicator">
@@ -1091,7 +1258,7 @@ defineExpose({
       <div v-if="showMapModal" class="map-modal-overlay" @click.self="showMapModal = false">
         <div class="map-modal">
           <div class="map-modal-header">
-            <h3 class="text-lg font-semibold">Filter by Location</h3>
+            <h3 class="text-lg font-semibold">Filter by Map</h3>
             <button class="map-modal-close" @click="showMapModal = false">
               <UIcon name="i-heroicons-x-mark" class="w-5 h-5" />
             </button>
@@ -1777,5 +1944,36 @@ defineExpose({
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
   padding: 0.25rem;
+}
+
+/* Region grouping */
+.region-group {
+  margin-bottom: 0.75rem;
+}
+
+.region-group:last-child {
+  margin-bottom: 0;
+}
+
+.region-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  padding: 0.25rem 0.5rem;
+  margin-bottom: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.region-header:hover {
+  color: #374151;
 }
 </style>

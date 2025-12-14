@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
+  const cities = query.cities ? (query.cities as string).split(',') : undefined
   const musicOnly = query.musicOnly !== 'false'
 
   // Text search condition (same as search API)
@@ -73,6 +74,9 @@ export default defineEventHandler(async (event) => {
   if (genres && genres.length > 0) {
     venueConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
   }
+  if (cities && cities.length > 0) {
+    venueConditions.push({ venue: { city: { in: cities } } })
+  }
 
   const venueCountsRaw = await prisma.event.groupBy({
     by: ['venueId'],
@@ -96,6 +100,9 @@ export default defineEventHandler(async (event) => {
   if (venueIds && venueIds.length > 0) {
     genreConditions.push({ venueId: { in: venueIds } })
   }
+  if (cities && cities.length > 0) {
+    genreConditions.push({ venue: { city: { in: cities } } })
+  }
 
   // For genres, we need to fetch events and count genres manually since they're arrays
   const eventsWithGenres = await prisma.event.findMany({
@@ -117,6 +124,9 @@ export default defineEventHandler(async (event) => {
   }
   if (genres && genres.length > 0) {
     typeConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
+  }
+  if (cities && cities.length > 0) {
+    typeConditions.push({ venue: { city: { in: cities } } })
   }
   const typeWhereForTypes = buildWhereClause(typeConditions)
 
@@ -142,10 +152,55 @@ export default defineEventHandler(async (event) => {
     where: buildWhereClause([...typeConditions, { isMusic: false }]),
   })
 
+  // Get city counts (without city filter applied)
+  // We need to fetch events with venues and count by city manually
+  const cityConditions: Prisma.EventWhereInput[] = []
+  if (musicOnly) cityConditions.push(musicCondition)
+  if (eventTypes && eventTypes.length > 0) {
+    cityConditions.push({ eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } })
+  }
+  if (venueIds && venueIds.length > 0) {
+    cityConditions.push({ venueId: { in: venueIds } })
+  }
+  if (genres && genres.length > 0) {
+    cityConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
+  }
+
+  const eventsWithCities = await prisma.event.findMany({
+    where: buildWhereClause(cityConditions),
+    select: {
+      venue: {
+        select: {
+          city: true,
+          region: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const cityCounts: Record<string, number> = {}
+  const cityRegions: Record<string, string> = {} // Map city -> region name
+  for (const e of eventsWithCities) {
+    const city = e.venue?.city
+    const regionName = e.venue?.region?.name
+    if (city) {
+      cityCounts[city] = (cityCounts[city] || 0) + 1
+      if (regionName && !cityRegions[city]) {
+        cityRegions[city] = regionName
+      }
+    }
+  }
+
   return {
     venueCounts,
     genreCounts,
     typeCounts,
+    cityCounts,
+    cityRegions,
     musicCount,
     nonMusicCount,
   }

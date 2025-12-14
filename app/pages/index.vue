@@ -107,6 +107,7 @@ const facetParams = computed(() => {
   if (currentFilters.value.endDate) params.endDate = currentFilters.value.endDate
   if (currentFilters.value.venueIds?.length) params.venueIds = currentFilters.value.venueIds.join(',')
   if (currentFilters.value.genres?.length) params.genres = currentFilters.value.genres.join(',')
+  if (currentFilters.value.cities?.length) params.cities = currentFilters.value.cities.join(',')
   if (currentFilters.value.eventTypes?.length) params.eventTypes = currentFilters.value.eventTypes.join(',')
   if (currentFilters.value.musicOnly !== undefined) params.musicOnly = String(currentFilters.value.musicOnly)
   return params
