@@ -11,9 +11,10 @@ import { llmService } from '../llm'
 // const MILES_PER_DEGREE_LNG = 54.6 // varies with latitude, ~55 at 42°N
 
 export interface ClusterConfig {
-  epsilonMiles: number    // Max distance between venues to be in same cluster
-  minVenues: number       // Minimum venues to form a region
+  epsilonMiles: number      // Max distance between venues to be in same cluster
+  minVenues: number         // Minimum venues to form a region
   maxOrphanDistance: number // Max distance for orphan to join nearest cluster
+  maxRegionRadius: number   // Max distance from centroid - prevents elongated regions
 }
 
 export interface VenuePoint {
@@ -38,9 +39,10 @@ export interface NamedCluster extends Cluster {
 }
 
 const DEFAULT_CONFIG: ClusterConfig = {
-  epsilonMiles: 15,      // Max distance between venues to be in same cluster
-  minVenues: 3,          // Minimum venues to form a region
-  maxOrphanDistance: 20, // Max distance for orphan to join nearest cluster
+  epsilonMiles: 15,       // Max distance between venues to be in same cluster
+  minVenues: 3,           // Minimum venues to form a region
+  maxOrphanDistance: 20,  // Max distance for orphan to join nearest cluster
+  maxRegionRadius: 35,    // Max distance from centroid - prevents elongated regions
 }
 
 /**
@@ -196,6 +198,56 @@ export function assignOrphans(
 }
 
 /**
+ * Enforce max region radius - removes venues too far from centroid
+ * This prevents elongated regions from DBSCAN chaining
+ */
+export function enforceMaxRadius(
+  clusters: Cluster[],
+  maxRadius: number
+): { clusters: Cluster[]; ejected: VenuePoint[] } {
+  const ejected: VenuePoint[] = []
+
+  for (const cluster of clusters) {
+    // Find venues beyond max radius
+    const tooFar: VenuePoint[] = []
+    const remaining: VenuePoint[] = []
+
+    for (const venue of cluster.venues) {
+      const distance = haversineDistance(
+        venue.lat, venue.lng,
+        cluster.centroid.lat, cluster.centroid.lng
+      )
+      if (distance > maxRadius) {
+        tooFar.push(venue)
+      } else {
+        remaining.push(venue)
+      }
+    }
+
+    // If we ejected any venues, update the cluster
+    if (tooFar.length > 0) {
+      ejected.push(...tooFar)
+      cluster.venues = remaining
+
+      // Recalculate centroid and metadata
+      if (remaining.length > 0) {
+        cluster.centroid = {
+          lat: remaining.reduce((sum, p) => sum + p.lat, 0) / remaining.length,
+          lng: remaining.reduce((sum, p) => sum + p.lng, 0) / remaining.length,
+        }
+        cluster.cities = [...new Set(remaining.map(v => v.city).filter(Boolean) as string[])]
+        cluster.states = [...new Set(remaining.map(v => v.state).filter(Boolean) as string[])]
+      }
+    }
+  }
+
+  // Remove empty clusters
+  const validClusters = clusters.filter(c => c.venues.length > 0)
+
+  return { clusters: validClusters, ejected }
+}
+
+/**
  * Use AI to generate a culturally-appropriate name for a cluster
  */
 export async function nameCluster(cluster: Cluster): Promise<{ name: string; slug: string }> {
@@ -291,8 +343,15 @@ export async function clusterVenues(
   console.log(`[Clustering] Processing ${points.length} venues...`)
 
   // Run DBSCAN
-  const { clusters, orphans } = dbscan(points, config)
-  console.log(`[Clustering] Found ${clusters.length} clusters, ${orphans.length} orphans`)
+  const { clusters: rawClusters, orphans: initialOrphans } = dbscan(points, config)
+  console.log(`[Clustering] Found ${rawClusters.length} clusters, ${initialOrphans.length} orphans`)
+
+  // Enforce max radius to prevent elongated regions from DBSCAN chaining
+  const { clusters, ejected } = enforceMaxRadius(rawClusters, config.maxRegionRadius)
+  const orphans = [...initialOrphans, ...ejected]
+  if (ejected.length > 0) {
+    console.log(`[Clustering] Ejected ${ejected.length} venues too far from centroids`)
+  }
 
   // Assign orphans to nearest cluster if close enough
   const { clusters: finalClusters, unassigned } = assignOrphans(
