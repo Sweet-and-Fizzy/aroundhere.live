@@ -17,6 +17,9 @@ export default defineNuxtConfig({
 
   // App configuration
   app: {
+    // Add build hash to asset filenames for cache busting
+    buildAssetsDir: '/_nuxt/',
+
     head: {
       title: 'AroundHere',
       htmlAttrs: {
@@ -89,5 +92,38 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   // Nuxt UI configuration
   ui: {
     safelistColors: ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose', 'gray', 'neutral'],
+  },
+
+  // Vite configuration for cache busting
+  vite: {
+    build: {
+      // Generate unique hashes for each build to bust cache
+      rollupOptions: {
+        output: {
+          // Add content hash to chunk filenames
+          chunkFileNames: '_nuxt/[name].[hash].js',
+          entryFileNames: '_nuxt/[name].[hash].js',
+          assetFileNames: '_nuxt/[name].[hash].[ext]',
+        },
+      },
+    },
+  },
+
+  // Nitro configuration for production
+  nitro: {
+    compressPublicAssets: true,
+    // Set cache headers for static assets
+    routeRules: {
+      '/_nuxt/**': {
+        headers: {
+          'cache-control': 'public, max-age=31536000, immutable', // 1 year for hashed assets
+        },
+      },
+      '/api/**': {
+        headers: {
+          'cache-control': 'no-cache, no-store, must-revalidate', // Never cache API
+        },
+      },
+    },
   },
 })
