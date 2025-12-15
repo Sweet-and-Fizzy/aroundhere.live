@@ -257,6 +257,21 @@ async function main() {
       logoUrl: 'https://marigold.org/wp-content/uploads/2025/10/Open-Sans-1.png',
       verified: true,
     },
+    {
+      name: "Luthier's Co-op",
+      slug: 'luthiers-coop',
+      address: '108 Cottage St',
+      city: 'Easthampton',
+      state: 'MA',
+      postalCode: '01027',
+      latitude: 42.2667,
+      longitude: -72.6689,
+      capacity: 75,
+      venueType: 'BAR' as const,
+      website: 'https://www.luthiers-coop.com',
+      logoUrl: 'https://www.luthiers-coop.com/wp-content/uploads/2020/01/cropped-luthiers-coop-logo-1.png',
+      verified: true,
+    },
   ]
 
   for (const venueData of venues) {
@@ -362,6 +377,15 @@ async function main() {
       priority: 10,
       trustScore: 0.9,
       website: 'https://marigold.org',
+    },
+    {
+      name: "Luthier's Co-op Scraper",
+      slug: 'luthiers',
+      type: 'SCRAPER' as const,
+      category: 'VENUE' as const,
+      priority: 10,
+      trustScore: 0.9,
+      website: 'https://www.luthiers-coop.com',
     },
     {
       name: 'Manual Entry',
