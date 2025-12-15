@@ -127,7 +127,7 @@ const eventTypeLabel = computed(() => {
 <template>
   <tr class="group hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-0">
     <!-- Time Column -->
-    <td class="py-1 px-2 sm:px-3 text-xs sm:text-sm text-gray-900">
+    <td class="py-1 px-2 sm:px-3 text-xs sm:text-sm text-gray-900 whitespace-nowrap">
       <span v-if="formattedTime">{{ formattedTime }}</span>
       <span
         v-else

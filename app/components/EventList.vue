@@ -37,18 +37,54 @@ const eventsByDate = computed(() => {
 function formatDateHeader(date: Date): string {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
   const eventDate = new Date(date)
   eventDate.setHours(0, 0, 0, 0)
 
-  if (eventDate.getTime() === today.getTime()) {
-    return 'Today - ' + date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  } else if (eventDate.getTime() === tomorrow.getTime()) {
-    return 'Tomorrow - ' + date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  } else {
-    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  const daysDiff = Math.floor((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const dayOfWeek = eventDate.getDay() // 0 = Sunday, 6 = Saturday
+  const todayDayOfWeek = today.getDay()
+
+  // Calculate days until this weekend (Saturday)
+  const daysUntilSaturday = (6 - todayDayOfWeek + 7) % 7 || 7
+  const daysUntilSunday = daysUntilSaturday + 1
+
+  // Format the base date string
+  const baseDateStr = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const withYear = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+
+  // Today
+  if (daysDiff === 0) {
+    return `Today · ${baseDateStr}`
   }
+
+  // Tomorrow
+  if (daysDiff === 1) {
+    return `Tomorrow · ${baseDateStr}`
+  }
+
+  // This weekend (Saturday or Sunday of current week)
+  if (daysDiff === daysUntilSaturday || daysDiff === daysUntilSunday) {
+    return `This Weekend · ${baseDateStr}`
+  }
+
+  // Later this week (within 6 days, not weekend)
+  if (daysDiff > 1 && daysDiff <= 6) {
+    return `This ${date.toLocaleDateString('en-US', { weekday: 'long' })} · ${baseDateStr}`
+  }
+
+  // Next week (7-13 days out)
+  if (daysDiff >= 7 && daysDiff <= 13) {
+    return `Next ${date.toLocaleDateString('en-US', { weekday: 'long' })} · ${baseDateStr}`
+  }
+
+  // Within the next month
+  if (daysDiff > 13 && daysDiff <= 30) {
+    const weeksOut = Math.ceil(daysDiff / 7)
+    return `In ${weeksOut} weeks · ${baseDateStr}`
+  }
+
+  // Further out - just show the date with year
+  return withYear
 }
 </script>
 
@@ -83,21 +119,39 @@ function formatDateHeader(date: Date): string {
       </p>
     </UCard>
 
-    <!-- Events List - Card View -->
-    <TransitionGroup
+    <!-- Events List - Card View (Grouped by Date) -->
+    <div
       v-if="viewMode === 'card'"
       v-show="events.length > 0"
-      name="event-list"
-      tag="div"
-      class="space-y-3 relative"
+      class="space-y-6 relative"
       :class="{ 'opacity-50 pointer-events-none': loading }"
     >
-      <EventCard
-        v-for="event in events"
-        :key="event.id"
-        :event="event"
-      />
-    </TransitionGroup>
+      <div
+        v-for="dateGroup in eventsByDate"
+        :key="dateGroup.dateKey"
+      >
+        <!-- Date Header -->
+        <div class="flex items-center gap-3 mb-3">
+          <h3 class="font-semibold text-gray-700 text-sm sm:text-base whitespace-nowrap">
+            {{ formatDateHeader(dateGroup.date) }}
+          </h3>
+          <div class="flex-1 h-px bg-gray-300" />
+        </div>
+
+        <!-- Events for this date -->
+        <TransitionGroup
+          name="event-list"
+          tag="div"
+          class="space-y-3"
+        >
+          <EventCard
+            v-for="event in dateGroup.events"
+            :key="event.id"
+            :event="event"
+          />
+        </TransitionGroup>
+      </div>
+    </div>
 
     <!-- Events List - Compact View (Grouped by Date) -->
     <div
