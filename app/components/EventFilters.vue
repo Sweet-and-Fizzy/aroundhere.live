@@ -12,9 +12,19 @@ const emit = defineEmits<{
 }>()
 
 const props = defineProps<{
-  venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null }[]
+  venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null; city?: string | null }[]
   genres?: string[]
   genreLabels?: Record<string, string>
+  cities?: string[]
+  facets?: {
+    venueCounts: Record<string, number>
+    genreCounts: Record<string, number>
+    typeCounts: Record<string, number>
+    cityCounts: Record<string, number>
+    cityRegions: Record<string, string>
+    musicCount: number
+    nonMusicCount: number
+  }
 }>()
 
 // LocalStorage key for persisting filters
@@ -42,6 +52,7 @@ function saveFilters() {
       datePreset: datePreset.value,
       selectedVenues: selectedVenues.value,
       selectedGenres: selectedGenres.value,
+      selectedCities: selectedCities.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
     }
@@ -60,6 +71,7 @@ const showCalendar = ref(false)
 const selectedVenues = ref<{ label: string; value: string }[]>(savedFilters?.selectedVenues || [])
 const searchQuery = ref(savedFilters?.searchQuery || '')
 const selectedGenres = ref<{ label: string; value: string }[]>(savedFilters?.selectedGenres || [])
+const selectedCities = ref<{ label: string; value: string }[]>(savedFilters?.selectedCities || [])
 // Multi-select for event types - default to All Music
 const selectedEventTypes = ref<{ label: string; value: string }[]>(
   savedFilters?.selectedEventTypes || [{ label: 'All Music', value: 'ALL_MUSIC' }]
@@ -160,6 +172,7 @@ const hasActiveFilters = computed(() => {
     searchQuery.value !== '' ||
     selectedVenues.value.length > 0 ||
     selectedGenres.value.length > 0 ||
+    selectedCities.value.length > 0 ||
     selectedEventTypes.value.length !== 1 ||
     selectedEventTypes.value[0]?.value !== 'ALL_MUSIC' ||
     datePreset.value !== 'month' ||
@@ -172,6 +185,7 @@ function resetFilters() {
   searchQuery.value = ''
   selectedVenues.value = []
   selectedGenres.value = []
+  selectedCities.value = []
   selectedEventTypes.value = [{ label: 'All Music', value: 'ALL_MUSIC' }]
   datePreset.value = 'month'
   customDateRange.value = undefined
@@ -234,6 +248,34 @@ const genreItems = computed(() =>
   })) ?? [])
 )
 
+const cityItems = computed(() => {
+  try {
+    // Use facets cityCounts if available (only cities with events)
+    if (props.facets?.cityCounts) {
+      const cities = Object.keys(props.facets.cityCounts)
+        .filter(city => props.facets!.cityCounts[city] > 0)
+        .sort((a, b) => a.localeCompare(b))
+      return cities.map(c => ({ label: c, value: c }))
+    }
+
+    // Fallback to props.cities or extracting from venues
+    const cities = props.cities || []
+    if (cities.length === 0 && props.venues) {
+      const venueCities = Array.from(new Set(
+        props.venues
+          .map(v => (v as any).city)
+          .filter(Boolean) as string[]
+      ))
+      return venueCities.map(c => ({ label: c, value: c })).sort((a, b) => a.label.localeCompare(b.label))
+    }
+    return cities.map(c => ({ label: c, value: c })).sort((a, b) => a.label.localeCompare(b.label))
+  } catch (e) {
+    // If there's any error, just return empty array
+    console.error('Error computing cityItems:', e)
+    return []
+  }
+})
+
 // Custom labels for multi-selects
 const venueLabel = computed(() => {
   if (selectedVenues.value.length === 0) return 'Venues'
@@ -245,6 +287,12 @@ const genreLabel = computed(() => {
   if (selectedGenres.value.length === 0) return 'Genres'
   if (selectedGenres.value.length === 1) return selectedGenres.value[0]?.label ?? 'Genres'
   return `${selectedGenres.value.length} genres`
+})
+
+const cityLabel = computed(() => {
+  if (selectedCities.value.length === 0) return 'Cities'
+  if (selectedCities.value.length === 1) return selectedCities.value[0]?.label ?? 'Cities'
+  return `${selectedCities.value.length} cities`
 })
 
 const eventTypeLabel = computed(() => {
@@ -373,6 +421,7 @@ function applyFilters() {
     venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
     genres: selectedGenres.value.length > 0 ? selectedGenres.value.map(g => g.value) : undefined,
+    cities: selectedCities.value.length > 0 ? selectedCities.value.map(c => c.value) : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
   })
@@ -400,7 +449,7 @@ function closeCalendar() {
 }
 
 // Auto-apply on changes
-watch([selectedVenues, selectedGenres, selectedEventTypes], () => {
+watch([selectedVenues, selectedGenres, selectedCities, selectedEventTypes], () => {
   applyFilters()
 }, { deep: true })
 
@@ -496,6 +545,27 @@ onMounted(() => {
             <template #leading>
               <UIcon
                 name="i-heroicons-musical-note"
+                class="w-4 h-4"
+              />
+            </template>
+          </USelectMenu>
+        </div>
+
+        <!-- City Filter -->
+        <div v-if="cityItems.length">
+          <USelectMenu
+            v-model="selectedCities"
+            :items="cityItems"
+            multiple
+            class="w-full filter-select"
+            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
+          >
+            <template #default>
+              <span>{{ cityLabel }}</span>
+            </template>
+            <template #leading>
+              <UIcon
+                name="i-heroicons-map"
                 class="w-4 h-4"
               />
             </template>

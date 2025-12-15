@@ -49,12 +49,11 @@ export default defineEventHandler(async (event) => {
     // Include PENDING events for now until we have a review workflow
     reviewStatus: { in: ['APPROVED', 'PENDING'] },
     isCancelled: false,
-    // Only show classified events (isMusic is set after classification)
-    // This also excludes PRIVATE events since they get classified with eventType=PRIVATE
-    isMusic: { not: null },
+    // Filter by music/non-music (only show classified events)
+    // musicOnly=true (default): only isMusic=true
+    // musicOnly=false: show all classified events (isMusic is not null)
+    isMusic: musicOnly ? true : { not: null },
     ...(!eventType && !eventTypes && { eventType: { not: 'PRIVATE' as const } }),
-    // Filter by music/non-music
-    ...(musicOnly && { OR: [{ isMusic: true }, { isMusic: null }] }),
     // Filter by specific event type(s)
     ...(eventTypes && eventTypes.length > 0 && { eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } }),
     ...(eventType && !eventTypes && { eventType: eventType as Prisma.EnumEventTypeNullableFilter }),

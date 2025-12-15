@@ -84,23 +84,11 @@ export class EventClassifier {
   }
 
   /**
-   * Classify events with fallback for API errors
+   * Classify events - throws on API error so caller can handle retry logic
    */
   async classifyWithFallback(events: ClassificationInput[]): Promise<ClassificationResult[]> {
-    try {
-      return await this.classifyBatch(events)
-    } catch {
-      console.error('[Classifier] API error, using fallback classification')
-      // Fallback: assume music, use any matching tags
-      return events.map((e) => ({
-        eventId: e.id,
-        isMusic: true,
-        eventType: 'MUSIC' as EventType,
-        canonicalGenres: this.mapTagsToGenres(e.existingTags || []),
-        confidence: 0.3,
-        reasoning: 'Fallback classification due to API error',
-      }))
-    }
+    // No longer using fallback - let errors propagate for proper retry handling
+    return await this.classifyBatch(events)
   }
 
   /**

@@ -8,8 +8,10 @@ import type { PrismaClient } from '@prisma/client'
 import { classifier } from '../services/classifier'
 import type { ClassificationInput } from '../services/classifier/types'
 import { generateEmbeddings, buildEventEmbeddingText } from '../services/embeddings'
+import { sendSlackNotification } from '../services/notifications'
 
 const BATCH_SIZE = 20
+const MAX_CLASSIFICATION_ATTEMPTS = 3
 
 /**
  * Classify all pending (unclassified) events in batches
@@ -17,15 +19,17 @@ const BATCH_SIZE = 20
  */
 export async function classifyPendingEvents(
   prisma: PrismaClient
-): Promise<{ total: number; music: number; nonMusic: number }> {
+): Promise<{ total: number; music: number; nonMusic: number; failed: number }> {
   let totalClassified = 0
   let totalMusic = 0
+  let totalFailed = 0
 
   while (true) {
     const unclassified = await prisma.event.findMany({
       where: {
         isMusic: null,
         startsAt: { gte: new Date() },
+        classificationAttempts: { lt: MAX_CLASSIFICATION_ATTEMPTS },
       },
       include: {
         venue: { select: { name: true } },
@@ -125,6 +129,15 @@ export async function classifyPendingEvents(
       console.log(`[Classify] Batch done: ${results.length} classified (${musicCount} music)`)
     } catch (error) {
       console.error('[Classify] Batch failed:', error)
+
+      // Increment attempt counter for all events in this batch
+      const eventIds = unclassified.map(e => e.id)
+      await prisma.event.updateMany({
+        where: { id: { in: eventIds } },
+        data: { classificationAttempts: { increment: 1 } },
+      })
+      totalFailed += eventIds.length
+
       // Continue with next batch instead of stopping entirely
     }
   }
@@ -133,9 +146,60 @@ export async function classifyPendingEvents(
     console.log(`[Classify] Complete: ${totalClassified} total (${totalMusic} music, ${totalClassified - totalMusic} non-music)`)
   }
 
+  // Handle events that have hit max attempts - default to showing them
+  const stuckEvents = await prisma.event.findMany({
+    where: {
+      isMusic: null,
+      classificationAttempts: { gte: MAX_CLASSIFICATION_ATTEMPTS },
+      startsAt: { gte: new Date() },
+    },
+    select: { id: true, title: true, sourceUrl: true },
+  })
+
+  if (stuckEvents.length > 0) {
+    // Default stuck events to isMusic: true so they still show up
+    // Mark with low confidence and NEEDS_REVIEW status for manual check
+    await prisma.event.updateMany({
+      where: { id: { in: stuckEvents.map(e => e.id) } },
+      data: {
+        isMusic: true,
+        eventType: 'MUSIC',
+        classificationConfidence: 0.3,
+        classifiedAt: new Date(),
+        reviewStatus: 'NEEDS_REVIEW',
+      },
+    })
+
+    console.warn(`[Classify] ${stuckEvents.length} events defaulted to music after max attempts`)
+
+    // Send notification about events that needed manual defaulting
+    await sendSlackNotification(
+      '⚠️ Event Classification Issues',
+      [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: [
+              `⚠️ *Event Classification Issues*`,
+              '',
+              `${stuckEvents.length} events failed classification ${MAX_CLASSIFICATION_ATTEMPTS} times and were defaulted to "music":`,
+              '',
+              ...stuckEvents.slice(0, 10).map(e => `• <${e.sourceUrl}|${e.title}>`),
+              stuckEvents.length > 10 ? `• ... and ${stuckEvents.length - 10} more` : '',
+            ].filter(Boolean).join('\n'),
+          },
+        },
+      ]
+    )
+
+    totalFailed += stuckEvents.length
+  }
+
   return {
     total: totalClassified,
     music: totalMusic,
     nonMusic: totalClassified - totalMusic,
+    failed: totalFailed,
   }
 }

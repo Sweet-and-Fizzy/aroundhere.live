@@ -136,6 +136,7 @@ model Event {
   summary           String?        // AI-generated concise summary for listing cards
   classifiedAt      DateTime?      // When classification was performed
   classificationConfidence Float?  // 0-1 confidence score from classifier
+  classificationAttempts Int       @default(0) // Number of classification attempts (for retry tracking)
 
   sourceId        String?
   sourceUrl       String?

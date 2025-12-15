@@ -332,6 +332,7 @@ useHead({
             :venues="venues"
             :genres="genres"
             :genre-labels="genreLabels"
+            :facets="facets"
             @filter="handleFilter"
           />
         </div>
