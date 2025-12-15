@@ -65,6 +65,12 @@ export default defineEventHandler(async (event) => {
             data: { regionId: existing.id },
           })
 
+          // Also update events for these venues
+          await prisma.event.updateMany({
+            where: { venueId: { in: venueIds } },
+            data: { regionId: existing.id },
+          })
+
           changes.push(`Updated "${cluster.name}": +${newVenues.length}/-${removedVenues.length} venues`)
         }
 
@@ -85,6 +91,12 @@ export default defineEventHandler(async (event) => {
         // Assign venues to new region
         await prisma.venue.updateMany({
           where: { id: { in: venueIds } },
+          data: { regionId: newRegion.id },
+        })
+
+        // Also update events for these venues
+        await prisma.event.updateMany({
+          where: { venueId: { in: venueIds } },
           data: { regionId: newRegion.id },
         })
 

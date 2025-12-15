@@ -229,8 +229,10 @@ Return ONLY the region name exactly as it should appear after "in", nothing else
     })
 
     const name = response.content.trim()
+    // Normalize slug: strip leading "the " to avoid duplicates like "pioneer-valley" vs "the-pioneer-valley"
     const slug = name
       .toLowerCase()
+      .replace(/^the\s+/, '') // Remove leading "the "
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
