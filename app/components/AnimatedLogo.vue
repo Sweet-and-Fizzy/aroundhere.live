@@ -156,7 +156,10 @@ onUnmounted(() => {
     />
 
     <!-- VU meter bar stacks -->
-    <template v-for="(stack, stackIndex) in stacks" :key="stackIndex">
+    <template
+      v-for="(stack, stackIndex) in stacks"
+      :key="stackIndex"
+    >
       <rect
         v-for="(bar, barIndex) in stack.bars"
         :key="`${stackIndex}-${barIndex}`"

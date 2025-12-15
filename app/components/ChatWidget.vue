@@ -137,8 +137,13 @@ function createChat(prompt: string) {
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
       <div class="flex items-center gap-2">
-        <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-primary-500" />
-        <h2 class="font-semibold text-gray-900 dark:text-white">Ask about shows</h2>
+        <UIcon
+          name="i-heroicons-chat-bubble-left-right"
+          class="w-5 h-5 text-primary-500"
+        />
+        <h2 class="font-semibold text-gray-900 dark:text-white">
+          Ask about shows
+        </h2>
       </div>
       <UButton
         v-if="messages.length > 0"
@@ -153,7 +158,10 @@ function createChat(prompt: string) {
     <!-- Content Area -->
     <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Empty state -->
-      <div v-if="messages.length === 0" class="flex-1 flex flex-col justify-center gap-4 sm:gap-6 p-4 sm:p-6">
+      <div
+        v-if="messages.length === 0"
+        class="flex-1 flex flex-col justify-center gap-4 sm:gap-6 p-4 sm:p-6"
+      >
         <h1 class="text-2xl sm:text-3xl text-gray-900 dark:text-white font-bold text-center">
           What shows are you looking for?
         </h1>
@@ -198,7 +206,10 @@ function createChat(prompt: string) {
     </div>
 
     <!-- Input fixed at bottom (always visible when there are messages) -->
-    <div v-if="messages.length > 0" class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900">
+    <div
+      v-if="messages.length > 0"
+      class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900"
+    >
       <UChatPrompt
         v-model="input"
         :status="status === 'submitted' ? 'streaming' : 'ready'"

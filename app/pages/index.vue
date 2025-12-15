@@ -149,13 +149,19 @@ const { regionName, loaded: regionLoaded } = useCurrentRegion()
 useSeoMeta({
   title: 'AroundHere - Live Shows',
   description: () => `Find live music events, concerts, and shows in ${regionName.value}. Browse upcoming shows at local venues.`,
-  // Open Graph
-  ogTitle: () => `AroundHere - Live Music in ${regionName.value}`,
-  ogDescription: () => `Discover live music events, concerts, and shows in ${regionName.value}. Browse upcoming shows at local venues.`,
+  // Open Graph (no region for sharing)
+  ogTitle: 'AroundHere - Discover Live Events Near You',
+  ogDescription: 'Find live music, concerts, comedy shows, and local events. Browse upcoming performances at venues near you.',
   ogUrl: siteUrl,
+  ogType: 'website',
+  ogImage: `${siteUrl}/og-image.png`,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
   // Twitter
-  twitterTitle: () => `AroundHere - Live Music in ${regionName.value}`,
-  twitterDescription: () => `Discover live music events, concerts, and shows in ${regionName.value}.`,
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'AroundHere - Discover Live Events Near You',
+  twitterDescription: 'Find live music, concerts, comedy, and local events at venues near you.',
+  twitterImage: `${siteUrl}/og-image.png`,
 })
 
 useHead({
@@ -175,17 +181,29 @@ useHead({
       <div class="flex flex-col md:flex-row items-center gap-4 md:gap-8">
         <!-- Logo -->
         <div class="flex-shrink-0 mx-auto md:mx-0">
-          <AnimatedLogo :playing="true" class="w-40 md:w-56" />
+          <AnimatedLogo
+            :playing="true"
+            class="w-40 md:w-56"
+          />
         </div>
 
         <!-- Chat Input Section -->
         <div class="flex-1 w-full">
           <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
-            Ask me about local events<TypeWriter v-if="regionLoaded" :text="` in ${regionName}`" :delay="40" :start-delay="100" @complete="focusHeroInput" />
+            Ask me about local events<TypeWriter
+              v-if="regionLoaded"
+              :text="` in ${regionName}`"
+              :delay="40"
+              :start-delay="100"
+              @complete="focusHeroInput"
+            />
           </h2>
 
           <!-- Input Form -->
-          <form class="flex gap-2 mb-3" @submit.prevent="submitHeroChat">
+          <form
+            class="flex gap-2 mb-3"
+            @submit.prevent="submitHeroChat"
+          >
             <div class="flex-1 relative">
               <input
                 ref="heroChatInputRef"
@@ -200,7 +218,10 @@ useHead({
               class="px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors flex items-center justify-center"
               :disabled="!heroChatInput.trim()"
             >
-              <UIcon name="i-heroicons-arrow-right" class="w-5 h-5 text-white" />
+              <UIcon
+                name="i-heroicons-arrow-right"
+                class="w-5 h-5 text-white"
+              />
             </button>
           </form>
 
@@ -310,7 +331,10 @@ useHead({
                 title="Card view"
                 @click="viewMode = 'card'"
               >
-                <UIcon name="i-heroicons-squares-2x2" class="w-4 h-4 sm:w-5 sm:h-5" />
+                <UIcon
+                  name="i-heroicons-squares-2x2"
+                  class="w-4 h-4 sm:w-5 sm:h-5"
+                />
               </button>
               <button
                 :class="[
@@ -322,7 +346,10 @@ useHead({
                 title="Compact view"
                 @click="viewMode = 'compact'"
               >
-                <UIcon name="i-heroicons-bars-3" class="w-4 h-4 sm:w-5 sm:h-5" />
+                <UIcon
+                  name="i-heroicons-bars-3"
+                  class="w-4 h-4 sm:w-5 sm:h-5"
+                />
               </button>
             </div>
           </div>
@@ -331,7 +358,10 @@ useHead({
             v-if="isSearching && events.length === 0 && searchTotalCount > 0 && !loading"
             class="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-md"
           >
-            <UIcon name="i-heroicons-exclamation-triangle" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-exclamation-triangle"
+              class="w-4 h-4"
+            />
             <span>No results with current filters, but {{ searchTotalCount }} found in all events.</span>
             <button
               class="font-medium underline"
@@ -345,7 +375,10 @@ useHead({
             v-else-if="isSearching && moreResultsOutsideFilters > 0 && !loading"
             class="flex items-center gap-2 text-sm text-gray-600"
           >
-            <UIcon name="i-heroicons-information-circle" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-information-circle"
+              class="w-4 h-4"
+            />
             <span>{{ moreResultsOutsideFilters }} more result{{ moreResultsOutsideFilters !== 1 ? 's' : '' }} outside current filters</span>
             <button
               class="text-primary-600 hover:text-primary-700 font-medium underline"
@@ -375,7 +408,7 @@ useHead({
             class="w-full sm:w-auto"
             @click="loadMore"
           >
-            Load More Events
+            Show More Days
           </UButton>
           <p class="text-xs sm:text-sm text-gray-600 mt-2">
             Showing {{ events.length }} of {{ pagination.total }} events

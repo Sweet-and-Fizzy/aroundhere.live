@@ -81,13 +81,16 @@ export class IronHorseScraper extends PlaywrightScraper {
     if (!this.page) return
 
     // Wait for the calendar widget to render (they use a third-party widget)
+    // The Elfsight widget takes time to render into the DOM
     try {
       await this.page.waitForSelector('.eapp-events-calendar-masonry-item', {
-        timeout: 10000,
+        timeout: 15000,
       })
+      // Give it extra time to ensure all events are rendered
+      await this.page.waitForTimeout(2000)
     } catch {
-      // If specific selectors don't appear, wait for general content
-      await this.page.waitForTimeout(5000)
+      // If specific selectors don't appear, wait longer
+      await this.page.waitForTimeout(8000)
     }
 
     // Dismiss promotional popup that blocks pagination clicks

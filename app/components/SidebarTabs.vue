@@ -83,7 +83,10 @@ function handleFilter(filters: Record<string, any>) {
 </script>
 
 <template>
-  <div class="sidebar-tabs" :class="{ 'chat-active': activeTab === 'chat' }">
+  <div
+    class="sidebar-tabs"
+    :class="{ 'chat-active': activeTab === 'chat' }"
+  >
     <!-- Tab Headers -->
     <div class="tab-headers">
       <button
@@ -91,7 +94,10 @@ function handleFilter(filters: Record<string, any>) {
         :class="{ active: activeTab === 'filters' }"
         @click="activeTab = 'filters'"
       >
-        <UIcon name="i-heroicons-adjustments-horizontal" class="w-4 h-4" />
+        <UIcon
+          name="i-heroicons-adjustments-horizontal"
+          class="w-4 h-4"
+        />
         Filters
       </button>
       <button
@@ -99,7 +105,10 @@ function handleFilter(filters: Record<string, any>) {
         :class="{ active: activeTab === 'chat' }"
         @click="activeTab = 'chat'"
       >
-        <UIcon name="i-heroicons-chat-bubble-left-right" class="w-4 h-4" />
+        <UIcon
+          name="i-heroicons-chat-bubble-left-right"
+          class="w-4 h-4"
+        />
         Chat
       </button>
     </div>
@@ -107,7 +116,10 @@ function handleFilter(filters: Record<string, any>) {
     <!-- Tab Content -->
     <div class="tab-content">
       <!-- Filters Tab -->
-      <div v-show="activeTab === 'filters'" class="tab-panel">
+      <div
+        v-show="activeTab === 'filters'"
+        class="tab-panel"
+      >
         <EventFiltersSidebar
           ref="filtersRef"
           :venues="venues"
@@ -120,7 +132,10 @@ function handleFilter(filters: Record<string, any>) {
       </div>
 
       <!-- Chat Tab -->
-      <div v-show="activeTab === 'chat'" class="tab-panel chat-panel">
+      <div
+        v-show="activeTab === 'chat'"
+        class="tab-panel chat-panel"
+      >
         <ChatInterface ref="chatRef" />
       </div>
     </div>

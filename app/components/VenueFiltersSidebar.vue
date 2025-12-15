@@ -222,25 +222,40 @@ onMounted(() => {
     </div>
 
     <!-- Venue Type -->
-    <div v-if="availableVenueTypes.length" class="filter-section">
+    <div
+      v-if="availableVenueTypes.length"
+      class="filter-section"
+    >
       <button
         class="section-header"
         @click="toggleSection('type')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-building-storefront" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-building-storefront"
+            class="w-4 h-4"
+          />
           Venue Type
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('type') && typeSummary" class="section-summary">{{ typeSummary }}</span>
-          <span v-else-if="!isSectionExpanded('type')" class="section-summary muted">All types</span>
+          <span
+            v-if="!isSectionExpanded('type') && typeSummary"
+            class="section-summary"
+          >{{ typeSummary }}</span>
+          <span
+            v-else-if="!isSectionExpanded('type')"
+            class="section-summary muted"
+          >All types</span>
           <UIcon
             :name="isSectionExpanded('type') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-400"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('type')" class="section-content">
+      <div
+        v-if="isSectionExpanded('type')"
+        class="section-content"
+      >
         <button
           v-for="type in availableVenueTypes"
           :key="type.value"
@@ -248,7 +263,10 @@ onMounted(() => {
           :class="{ active: selectedVenueTypes.includes(type.value) }"
           @click="toggleVenueType(type.value)"
         >
-          <span class="checkbox" :class="{ checked: selectedVenueTypes.includes(type.value) }" />
+          <span
+            class="checkbox"
+            :class="{ checked: selectedVenueTypes.includes(type.value) }"
+          />
           <span class="option-label">{{ type.label }}</span>
           <span class="option-count">{{ venueTypeCounts[type.value] }}</span>
         </button>
@@ -256,25 +274,40 @@ onMounted(() => {
     </div>
 
     <!-- City -->
-    <div v-if="availableCities.length" class="filter-section">
+    <div
+      v-if="availableCities.length"
+      class="filter-section"
+    >
       <button
         class="section-header"
         @click="toggleSection('city')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-map-pin" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-map-pin"
+            class="w-4 h-4"
+          />
           City
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('city') && citySummary" class="section-summary">{{ citySummary }}</span>
-          <span v-else-if="!isSectionExpanded('city')" class="section-summary muted">All cities</span>
+          <span
+            v-if="!isSectionExpanded('city') && citySummary"
+            class="section-summary"
+          >{{ citySummary }}</span>
+          <span
+            v-else-if="!isSectionExpanded('city')"
+            class="section-summary muted"
+          >All cities</span>
           <UIcon
             :name="isSectionExpanded('city') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-400"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('city')" class="section-content">
+      <div
+        v-if="isSectionExpanded('city')"
+        class="section-content"
+      >
         <button
           v-for="city in availableCities"
           :key="city"
@@ -282,7 +315,10 @@ onMounted(() => {
           :class="{ active: selectedCities.includes(city) }"
           @click="toggleCity(city)"
         >
-          <span class="checkbox" :class="{ checked: selectedCities.includes(city) }" />
+          <span
+            class="checkbox"
+            :class="{ checked: selectedCities.includes(city) }"
+          />
           <span class="option-label">{{ city }}</span>
           <span class="option-count">{{ cityCounts[city] }}</span>
         </button>
@@ -290,9 +326,18 @@ onMounted(() => {
     </div>
 
     <!-- Reset Button -->
-    <div v-if="activeFilterCount > 0" class="reset-section">
-      <button class="reset-all-btn" @click="resetFilters">
-        <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+    <div
+      v-if="activeFilterCount > 0"
+      class="reset-section"
+    >
+      <button
+        class="reset-all-btn"
+        @click="resetFilters"
+      >
+        <UIcon
+          name="i-heroicons-x-mark"
+          class="w-4 h-4"
+        />
         Reset Filters
         <span class="count-badge">{{ activeFilterCount }}</span>
       </button>

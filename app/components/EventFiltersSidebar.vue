@@ -909,18 +909,27 @@ defineExpose({
         @click="toggleSection('date')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-calendar"
+            class="w-4 h-4"
+          />
           Date
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('date')" class="section-summary">{{ dateSummary }}</span>
+          <span
+            v-if="!isSectionExpanded('date')"
+            class="section-summary"
+          >{{ dateSummary }}</span>
           <UIcon
             :name="isSectionExpanded('date') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('date')" class="section-content">
+      <div
+        v-if="isSectionExpanded('date')"
+        class="section-content"
+      >
         <button
           v-for="preset in datePresets"
           :key="preset.value"
@@ -928,7 +937,10 @@ defineExpose({
           :class="{ active: datePreset === preset.value }"
           @click="selectDatePreset(preset.value)"
         >
-          <span class="radio-dot" :class="{ checked: datePreset === preset.value }" />
+          <span
+            class="radio-dot"
+            :class="{ checked: datePreset === preset.value }"
+          />
           {{ preset.label }}
         </button>
         <button
@@ -936,14 +948,20 @@ defineExpose({
           :class="{ active: datePreset === 'custom' }"
           @click="showCustomCalendar = !showCustomCalendar"
         >
-          <span class="radio-dot" :class="{ checked: datePreset === 'custom' }" />
+          <span
+            class="radio-dot"
+            :class="{ checked: datePreset === 'custom' }"
+          />
           Custom Range
           <UIcon
             :name="showCustomCalendar ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-3 h-3 ml-auto text-gray-500"
           />
         </button>
-        <div v-if="showCustomCalendar" class="calendar-wrapper">
+        <div
+          v-if="showCustomCalendar"
+          class="calendar-wrapper"
+        >
           <UCalendar
             v-model="customDateRange"
             range
@@ -955,29 +973,47 @@ defineExpose({
     </div>
 
     <!-- Venue - only show venues with events -->
-    <div v-if="availableVenues.length" class="filter-section">
+    <div
+      v-if="availableVenues.length"
+      class="filter-section"
+    >
       <button
         class="section-header"
         @click="toggleSection('venue')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-building-storefront" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-building-storefront"
+            class="w-4 h-4"
+          />
           Venue
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('venue') && venueSummary" class="section-summary">{{ venueSummary }}</span>
-          <span v-else-if="!isSectionExpanded('venue')" class="section-summary muted">All venues</span>
+          <span
+            v-if="!isSectionExpanded('venue') && venueSummary"
+            class="section-summary"
+          >{{ venueSummary }}</span>
+          <span
+            v-else-if="!isSectionExpanded('venue')"
+            class="section-summary muted"
+          >All venues</span>
           <UIcon
             :name="isSectionExpanded('venue') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('venue')" class="section-content">
+      <div
+        v-if="isSectionExpanded('venue')"
+        class="section-content"
+      >
         <!-- Venue search autocomplete -->
         <div class="venue-search-wrapper">
           <div class="venue-search-input-container">
-            <UIcon name="i-heroicons-magnifying-glass" class="venue-search-icon" />
+            <UIcon
+              name="i-heroicons-magnifying-glass"
+              class="venue-search-icon"
+            />
             <input
               ref="venueSearchInput"
               v-model="venueSearchQuery"
@@ -989,7 +1025,10 @@ defineExpose({
             >
           </div>
           <!-- Autocomplete dropdown -->
-          <div v-if="showVenueDropdown && venueSearchResults.length > 0" class="venue-dropdown">
+          <div
+            v-if="showVenueDropdown && venueSearchResults.length > 0"
+            class="venue-dropdown"
+          >
             <button
               v-for="venue in venueSearchResults"
               :key="venue.id"
@@ -997,19 +1036,34 @@ defineExpose({
               @mousedown.prevent="selectVenueFromSearch(venue.id)"
             >
               <span class="venue-dropdown-name">{{ venue.name }}</span>
-              <span v-if="getVenueCount(venue.id)" class="option-count">
+              <span
+                v-if="getVenueCount(venue.id)"
+                class="option-count"
+              >
                 {{ getVenueCount(venue.id) }}
               </span>
             </button>
           </div>
-          <div v-else-if="showVenueDropdown && venueSearchQuery.trim() && venueSearchResults.length === 0" class="venue-dropdown">
-            <div class="venue-dropdown-empty">No venues found</div>
+          <div
+            v-else-if="showVenueDropdown && venueSearchQuery.trim() && venueSearchResults.length === 0"
+            class="venue-dropdown"
+          >
+            <div class="venue-dropdown-empty">
+              No venues found
+            </div>
           </div>
         </div>
 
         <!-- Selected venue chips -->
-        <div v-if="selectedVenueObjects.length > 0" class="venue-chips">
-          <TransitionGroup name="filter-list" tag="div" class="venue-chips-list">
+        <div
+          v-if="selectedVenueObjects.length > 0"
+          class="venue-chips"
+        >
+          <TransitionGroup
+            name="filter-list"
+            tag="div"
+            class="venue-chips-list"
+          >
             <span
               v-for="venue in selectedVenueObjects"
               :key="venue.id"
@@ -1020,7 +1074,10 @@ defineExpose({
                 class="venue-chip-remove"
                 @click="removeVenue(venue.id)"
               >
-                <UIcon name="i-heroicons-x-mark" class="w-3 h-3" />
+                <UIcon
+                  name="i-heroicons-x-mark"
+                  class="w-3 h-3"
+                />
               </button>
             </span>
           </TransitionGroup>
@@ -1039,8 +1096,14 @@ defineExpose({
         </button>
 
         <!-- Full venue list (collapsible) -->
-        <div v-if="showAllVenues" class="venue-browse-list">
-          <TransitionGroup name="filter-list" tag="div">
+        <div
+          v-if="showAllVenues"
+          class="venue-browse-list"
+        >
+          <TransitionGroup
+            name="filter-list"
+            tag="div"
+          >
             <button
               v-for="venue in availableVenues"
               :key="venue.id"
@@ -1048,9 +1111,15 @@ defineExpose({
               :class="{ active: selectedVenueIds.includes(venue.id) }"
               @click="toggleVenue(venue.id)"
             >
-              <span class="checkbox" :class="{ checked: selectedVenueIds.includes(venue.id) }" />
+              <span
+                class="checkbox"
+                :class="{ checked: selectedVenueIds.includes(venue.id) }"
+              />
               <span class="option-label">{{ venue.name }}</span>
-              <span v-if="getVenueCount(venue.id)" class="option-count">
+              <span
+                v-if="getVenueCount(venue.id)"
+                class="option-count"
+              >
                 {{ getVenueCount(venue.id) }}
               </span>
             </button>
@@ -1060,25 +1129,40 @@ defineExpose({
     </div>
 
     <!-- City/Location - only show cities with events, grouped by region -->
-    <div v-if="availableCities.length" class="filter-section">
+    <div
+      v-if="availableCities.length"
+      class="filter-section"
+    >
       <button
         class="section-header"
         @click="toggleSection('city')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-map" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-map"
+            class="w-4 h-4"
+          />
           Location
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('city') && citySummary" class="section-summary">{{ citySummary }}</span>
-          <span v-else-if="!isSectionExpanded('city')" class="section-summary muted">All locations</span>
+          <span
+            v-if="!isSectionExpanded('city') && citySummary"
+            class="section-summary"
+          >{{ citySummary }}</span>
+          <span
+            v-else-if="!isSectionExpanded('city')"
+            class="section-summary muted"
+          >All locations</span>
           <UIcon
             :name="isSectionExpanded('city') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('city')" class="section-content">
+      <div
+        v-if="isSectionExpanded('city')"
+        class="section-content"
+      >
         <!-- Group cities by region -->
         <div
           v-for="[region, cities] in citiesByRegion"
@@ -1095,7 +1179,11 @@ defineExpose({
               class="w-3 h-3"
             />
           </button>
-          <TransitionGroup v-if="isRegionExpanded(region)" name="filter-list" tag="div">
+          <TransitionGroup
+            v-if="isRegionExpanded(region)"
+            name="filter-list"
+            tag="div"
+          >
             <button
               v-for="city in cities"
               :key="city"
@@ -1103,9 +1191,15 @@ defineExpose({
               :class="{ active: selectedCities.includes(city) }"
               @click="toggleCity(city)"
             >
-              <span class="checkbox" :class="{ checked: selectedCities.includes(city) }" />
+              <span
+                class="checkbox"
+                :class="{ checked: selectedCities.includes(city) }"
+              />
               <span class="option-label">{{ city }}</span>
-              <span v-if="getCityCount(city)" class="option-count">
+              <span
+                v-if="getCityCount(city)"
+                class="option-count"
+              >
                 {{ getCityCount(city) }}
               </span>
             </button>
@@ -1115,33 +1209,51 @@ defineExpose({
     </div>
 
     <!-- Event Type -->
-    <div v-if="showEventTypeSection" class="filter-section">
+    <div
+      v-if="showEventTypeSection"
+      class="filter-section"
+    >
       <button
         class="section-header"
         @click="toggleSection('type')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-sparkles"
+            class="w-4 h-4"
+          />
           Event Type
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('type')" class="section-summary">{{ typeSummary }}</span>
+          <span
+            v-if="!isSectionExpanded('type')"
+            class="section-summary"
+          >{{ typeSummary }}</span>
           <UIcon
             :name="isSectionExpanded('type') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('type')" class="section-content">
+      <div
+        v-if="isSectionExpanded('type')"
+        class="section-content"
+      >
         <button
           v-if="showAllEvents"
           class="checkbox-option"
           :class="{ active: selectedEventTypes.includes('ALL_EVENTS') }"
           @click="toggleEventType('ALL_EVENTS')"
         >
-          <span class="checkbox" :class="{ checked: selectedEventTypes.includes('ALL_EVENTS') }" />
+          <span
+            class="checkbox"
+            :class="{ checked: selectedEventTypes.includes('ALL_EVENTS') }"
+          />
           <span class="option-label">All Events</span>
-          <span v-if="facets" class="option-count">{{ facets.musicCount + facets.nonMusicCount }}</span>
+          <span
+            v-if="facets"
+            class="option-count"
+          >{{ facets.musicCount + facets.nonMusicCount }}</span>
         </button>
         <button
           v-if="showAllMusic"
@@ -1149,12 +1261,24 @@ defineExpose({
           :class="{ active: selectedEventTypes.includes('ALL_MUSIC') }"
           @click="toggleEventType('ALL_MUSIC')"
         >
-          <span class="checkbox" :class="{ checked: selectedEventTypes.includes('ALL_MUSIC') }" />
+          <span
+            class="checkbox"
+            :class="{ checked: selectedEventTypes.includes('ALL_MUSIC') }"
+          />
           <span class="option-label">All Music</span>
-          <span v-if="facets?.musicCount" class="option-count">{{ facets.musicCount }}</span>
+          <span
+            v-if="facets?.musicCount"
+            class="option-count"
+          >{{ facets.musicCount }}</span>
         </button>
-        <div v-if="musicEventTypes.length" class="sub-options">
-          <TransitionGroup name="filter-list" tag="div">
+        <div
+          v-if="musicEventTypes.length"
+          class="sub-options"
+        >
+          <TransitionGroup
+            name="filter-list"
+            tag="div"
+          >
             <button
               v-for="type in musicEventTypes"
               :key="type.value"
@@ -1162,14 +1286,26 @@ defineExpose({
               :class="{ active: selectedEventTypes.includes(type.value) }"
               @click="toggleEventType(type.value)"
             >
-              <span class="checkbox small" :class="{ checked: selectedEventTypes.includes(type.value) }" />
+              <span
+                class="checkbox small"
+                :class="{ checked: selectedEventTypes.includes(type.value) }"
+              />
               <span class="option-label">{{ type.label }}</span>
-              <span v-if="getTypeCount(type.value)" class="option-count">{{ getTypeCount(type.value) }}</span>
+              <span
+                v-if="getTypeCount(type.value)"
+                class="option-count"
+              >{{ getTypeCount(type.value) }}</span>
             </button>
           </TransitionGroup>
         </div>
-        <div v-if="nonMusicEventTypes.length" class="pt-1">
-          <TransitionGroup name="filter-list" tag="div">
+        <div
+          v-if="nonMusicEventTypes.length"
+          class="pt-1"
+        >
+          <TransitionGroup
+            name="filter-list"
+            tag="div"
+          >
             <button
               v-for="type in nonMusicEventTypes"
               :key="type.value"
@@ -1177,9 +1313,15 @@ defineExpose({
               :class="{ active: selectedEventTypes.includes(type.value) }"
               @click="toggleEventType(type.value)"
             >
-              <span class="checkbox" :class="{ checked: selectedEventTypes.includes(type.value) }" />
+              <span
+                class="checkbox"
+                :class="{ checked: selectedEventTypes.includes(type.value) }"
+              />
               <span class="option-label">{{ type.label }}</span>
-              <span v-if="getTypeCount(type.value)" class="option-count">{{ getTypeCount(type.value) }}</span>
+              <span
+                v-if="getTypeCount(type.value)"
+                class="option-count"
+              >{{ getTypeCount(type.value) }}</span>
             </button>
           </TransitionGroup>
         </div>
@@ -1187,26 +1329,44 @@ defineExpose({
     </div>
 
     <!-- Genre - only show when music type is selected and genres available -->
-    <div v-if="availableGenres.length && hasMusicTypeSelected" class="filter-section">
+    <div
+      v-if="availableGenres.length && hasMusicTypeSelected"
+      class="filter-section"
+    >
       <button
         class="section-header"
         @click="toggleSection('genre')"
       >
         <span class="section-title">
-          <UIcon name="i-heroicons-musical-note" class="w-4 h-4" />
+          <UIcon
+            name="i-heroicons-musical-note"
+            class="w-4 h-4"
+          />
           Genre
         </span>
         <span class="section-meta">
-          <span v-if="!isSectionExpanded('genre') && genreSummary" class="section-summary">{{ genreSummary }}</span>
-          <span v-else-if="!isSectionExpanded('genre')" class="section-summary muted">All genres</span>
+          <span
+            v-if="!isSectionExpanded('genre') && genreSummary"
+            class="section-summary"
+          >{{ genreSummary }}</span>
+          <span
+            v-else-if="!isSectionExpanded('genre')"
+            class="section-summary muted"
+          >All genres</span>
           <UIcon
             :name="isSectionExpanded('genre') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
-      <div v-if="isSectionExpanded('genre')" class="section-content">
-        <TransitionGroup name="filter-list" tag="div">
+      <div
+        v-if="isSectionExpanded('genre')"
+        class="section-content"
+      >
+        <TransitionGroup
+          name="filter-list"
+          tag="div"
+        >
           <button
             v-for="genre in visibleGenres"
             :key="genre"
@@ -1214,11 +1374,17 @@ defineExpose({
             :class="{ active: selectedGenres.includes(genre) }"
             @click="toggleGenre(genre)"
           >
-            <span class="checkbox" :class="{ checked: selectedGenres.includes(genre) }" />
+            <span
+              class="checkbox"
+              :class="{ checked: selectedGenres.includes(genre) }"
+            />
             <span class="option-label">
               {{ genreLabels?.[genre] || genre.charAt(0).toUpperCase() + genre.slice(1) }}
             </span>
-            <span v-if="facets?.genreCounts?.[genre]" class="option-count">
+            <span
+              v-if="facets?.genreCounts?.[genre]"
+              class="option-count"
+            >
               {{ facets.genreCounts[genre] }}
             </span>
           </button>
@@ -1234,20 +1400,35 @@ defineExpose({
     </div>
 
     <!-- Map Filter - opens in modal -->
-    <div v-if="venuesWithCoords.length" class="map-section">
+    <div
+      v-if="venuesWithCoords.length"
+      class="map-section"
+    >
       <button
         class="map-trigger-btn"
         @click="showMapModal = true"
       >
-        <UIcon name="i-heroicons-map" class="w-4 h-4" />
+        <UIcon
+          name="i-heroicons-map"
+          class="w-4 h-4"
+        />
         <span>Filter by Map</span>
-        <span v-if="mapFilteredVenueIds !== null" class="count-badge">{{ mapFilteredVenueIds.length }}</span>
+        <span
+          v-if="mapFilteredVenueIds !== null"
+          class="count-badge"
+        >{{ mapFilteredVenueIds.length }}</span>
       </button>
-      <div v-if="mapFilteredVenueIds !== null" class="map-active-indicator">
+      <div
+        v-if="mapFilteredVenueIds !== null"
+        class="map-active-indicator"
+      >
         <span class="text-xs text-gray-600">
           {{ mapFilteredVenueIds.length }} venues in selected area
         </span>
-        <button class="reset-map-btn" @click="resetMap">
+        <button
+          class="reset-map-btn"
+          @click="resetMap"
+        >
           Clear
         </button>
       </div>
@@ -1255,12 +1436,24 @@ defineExpose({
 
     <!-- Map Modal -->
     <Teleport to="body">
-      <div v-if="showMapModal" class="map-modal-overlay" @click.self="showMapModal = false">
+      <div
+        v-if="showMapModal"
+        class="map-modal-overlay"
+        @click.self="showMapModal = false"
+      >
         <div class="map-modal">
           <div class="map-modal-header">
-            <h3 class="text-lg font-semibold">Filter by Map</h3>
-            <button class="map-modal-close" @click="showMapModal = false">
-              <UIcon name="i-heroicons-x-mark" class="w-5 h-5" />
+            <h3 class="text-lg font-semibold">
+              Filter by Map
+            </h3>
+            <button
+              class="map-modal-close"
+              @click="showMapModal = false"
+            >
+              <UIcon
+                name="i-heroicons-x-mark"
+                class="w-5 h-5"
+              />
             </button>
           </div>
           <div class="map-modal-body">
@@ -1307,9 +1500,18 @@ defineExpose({
     </Teleport>
 
     <!-- Reset Button -->
-    <div v-if="hasActiveFilters" class="reset-section">
-      <button class="reset-all-btn" @click="resetFilters">
-        <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+    <div
+      v-if="hasActiveFilters"
+      class="reset-section"
+    >
+      <button
+        class="reset-all-btn"
+        @click="resetFilters"
+      >
+        <UIcon
+          name="i-heroicons-x-mark"
+          class="w-4 h-4"
+        />
         Reset All Filters
         <span class="count-badge">{{ activeFilterCount }}</span>
       </button>

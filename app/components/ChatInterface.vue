@@ -197,12 +197,23 @@ defineExpose({
 </script>
 
 <template>
-  <div class="chat-interface" @wheel.stop>
+  <div
+    class="chat-interface"
+    @wheel.stop
+  >
     <!-- Header -->
-    <div v-if="!hideHeader" class="chat-header">
+    <div
+      v-if="!hideHeader"
+      class="chat-header"
+    >
       <div class="flex items-center gap-2">
-        <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-primary-600" />
-        <h3 class="font-semibold text-gray-900">Ask AroundHere</h3>
+        <UIcon
+          name="i-heroicons-chat-bubble-left-right"
+          class="w-5 h-5 text-primary-600"
+        />
+        <h3 class="font-semibold text-gray-900">
+          Ask AroundHere
+        </h3>
       </div>
       <button
         v-if="messages.length > 0"
@@ -210,20 +221,37 @@ defineExpose({
         aria-label="Start new conversation"
         @click="startNewConversation"
       >
-        <UIcon name="i-heroicons-plus" class="w-4 h-4" />
+        <UIcon
+          name="i-heroicons-plus"
+          class="w-4 h-4"
+        />
         New
       </button>
     </div>
 
     <!-- Messages -->
-    <div ref="messagesContainer" class="messages-container" @wheel.stop>
+    <div
+      ref="messagesContainer"
+      class="messages-container"
+      @wheel.stop
+    >
       <!-- Empty state with examples -->
-      <div v-if="messages.length === 0" class="empty-state">
+      <div
+        v-if="messages.length === 0"
+        class="empty-state"
+      >
         <div class="empty-icon">
-          <UIcon name="i-heroicons-sparkles" class="w-12 h-12 text-gray-500" />
+          <UIcon
+            name="i-heroicons-sparkles"
+            class="w-12 h-12 text-gray-500"
+          />
         </div>
-        <h4 class="empty-title">Ask me about local events</h4>
-        <p class="empty-subtitle">Try asking:</p>
+        <h4 class="empty-title">
+          Ask me about local events
+        </h4>
+        <p class="empty-subtitle">
+          Try asking:
+        </p>
         <div class="example-queries">
           <button
             v-for="(query, i) in exampleQueries"
@@ -231,14 +259,20 @@ defineExpose({
             class="example-query-btn"
             @click="useExampleQuery(query)"
           >
-            <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-chat-bubble-left-ellipsis"
+              class="w-4 h-4"
+            />
             {{ query }}
           </button>
         </div>
       </div>
 
       <!-- Message list -->
-      <div v-else class="messages-list">
+      <div
+        v-else
+        class="messages-list"
+      >
         <div
           v-for="(message, i) in messages"
           :key="i"
@@ -258,7 +292,11 @@ defineExpose({
                 {{ message.content }}
               </template>
               <!-- Assistant messages render markdown -->
-              <MDC v-else :value="message.content" class="prose prose-sm max-w-none" />
+              <MDC
+                v-else
+                :value="message.content"
+                class="prose prose-sm max-w-none"
+              />
             </div>
             <div class="message-time">
               {{ message.timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }}
@@ -267,9 +305,15 @@ defineExpose({
         </div>
 
         <!-- Loading indicator -->
-        <div v-if="loading" class="message assistant">
+        <div
+          v-if="loading"
+          class="message assistant"
+        >
           <div class="message-avatar">
-            <UIcon name="i-heroicons-sparkles" class="w-4 h-4 animate-pulse" />
+            <UIcon
+              name="i-heroicons-sparkles"
+              class="w-4 h-4 animate-pulse"
+            />
           </div>
           <div class="message-content">
             <div class="typing-indicator">
@@ -305,7 +349,10 @@ defineExpose({
           :aria-label="loading ? 'Sending message...' : 'Send message'"
           @click="sendMessage"
         >
-          <UIcon name="i-heroicons-paper-airplane" class="w-5 h-5" />
+          <UIcon
+            name="i-heroicons-paper-airplane"
+            class="w-5 h-5"
+          />
         </button>
       </div>
       <p class="chat-disclaimer">
@@ -314,7 +361,11 @@ defineExpose({
     </div>
 
     <!-- Screen reader announcements -->
-    <div aria-live="polite" aria-atomic="true" class="sr-only">
+    <div
+      aria-live="polite"
+      aria-atomic="true"
+      class="sr-only"
+    >
       {{ latestMessage }}
     </div>
   </div>

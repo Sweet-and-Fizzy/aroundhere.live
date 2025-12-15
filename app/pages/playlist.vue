@@ -17,12 +17,31 @@ const spotifyUrl = computed(() => {
   return `https://open.spotify.com/playlist/${playlist.value.playlistId}`
 })
 
+const config = useRuntimeConfig()
+const canonicalUrl = `${config.public.siteUrl}/playlist`
+
 useSeoMeta({
   title: 'Live Music Playlist - AroundHere',
   description: 'A Spotify playlist featuring artists playing live shows nearby. Updated daily with upcoming performances.',
+  // Open Graph
   ogTitle: 'Live Music Playlist - AroundHere',
-  ogDescription: 'A Spotify playlist featuring artists playing live shows nearby.',
-  ogType: 'website',
+  ogDescription: 'A Spotify playlist featuring artists playing live shows nearby. Updated daily with upcoming performances.',
+  ogUrl: canonicalUrl,
+  ogType: 'music.playlist',
+  ogImage: `${config.public.siteUrl}/og-image-playlist.png`,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
+  // Twitter
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Live Music Playlist - AroundHere',
+  twitterDescription: 'Discover artists playing live shows nearby with our daily-updated Spotify playlist.',
+  twitterImage: `${config.public.siteUrl}/og-image-playlist.png`,
+})
+
+useHead({
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+  ],
 })
 </script>
 

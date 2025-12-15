@@ -40,6 +40,18 @@ if (error.value) {
 const venue = computed(() => data.value?.venue)
 const events = computed(() => data.value?.events ?? [])
 
+// View mode toggle - persist in localStorage
+const viewMode = ref<'card' | 'compact'>('card')
+onMounted(() => {
+  const saved = localStorage.getItem('venueEventViewMode')
+  if (saved === 'compact' || saved === 'card') {
+    viewMode.value = saved
+  }
+})
+watch(viewMode, (newMode) => {
+  localStorage.setItem('venueEventViewMode', newMode)
+})
+
 const config = useRuntimeConfig()
 
 const seoDescription = computed(() => {
@@ -54,17 +66,21 @@ const canonicalUrl = computed(() => {
 })
 
 useSeoMeta({
-  title: () => `${venue.value?.name} - Live Music Events`,
+  title: () => `${venue.value?.name} - Live Events`,
   description: () => seoDescription.value,
   // Open Graph
-  ogTitle: () => `${venue.value?.name} - Live Music Events`,
+  ogTitle: () => `${venue.value?.name} - Live Events`,
   ogDescription: () => seoDescription.value,
-  ogImage: () => venue.value?.imageUrl || venue.value?.logoUrl,
+  ogImage: () => venue.value?.imageUrl || venue.value?.logoUrl || `${config.public.siteUrl}/og-image-venues.png`,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
   ogUrl: () => canonicalUrl.value,
+  ogType: 'website',
   // Twitter
-  twitterTitle: () => `${venue.value?.name} - Live Music Events`,
+  twitterCard: 'summary_large_image',
+  twitterTitle: () => `${venue.value?.name} - Live Events`,
   twitterDescription: () => seoDescription.value,
-  twitterImage: () => venue.value?.imageUrl || venue.value?.logoUrl,
+  twitterImage: () => venue.value?.imageUrl || venue.value?.logoUrl || `${config.public.siteUrl}/og-image-venues.png`,
 })
 
 // Add canonical link
@@ -239,36 +255,54 @@ const googleMapsUrl = computed(() => {
 
     <!-- Events Section -->
     <div class="max-w-4xl mx-auto">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">
-        Upcoming Events ({{ events.length }})
-      </h2>
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-900">
+          Upcoming Events ({{ events.length }})
+        </h2>
 
-      <div
-        v-if="events.length === 0"
-        class="text-center py-12"
-      >
-        <UIcon
-          name="i-heroicons-calendar-days"
-          class="w-12 h-12 mx-auto text-gray-400"
-        />
-        <h3 class="mt-4 text-lg font-medium text-gray-900">
-          No upcoming events
-        </h3>
-        <p class="mt-2 text-gray-500">
-          Check back later for new shows at this venue.
-        </p>
+        <!-- View Toggle Buttons -->
+        <div
+          v-if="events.length > 0"
+          class="flex gap-1 bg-gray-100 rounded-lg p-1"
+        >
+          <button
+            :class="[
+              'p-1.5 rounded transition-colors',
+              viewMode === 'card'
+                ? 'bg-white shadow-sm text-primary-600'
+                : 'text-gray-600 hover:text-gray-800'
+            ]"
+            title="Card view"
+            @click="viewMode = 'card'"
+          >
+            <UIcon
+              name="i-heroicons-squares-2x2"
+              class="w-4 h-4 sm:w-5 sm:h-5"
+            />
+          </button>
+          <button
+            :class="[
+              'p-1.5 rounded transition-colors',
+              viewMode === 'compact'
+                ? 'bg-white shadow-sm text-primary-600'
+                : 'text-gray-600 hover:text-gray-800'
+            ]"
+            title="Compact view"
+            @click="viewMode = 'compact'"
+          >
+            <UIcon
+              name="i-heroicons-bars-3"
+              class="w-4 h-4 sm:w-5 sm:h-5"
+            />
+          </button>
+        </div>
       </div>
 
-      <div
-        v-else
-        class="space-y-3"
-      >
-        <EventCard
-          v-for="event in events"
-          :key="event.id"
-          :event="event"
-        />
-      </div>
+      <EventList
+        :events="events"
+        :view-mode="viewMode"
+        :hide-venue="true"
+      />
     </div>
 
     <BackToTop />

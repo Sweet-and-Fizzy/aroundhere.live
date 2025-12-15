@@ -139,166 +139,166 @@ useSeoMeta({
     <div class="bg-white rounded-lg shadow overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Name
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Location
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Scraper
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr
-            v-for="venue in venues"
-            :key="venue.id"
-            class="hover:bg-gray-50"
-          >
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="font-medium text-gray-900">
-                {{ venue.name }}
-              </div>
-              <div
-                v-if="venue.website"
-                class="text-sm text-gray-500 max-w-48 truncate"
-              >
-                <a
-                  :href="venue.website"
-                  target="_blank"
-                  class="hover:underline"
-                  :title="venue.website"
-                >{{ venue.website.replace(/^https?:\/\//, '') }}</a>
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <div>{{ venue.city }}, {{ venue.state }}</div>
-              <div
-                v-if="venue.latitude && venue.longitude"
-                class="text-xs text-green-600"
-              >
-                Geocoded
-              </div>
-              <div
-                v-else
-                class="text-xs text-yellow-600"
-              >
-                Not geocoded
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span
-                class="px-2 py-1 text-xs font-medium rounded"
-                :class="venue.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-              >
-                {{ venue.isActive ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <NuxtLink
-                :to="`/admin/scrapers?venueId=${venue.id}`"
-                class="inline-block"
-              >
-                <span
-                  class="px-2 py-1 text-xs font-medium rounded hover:opacity-80 cursor-pointer"
-                  :class="getScraperStatusClass(venue)"
-                >
-                  {{ getScraperStatusText(venue) }}
-                </span>
-              </NuxtLink>
-              <div
-                v-if="venue.scraper?.lastRunAt"
-                class="text-xs text-gray-500 mt-1"
-              >
-                {{ formatDate(venue.scraper.lastRunAt) }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <div class="flex justify-end gap-2">
-                <!-- Run Scraper button (AI-generated scraper) -->
-                <button
-                  v-if="venue.scraper?.id"
-                  :disabled="isScraperRunning(venue)"
-                  class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded disabled:opacity-50 disabled:cursor-wait"
-                  :title="isScraperRunning(venue) ? 'Running...' : 'Run scraper'"
-                  @click="runScraper(venue.scraper.id, venue.name)"
-                >
-                  <UIcon
-                    :name="isScraperRunning(venue) ? 'i-heroicons-arrow-path' : 'i-heroicons-play'"
-                    :class="['w-5 h-5', isScraperRunning(venue) ? 'animate-spin' : '']"
-                  />
-                </button>
-                <!-- Run Scraper button (hardcoded scraper) -->
-                <button
-                  v-else-if="hardcodedScraperSlugs.has(venue.slug)"
-                  :disabled="isScraperRunning(venue)"
-                  class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded disabled:opacity-50 disabled:cursor-wait"
-                  :title="isScraperRunning(venue) ? 'Running...' : 'Run hardcoded scraper'"
-                  @click="runHardcodedScraper(venue.slug, venue.name)"
-                >
-                  <UIcon
-                    :name="isScraperRunning(venue) ? 'i-heroicons-arrow-path' : 'i-heroicons-play'"
-                    :class="['w-5 h-5', isScraperRunning(venue) ? 'animate-spin' : '']"
-                  />
-                </button>
-                <NuxtLink
-                  :to="`/venues/${venue.slug}`"
-                  class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                  title="View venue"
-                >
-                  <UIcon
-                    name="i-heroicons-eye"
-                    class="w-5 h-5"
-                  />
-                </NuxtLink>
-                <NuxtLink
-                  :to="`/admin/venues/${venue.id}/edit`"
-                  class="p-1.5 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded"
-                  title="Edit venue"
-                >
-                  <UIcon
-                    name="i-heroicons-pencil-square"
-                    class="w-5 h-5"
-                  />
-                </NuxtLink>
-                <button
-                  class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                  title="Delete venue"
-                  @click="deleteVenue(venue.id, venue.name)"
-                >
-                  <UIcon
-                    name="i-heroicons-trash"
-                    class="w-5 h-5"
-                  />
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="venues.length === 0">
-            <td
-              colspan="5"
-              class="px-6 py-8 text-center text-gray-500"
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Name
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Location
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Scraper
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr
+              v-for="venue in venues"
+              :key="venue.id"
+              class="hover:bg-gray-50"
             >
-              No venues found.
-              <NuxtLink
-                to="/admin/scrapers"
-                class="text-primary-600 hover:underline"
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="font-medium text-gray-900">
+                  {{ venue.name }}
+                </div>
+                <div
+                  v-if="venue.website"
+                  class="text-sm text-gray-500 max-w-48 truncate"
+                >
+                  <a
+                    :href="venue.website"
+                    target="_blank"
+                    class="hover:underline"
+                    :title="venue.website"
+                  >{{ venue.website.replace(/^https?:\/\//, '') }}</a>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <div>{{ venue.city }}, {{ venue.state }}</div>
+                <div
+                  v-if="venue.latitude && venue.longitude"
+                  class="text-xs text-green-600"
+                >
+                  Geocoded
+                </div>
+                <div
+                  v-else
+                  class="text-xs text-yellow-600"
+                >
+                  Not geocoded
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="px-2 py-1 text-xs font-medium rounded"
+                  :class="venue.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                >
+                  {{ venue.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <NuxtLink
+                  :to="`/admin/scrapers?venueId=${venue.id}`"
+                  class="inline-block"
+                >
+                  <span
+                    class="px-2 py-1 text-xs font-medium rounded hover:opacity-80 cursor-pointer"
+                    :class="getScraperStatusClass(venue)"
+                  >
+                    {{ getScraperStatusText(venue) }}
+                  </span>
+                </NuxtLink>
+                <div
+                  v-if="venue.scraper?.lastRunAt"
+                  class="text-xs text-gray-500 mt-1"
+                >
+                  {{ formatDate(venue.scraper.lastRunAt) }}
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="flex justify-end gap-2">
+                  <!-- Run Scraper button (AI-generated scraper) -->
+                  <button
+                    v-if="venue.scraper?.id"
+                    :disabled="isScraperRunning(venue)"
+                    class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded disabled:opacity-50 disabled:cursor-wait"
+                    :title="isScraperRunning(venue) ? 'Running...' : 'Run scraper'"
+                    @click="runScraper(venue.scraper.id, venue.name)"
+                  >
+                    <UIcon
+                      :name="isScraperRunning(venue) ? 'i-heroicons-arrow-path' : 'i-heroicons-play'"
+                      :class="['w-5 h-5', isScraperRunning(venue) ? 'animate-spin' : '']"
+                    />
+                  </button>
+                  <!-- Run Scraper button (hardcoded scraper) -->
+                  <button
+                    v-else-if="hardcodedScraperSlugs.has(venue.slug)"
+                    :disabled="isScraperRunning(venue)"
+                    class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded disabled:opacity-50 disabled:cursor-wait"
+                    :title="isScraperRunning(venue) ? 'Running...' : 'Run hardcoded scraper'"
+                    @click="runHardcodedScraper(venue.slug, venue.name)"
+                  >
+                    <UIcon
+                      :name="isScraperRunning(venue) ? 'i-heroicons-arrow-path' : 'i-heroicons-play'"
+                      :class="['w-5 h-5', isScraperRunning(venue) ? 'animate-spin' : '']"
+                    />
+                  </button>
+                  <NuxtLink
+                    :to="`/venues/${venue.slug}`"
+                    class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                    title="View venue"
+                  >
+                    <UIcon
+                      name="i-heroicons-eye"
+                      class="w-5 h-5"
+                    />
+                  </NuxtLink>
+                  <NuxtLink
+                    :to="`/admin/venues/${venue.id}/edit`"
+                    class="p-1.5 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded"
+                    title="Edit venue"
+                  >
+                    <UIcon
+                      name="i-heroicons-pencil-square"
+                      class="w-5 h-5"
+                    />
+                  </NuxtLink>
+                  <button
+                    class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                    title="Delete venue"
+                    @click="deleteVenue(venue.id, venue.name)"
+                  >
+                    <UIcon
+                      name="i-heroicons-trash"
+                      class="w-5 h-5"
+                    />
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="venues.length === 0">
+              <td
+                colspan="5"
+                class="px-6 py-8 text-center text-gray-500"
               >
-                Add one
-              </NuxtLink>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                No venues found.
+                <NuxtLink
+                  to="/admin/scrapers"
+                  class="text-primary-600 hover:underline"
+                >
+                  Add one
+                </NuxtLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

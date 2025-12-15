@@ -73,9 +73,69 @@ export default defineEventHandler(async (event) => {
   }
 
   // Fetch events with related data
-  const [events, total] = await Promise.all([
-    prisma.event.findMany({
-      where,
+  // First get the initial batch
+  let events = await prisma.event.findMany({
+    where,
+    include: {
+      venue: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          city: true,
+          state: true,
+          latitude: true,
+          longitude: true,
+          logoUrl: true,
+        },
+      },
+      eventArtists: {
+        include: {
+          artist: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              genres: true,
+              spotifyId: true,
+              spotifyMatchStatus: true,
+            },
+          },
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      },
+    },
+    orderBy: {
+      startsAt: 'asc',
+    },
+    take: limit,
+    skip: offset,
+  })
+
+  // Hybrid pagination: Don't cut off mid-day
+  // If we have events and haven't hit the max, extend to include all events from the last day
+  if (events.length > 0 && events.length < 100) {
+    const lastEvent = events[events.length - 1]
+    const lastEventDate = new Date(lastEvent.startsAt)
+    // Get the start of the next day
+    const nextDay = new Date(lastEventDate)
+    nextDay.setHours(0, 0, 0, 0)
+    nextDay.setDate(nextDay.getDate() + 1)
+
+    // Fetch any additional events from the same day
+    const sameDayEvents = await prisma.event.findMany({
+      where: {
+        ...where,
+        startsAt: {
+          gte: lastEventDate,
+          lt: nextDay,
+        },
+        id: {
+          notIn: events.map(e => e.id),
+        },
+      },
       include: {
         venue: {
           select: {
@@ -110,19 +170,22 @@ export default defineEventHandler(async (event) => {
       orderBy: {
         startsAt: 'asc',
       },
-      take: limit,
-      skip: offset,
-    }),
-    prisma.event.count({ where }),
-  ])
+      // Cap total at 100 to prevent huge pages
+      take: Math.max(0, 100 - events.length),
+    })
+
+    events = [...events, ...sameDayEvents]
+  }
+
+  const total = await prisma.event.count({ where })
 
   return {
     events,
     pagination: {
       total,
-      limit,
+      limit: events.length, // Return actual number of events returned
       offset,
-      hasMore: offset + limit < total,
+      hasMore: offset + events.length < total,
     },
   }
 })

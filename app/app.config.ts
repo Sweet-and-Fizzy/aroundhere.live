@@ -4,6 +4,8 @@ export default defineAppConfig({
       primary: 'blue',
       neutral: 'zinc',
     },
+    // Enable all colors used for badges
+    safelistColors: ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose', 'gray'],
     input: {
       slots: {
         root: 'text-gray-900',

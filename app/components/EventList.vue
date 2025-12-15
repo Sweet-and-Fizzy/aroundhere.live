@@ -5,6 +5,7 @@ const props = defineProps<{
   events: Event[]
   loading?: boolean
   viewMode?: 'card' | 'compact'
+  hideVenue?: boolean
 }>()
 
 // Group events by local date for compact view
@@ -117,36 +118,48 @@ function formatDateHeader(date: Date): string {
           </h3>
         </div>
 
-        <!-- Column Headers (sticky below date header) -->
-        <div class="bg-gray-100 border-y border-gray-300 px-2 sm:px-3 sticky top-[38px] sm:top-[42px] z-10">
-          <div class="flex items-center gap-2 sm:gap-3 md:gap-4 py-1.5 text-xs text-gray-600 font-medium uppercase tracking-wide">
-            <div class="flex-shrink-0 w-14 sm:w-16">
-              Time
-            </div>
-            <div class="flex-1 min-w-0 pr-2">
-              Event
-            </div>
-            <div class="hidden sm:block flex-1 min-w-0 pr-2">
-              Venue
-            </div>
-            <div class="hidden md:block flex-shrink-0 w-24 lg:w-28 xl:w-32">
-              Category
-            </div>
-            <div class="flex-shrink-0 w-4 sm:w-5">
-              <!-- Chevron spacer -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Events for this date -->
-        <div>
-          <EventCardCompact
-            v-for="event in dateGroup.events"
-            :key="event.id"
-            :event="event"
-            :hide-date="true"
-          />
-        </div>
+        <!-- Table layout for perfect alignment -->
+        <table class="w-full table-fixed">
+          <colgroup v-if="hideVenue">
+            <col class="w-[70px] sm:w-20">
+            <col>
+            <col class="w-auto hidden md:table-column">
+          </colgroup>
+          <colgroup v-else>
+            <col class="w-[70px] sm:w-20">
+            <col>
+            <col class="hidden sm:table-column sm:w-[32%]">
+            <col class="w-auto hidden md:table-column">
+          </colgroup>
+          <thead class="bg-gray-100 border-y border-gray-300 sticky top-[38px] sm:top-[42px] z-10">
+            <tr class="text-xs text-gray-600 font-medium uppercase tracking-wide">
+              <th class="text-left py-1.5 px-2 sm:px-3">
+                Time
+              </th>
+              <th class="text-left py-1.5 px-2 sm:px-3">
+                Event
+              </th>
+              <th
+                v-if="!hideVenue"
+                class="text-left py-1.5 px-2 sm:px-3 hidden sm:table-cell"
+              >
+                Venue
+              </th>
+              <th class="text-right py-1.5 px-2 sm:px-3 hidden md:table-cell">
+                Category
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <EventCardCompact
+              v-for="event in dateGroup.events"
+              :key="event.id"
+              :event="event"
+              :hide-date="true"
+              :hide-venue="hideVenue"
+            />
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

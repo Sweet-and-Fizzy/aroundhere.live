@@ -1,6 +1,6 @@
 /**
- * Composable to provide genre label mapping
- * Maps canonical genre slugs to friendly display names
+ * Composable to provide genre label mapping and color coding
+ * Maps canonical genre slugs to friendly display names and badge colors
  */
 
 // Human-readable labels for display (sync with server/api/genres/index.get.ts)
@@ -25,6 +25,29 @@ const GENRE_LABELS: Record<string, string> = {
   'reggae': 'Reggae',
 }
 
+// Color mapping for genres using Nuxt UI badge colors
+// Chose colors far apart on the color wheel for maximum differentiation
+const GENRE_COLORS: Record<string, string> = {
+  'rock': 'red',           // Red for rock - strong, energetic
+  'indie': 'orange',       // Orange for indie - warm, creative
+  'punk': 'pink',          // Pink for punk - rebellious
+  'metal': 'gray',         // Gray for metal - dark, heavy
+  'jazz': 'indigo',        // Indigo for jazz - sophisticated
+  'blues': 'blue',         // Blue for blues - melancholy
+  'folk': 'emerald',       // Emerald for folk - natural, earthy
+  'country': 'amber',      // Amber for country - rustic
+  'bluegrass': 'lime',     // Lime for bluegrass - fresh, upbeat
+  'americana': 'rose',     // Rose for americana - nostalgic
+  'singer-songwriter': 'purple', // Purple for singer-songwriter - artistic
+  'hip-hop': 'violet',     // Violet for hip-hop - bold
+  'r-and-b': 'fuchsia',    // Fuchsia for R&B - smooth, vibrant
+  'electronic': 'cyan',    // Cyan for electronic - modern, digital
+  'classical': 'sky',      // Sky for classical - refined, airy
+  'world': 'teal',         // Teal for world - diverse, global
+  'funk': 'yellow',        // Yellow for funk - funky, groovy
+  'reggae': 'green',       // Green for reggae - relaxed, island vibes
+}
+
 export function useGenreLabels() {
   /**
    * Get the friendly display name for a genre slug
@@ -34,8 +57,17 @@ export function useGenreLabels() {
     return GENRE_LABELS[genreSlug] || genreSlug.charAt(0).toUpperCase() + genreSlug.slice(1)
   }
 
+  /**
+   * Get the badge color for a genre
+   * Falls back to 'primary' if no mapping exists
+   */
+  function getGenreColor(genreSlug: string): string {
+    return GENRE_COLORS[genreSlug] || 'primary'
+  }
+
   return {
     genreLabels: GENRE_LABELS,
     getGenreLabel,
+    getGenreColor,
   }
 }

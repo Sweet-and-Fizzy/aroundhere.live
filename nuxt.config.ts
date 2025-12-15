@@ -85,4 +85,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   colorMode: {
     preference: 'light',
   },
+
+  // Nuxt UI configuration
+  ui: {
+    safelistColors: ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose', 'gray', 'neutral'],
+  },
 })

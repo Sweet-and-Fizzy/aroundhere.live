@@ -6,9 +6,19 @@ const { regionName } = useCurrentRegion()
 useSeoMeta({
   title: 'Contact - AroundHere',
   description: 'Get in touch with AroundHere. Share suggestions, report issues, or request changes to your venue listing.',
-  ogTitle: 'Contact - AroundHere',
+  // Open Graph
+  ogTitle: 'Contact Us - AroundHere',
   ogDescription: 'Get in touch with AroundHere. Share suggestions, report issues, or request changes to your venue listing.',
   ogUrl: canonicalUrl,
+  ogType: 'website',
+  ogImage: `${config.public.siteUrl}/og-image.png`,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
+  // Twitter
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Contact Us - AroundHere',
+  twitterDescription: 'Get in touch with AroundHere. Share suggestions or request changes.',
+  twitterImage: `${config.public.siteUrl}/og-image.png`,
 })
 
 useHead({

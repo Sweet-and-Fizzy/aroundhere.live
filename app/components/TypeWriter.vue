@@ -46,7 +46,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <span class="typewriter">{{ displayText }}<span v-if="!isComplete" class="cursor">|</span></span>
+  <span class="typewriter">{{ displayText }}<span
+    v-if="!isComplete"
+    class="cursor"
+  >|</span></span>
 </template>
 
 <style scoped>

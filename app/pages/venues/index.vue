@@ -70,13 +70,19 @@ function onCenterChanged(center: { lat: number; lng: number; radius: number | 'v
 useSeoMeta({
   title: 'Venues - AroundHere',
   description: () => `Browse music venues in ${regionName.value}. Find bars, clubs, theaters, and more hosting live music.`,
-  // Open Graph
-  ogTitle: () => `Music Venues in ${regionName.value}`,
-  ogDescription: () => `Browse music venues in ${regionName.value}. Find bars, clubs, theaters, and more hosting live music.`,
+  // Open Graph (no region for sharing)
+  ogTitle: 'Local Venues - AroundHere',
+  ogDescription: 'Explore venues near you. Find bars, clubs, theaters, and concert halls hosting live music and entertainment.',
   ogUrl: canonicalUrl,
+  ogType: 'website',
+  ogImage: `${config.public.siteUrl}/og-image-venues.png`,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
   // Twitter
-  twitterTitle: () => `Music Venues in ${regionName.value}`,
-  twitterDescription: () => `Browse music venues in ${regionName.value}. Find bars, clubs, theaters, and more.`,
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Local Venues - AroundHere',
+  twitterDescription: 'Explore venues near you hosting live music and entertainment.',
+  twitterImage: `${config.public.siteUrl}/og-image-venues.png`,
 })
 
 useHead({

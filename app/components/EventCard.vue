@@ -7,8 +7,8 @@ const props = defineProps<{
 
 const expanded = ref(false)
 const imageLoaded = ref(false)
-const { getGenreLabel } = useGenreLabels()
-const { getEventTypeLabel } = useEventTypeLabels()
+const { getGenreLabel, getGenreColor } = useGenreLabels()
+const { getEventTypeLabel, getEventTypeColor } = useEventTypeLabels()
 
 function onImageLoad() {
   imageLoaded.value = true
@@ -106,6 +106,61 @@ const hasMoreContent = computed(() => {
 const eventTypeLabel = computed(() => {
   return getEventTypeLabel(props.event.eventType)
 })
+
+// Get full badge classes with colors
+const eventTypeBadgeColor = computed(() => {
+  const color = getEventTypeColor(props.event.eventType)
+  const colorMap: Record<string, string> = {
+    'primary': 'blue',
+    'gray': 'gray',
+    'red': 'red',
+    'orange': 'orange',
+    'amber': 'amber',
+    'yellow': 'yellow',
+    'lime': 'lime',
+    'green': 'green',
+    'emerald': 'emerald',
+    'teal': 'teal',
+    'cyan': 'cyan',
+    'sky': 'sky',
+    'blue': 'blue',
+    'indigo': 'indigo',
+    'violet': 'violet',
+    'purple': 'purple',
+    'fuchsia': 'fuchsia',
+    'pink': 'pink',
+    'rose': 'rose',
+  }
+  return colorMap[color] || 'blue'
+})
+
+const genreBadgeColors = computed(() => {
+  return displayGenres.value.map(genre => {
+    const color = getGenreColor(genre)
+    const colorMap: Record<string, string> = {
+      'primary': 'blue',
+      'gray': 'gray',
+      'red': 'red',
+      'orange': 'orange',
+      'amber': 'amber',
+      'yellow': 'yellow',
+      'lime': 'lime',
+      'green': 'green',
+      'emerald': 'emerald',
+      'teal': 'teal',
+      'cyan': 'cyan',
+      'sky': 'sky',
+      'blue': 'blue',
+      'indigo': 'indigo',
+      'violet': 'violet',
+      'purple': 'purple',
+      'fuchsia': 'fuchsia',
+      'pink': 'pink',
+      'rose': 'rose',
+    }
+    return colorMap[color] || 'blue'
+  })
+})
 </script>
 
 <template>
@@ -165,7 +220,10 @@ const eventTypeLabel = computed(() => {
             class="w-4 h-4 text-primary-500"
             aria-hidden="true"
           />
-          <time class="font-medium" :datetime="event.startsAt">{{ formattedDate.weekday }}, {{ formattedDate.month }} {{ formattedDate.day }}</time>
+          <time
+            class="font-medium"
+            :datetime="event.startsAt"
+          >{{ formattedDate.weekday }}, {{ formattedDate.month }} {{ formattedDate.day }}</time>
           <template v-if="formattedTime">
             <span class="text-gray-500">at</span>
             <span>{{ formattedTime }}</span>
@@ -206,7 +264,7 @@ const eventTypeLabel = computed(() => {
         >
           <NuxtLink
             :to="`/venues/${event.venue.slug}`"
-            class="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-primary-600 transition-colors"
+            class="inline-flex items-center gap-1.5 text-sm text-gray-900 hover:text-primary-600 transition-colors"
           >
             <UIcon
               name="i-heroicons-map-pin"
@@ -217,30 +275,53 @@ const eventTypeLabel = computed(() => {
           </NuxtLink>
           <span
             v-if="event.venue.city"
-            class="flex-shrink-0 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+            class="flex-shrink-0 text-xs text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded"
             :title="event.venue.city"
           >
             {{ event.venue.city }}
           </span>
         </div>
 
-        <!-- Badges -->
+        <!-- Badges - Order: Event Type, Genres, Ticket Price, Age Restriction -->
         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
+          <!-- Event Type -->
           <UBadge
             v-if="eventTypeLabel"
-            color="gray"
+            :color="eventTypeBadgeColor"
             variant="soft"
             size="sm"
             :aria-label="`Event type: ${eventTypeLabel}`"
+            class="!text-gray-900"
           >
             {{ eventTypeLabel }}
           </UBadge>
+
+          <!-- Genres -->
+          <UBadge
+            v-for="(genre, index) in displayGenres"
+            :key="genre"
+            :color="genreBadgeColors[index]"
+            variant="soft"
+            size="sm"
+            :aria-label="`Genre: ${getGenreLabel(genre)}`"
+            class="!text-gray-900"
+          >
+            <UIcon
+              name="i-heroicons-musical-note"
+              class="w-3 h-3 mr-1"
+              aria-hidden="true"
+            />
+            {{ getGenreLabel(genre) }}
+          </UBadge>
+
+          <!-- Ticket Price -->
           <UBadge
             v-if="event.coverCharge"
             color="success"
             variant="soft"
             size="sm"
             :aria-label="`Price: ${event.coverCharge}`"
+            class="!text-gray-900"
           >
             <UIcon
               name="i-heroicons-ticket"
@@ -249,29 +330,17 @@ const eventTypeLabel = computed(() => {
             />
             {{ event.coverCharge }}
           </UBadge>
+
+          <!-- Age Restriction -->
           <UBadge
             v-if="event.ageRestriction && event.ageRestriction !== 'ALL_AGES'"
             color="warning"
             variant="soft"
             size="sm"
             :aria-label="`Age restriction: ${event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+')}`"
+            class="!text-gray-900"
           >
             {{ event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
-          </UBadge>
-          <UBadge
-            v-for="genre in displayGenres"
-            :key="genre"
-            color="primary"
-            variant="soft"
-            size="sm"
-            :aria-label="`Genre: ${getGenreLabel(genre)}`"
-          >
-            <UIcon
-              name="i-heroicons-musical-note"
-              class="w-3 h-3 mr-1"
-              aria-hidden="true"
-            />
-            {{ getGenreLabel(genre) }}
           </UBadge>
         </div>
 
