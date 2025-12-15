@@ -12,7 +12,6 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
-const router = useRouter()
 
 const props = defineProps<{
   venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null }[]
@@ -139,8 +138,10 @@ function updateUrl() {
     query.date = datePreset.value
   }
 
-  // Use replace to avoid polluting browser history
-  router.replace({ query })
+  // Use History API directly to avoid Vue Router navigation which resets scroll
+  const url = new URL(window.location.href)
+  url.search = new URLSearchParams(query).toString()
+  window.history.replaceState({}, '', url.toString())
 }
 
 const savedFilters = loadSavedFilters()

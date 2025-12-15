@@ -40,7 +40,7 @@ export interface NamedCluster extends Cluster {
 const DEFAULT_CONFIG: ClusterConfig = {
   epsilonMiles: 15,      // Max distance between venues to be in same cluster
   minVenues: 3,          // Minimum venues to form a region
-  maxOrphanDistance: 30, // Max distance for orphan to join nearest cluster
+  maxOrphanDistance: 20, // Max distance for orphan to join nearest cluster
 }
 
 /**

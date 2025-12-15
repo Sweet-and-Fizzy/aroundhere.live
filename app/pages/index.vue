@@ -113,10 +113,26 @@ const facetParams = computed(() => {
   return params
 })
 
-const { data: facetsData } = await useFetch('/api/events/facets', {
-  params: facetParams,
-  watch: [facetParams],
-})
+// Facets data - fetched manually to avoid useFetch watch causing scroll issues
+const facetsData = ref<{
+  venueCounts: Record<string, number>
+  genreCounts: Record<string, number>
+  typeCounts: Record<string, number>
+  cityCounts: Record<string, number>
+  cityRegions: Record<string, string>
+  musicCount: number
+  nonMusicCount: number
+} | null>(null)
+
+// Fetch facets when filters change
+watch(facetParams, async (params) => {
+  try {
+    facetsData.value = await $fetch('/api/events/facets', { params })
+  } catch {
+    // Ignore facet fetch errors
+  }
+}, { immediate: true })
+
 const facets = computed(() => facetsData.value ?? undefined)
 
 async function handleFilter(filters: Record<string, any>) {
