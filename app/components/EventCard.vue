@@ -7,7 +7,7 @@ const props = defineProps<{
 
 const expanded = ref(false)
 const imageLoaded = ref(false)
-const { getGenreLabel, getGenreColor } = useGenreLabels()
+const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeColor } = useEventTypeLabels()
 
 function onImageLoad() {
@@ -134,33 +134,6 @@ const eventTypeBadgeColor = computed(() => {
   return colorMap[color] || 'blue'
 })
 
-const genreBadgeColors = computed(() => {
-  return displayGenres.value.map(genre => {
-    const color = getGenreColor(genre)
-    const colorMap: Record<string, string> = {
-      'primary': 'blue',
-      'gray': 'gray',
-      'red': 'red',
-      'orange': 'orange',
-      'amber': 'amber',
-      'yellow': 'yellow',
-      'lime': 'lime',
-      'green': 'green',
-      'emerald': 'emerald',
-      'teal': 'teal',
-      'cyan': 'cyan',
-      'sky': 'sky',
-      'blue': 'blue',
-      'indigo': 'indigo',
-      'violet': 'violet',
-      'purple': 'purple',
-      'fuchsia': 'fuchsia',
-      'pink': 'pink',
-      'rose': 'rose',
-    }
-    return colorMap[color] || 'blue'
-  })
-})
 </script>
 
 <template>
@@ -298,17 +271,17 @@ const genreBadgeColors = computed(() => {
 
           <!-- Genres -->
           <UBadge
-            v-for="(genre, index) in displayGenres"
+            v-for="genre in displayGenres"
             :key="genre"
-            :color="genreBadgeColors[index]"
-            variant="soft"
-            size="sm"
+            :ui="{
+              base: getGenreBadgeClasses(genre)
+            }"
+            size="md"
             :aria-label="`Genre: ${getGenreLabel(genre)}`"
-            class="!text-gray-900"
           >
             <UIcon
               name="i-heroicons-musical-note"
-              class="w-3 h-3 mr-1"
+              class="w-3.5 h-3.5 mr-1"
               aria-hidden="true"
             />
             {{ getGenreLabel(genre) }}

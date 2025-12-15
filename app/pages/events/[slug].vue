@@ -3,6 +3,7 @@ const route = useRoute()
 const slug = route.params.slug as string
 
 const { data: event, error } = await useFetch(`/api/events/by-slug/${slug}`)
+const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
 
 if (error.value) {
   throw createError({
@@ -385,11 +386,12 @@ useHead({
           <UBadge
             v-for="genre in event.canonicalGenres"
             :key="genre"
-            color="primary"
-            variant="soft"
-            size="sm"
+            :ui="{
+              base: getGenreBadgeClasses(genre)
+            }"
+            size="md"
           >
-            {{ genre }}
+            {{ getGenreLabel(genre) }}
           </UBadge>
         </div>
       </header>
@@ -734,11 +736,12 @@ useHead({
                 <UBadge
                   v-for="genre in related.canonicalGenres.slice(0, 2)"
                   :key="genre"
-                  color="primary"
-                  variant="soft"
-                  size="xs"
+                  :ui="{
+                    base: getGenreBadgeClasses(genre)
+                  }"
+                  size="sm"
                 >
-                  {{ genre }}
+                  {{ getGenreLabel(genre) }}
                 </UBadge>
               </div>
               <div

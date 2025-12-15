@@ -86,6 +86,8 @@ const nuxtGlobals = {
   sendMagicLinkEmail: 'readonly',
   // Custom composables
   useCurrentRegion: 'readonly',
+  useGenreLabels: 'readonly',
+  useEventTypeLabels: 'readonly',
   // Browser/DOM globals
   KeyboardEvent: 'readonly',
   Event: 'readonly',

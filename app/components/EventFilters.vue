@@ -681,21 +681,22 @@ onMounted(() => {
   }
 }
 
-/* Force darker text and borders on form controls */
+/* Force black text and borders on form controls for better contrast */
 :deep(input),
 :deep(button[role="combobox"]),
 :deep([data-part="trigger"]) {
-  color: #111827 !important;
+  color: #000000 !important;
   border-color: #9ca3af !important;
 }
 
 :deep(input::placeholder) {
-  color: #111827 !important;
+  color: #6b7280 !important;
+  opacity: 1 !important;
 }
 
-/* Make select trigger text darker */
+/* Make select trigger text black */
 :deep(.filter-select button span) {
-  color: #111827 !important;
+  color: #000000 !important;
 }
 
 /* Fix map accordion trigger height and border to match other controls */

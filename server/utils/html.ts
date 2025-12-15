@@ -125,6 +125,30 @@ export function processDescriptions(
 }
 
 /**
+ * Clean event titles by removing date prefixes and time suffixes
+ * This is applied when saving events to ensure consistent, clean titles in the database
+ */
+export function cleanEventTitle(title: string): string {
+  const cleaned = title
+    // Remove generic category prefixes like "Live music: " or "Live Music - "
+    .replace(/^(?:live\s+music|music|comedy|theater|performance|show)\s*[:\-–—]\s*/i, '')
+    // Remove date prefixes like "Saturday December 20th - " or "Friday, January 3rd - "
+    .replace(/^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?\s*[-–—]\s*/i, '')
+    // Remove time ranges like "7-10", "7-8:30", "8:30-11pm", "7pm-10pm"
+    .replace(/,?\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*-\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?/gi, '')
+    // Remove standalone times like "7pm", "8:30pm"
+    .replace(/,?\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)/gi, '')
+    // Remove parenthetical notes about times like "(Sign-Up @ 6)"
+    .replace(/\s*\([^)]*(?:sign[- ]?up|doors|@|\d{1,2}(?::\d{2})?(?:am|pm)?)[^)]*\)/gi, '')
+    // Clean up trailing punctuation and whitespace
+    .replace(/[,\s]+$/, '')
+    .trim()
+
+  // Only return cleaned version if it's not empty
+  return cleaned.length > 0 ? cleaned : title
+}
+
+/**
  * Generate URL-safe slug from text
  */
 export function generateSlug(text: string, date?: Date): string {

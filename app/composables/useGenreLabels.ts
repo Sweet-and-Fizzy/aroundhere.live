@@ -65,9 +65,41 @@ export function useGenreLabels() {
     return GENRE_COLORS[genreSlug] || 'primary'
   }
 
+  /**
+   * Get Tailwind badge classes for a genre (for use with :ui prop in Nuxt UI v4)
+   * Returns classes for background and text based on genre color
+   * Text is always black (text-gray-900) for maximum contrast and readability
+   * No border/ring for a clean look
+   */
+  function getGenreBadgeClasses(genreSlug: string): string {
+    const color = getGenreColor(genreSlug)
+    const colorClasses: Record<string, string> = {
+      'red': 'bg-red-50 text-gray-900',
+      'orange': 'bg-orange-50 text-gray-900',
+      'amber': 'bg-amber-50 text-gray-900',
+      'yellow': 'bg-yellow-50 text-gray-900',
+      'lime': 'bg-lime-50 text-gray-900',
+      'green': 'bg-green-50 text-gray-900',
+      'emerald': 'bg-emerald-50 text-gray-900',
+      'teal': 'bg-teal-50 text-gray-900',
+      'cyan': 'bg-cyan-50 text-gray-900',
+      'sky': 'bg-sky-50 text-gray-900',
+      'blue': 'bg-blue-50 text-gray-900',
+      'indigo': 'bg-indigo-50 text-gray-900',
+      'violet': 'bg-violet-50 text-gray-900',
+      'purple': 'bg-purple-50 text-gray-900',
+      'fuchsia': 'bg-fuchsia-50 text-gray-900',
+      'pink': 'bg-pink-50 text-gray-900',
+      'rose': 'bg-rose-50 text-gray-900',
+      'gray': 'bg-gray-50 text-gray-900',
+    }
+    return colorClasses[color] || 'bg-blue-50 text-gray-900'
+  }
+
   return {
     genreLabels: GENRE_LABELS,
     getGenreLabel,
     getGenreColor,
+    getGenreBadgeClasses,
   }
 }

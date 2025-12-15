@@ -8,6 +8,7 @@ import type { ScrapedEvent } from './types'
 import { findDuplicate, mergeEventData } from './dedup'
 import {
   decodeHtmlEntities,
+  cleanEventTitle,
   processDescriptions,
   generateSlug,
   normalizeForComparison,
@@ -50,10 +51,12 @@ export async function saveEvent(
     if (existingFromSameSource) {
       // Update existing event from same source
       const descriptions = processDescriptions(scrapedEvent.description)
+      // Clean title after deduplication to avoid breaking matching
+      const cleanedTitle = cleanEventTitle(decodeHtmlEntities(scrapedEvent.title))
       await prisma.event.update({
         where: { id: existingFromSameSource.id },
         data: {
-          title: decodeHtmlEntities(scrapedEvent.title),
+          title: cleanedTitle,
           description: descriptions.description,
           descriptionHtml: descriptions.descriptionHtml,
           imageUrl: scrapedEvent.imageUrl,
@@ -112,13 +115,15 @@ export async function saveEvent(
       // Same source re-scrape or higher priority source - update the canonical event
       console.log(`[SaveEvent] Updating canonical event (same source or higher priority)`)
       const canonicalDescriptions = processDescriptions(scrapedEvent.description)
+      // Clean title after deduplication to avoid breaking matching
+      const cleanedTitle = cleanEventTitle(decodeHtmlEntities(scrapedEvent.title))
       await prisma.event.update({
         where: { id: dedupResult.existingEventId },
         data: {
           sourceId: source.id,
           sourceEventId: scrapedEvent.sourceEventId,
           sourceUrl: scrapedEvent.sourceUrl,
-          title: decodeHtmlEntities(scrapedEvent.title),
+          title: cleanedTitle,
           description: canonicalDescriptions.description,
           descriptionHtml: canonicalDescriptions.descriptionHtml,
           imageUrl: scrapedEvent.imageUrl,
@@ -152,8 +157,12 @@ export async function saveEvent(
     return 'skipped' // Duplicate with no changes needed
   }
 
-  // Generate slug
-  const slug = generateSlug(scrapedEvent.title, scrapedEvent.startsAt)
+  // Clean title after deduplication and before saving
+  // Use original title for artist extraction to preserve artist names
+  const cleanedTitle = cleanEventTitle(decodeHtmlEntities(scrapedEvent.title))
+
+  // Generate slug from cleaned title
+  const slug = generateSlug(cleanedTitle, scrapedEvent.startsAt)
 
   // Process descriptions - preserve HTML in descriptionHtml, clean text in description
   const newDescriptions = processDescriptions(scrapedEvent.description)
@@ -163,7 +172,7 @@ export async function saveEvent(
     data: {
       regionId: venue.regionId,
       venueId: venue.id,
-      title: decodeHtmlEntities(scrapedEvent.title),
+      title: cleanedTitle,
       slug,
       description: newDescriptions.description,
       descriptionHtml: newDescriptions.descriptionHtml,
@@ -194,7 +203,7 @@ export async function saveEvent(
     },
   })
 
-  // Extract and link artist from title
+  // Extract and link artist from ORIGINAL title (before cleaning) to preserve artist names
   await extractAndLinkArtist(prisma, event.id, scrapedEvent.title)
 
   return 'created'

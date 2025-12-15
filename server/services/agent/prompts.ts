@@ -236,14 +236,16 @@ Do not extract recurring events that lack specific dates. Skip events with title
 
 Only extract events that have actual calendar dates.
 
-## Dates Embedded in Titles
+## Title Cleaning
 
-Many venues embed dates directly in event titles rather than in separate elements:
-- "Saturday November 8th - Band Name"
-- "12/15 Holiday Show"
-- "NYE 2025 featuring DJ Example"
+**Event titles should contain only the event name, not dates or times.**
 
-When you see this pattern, parse the date from the title text and use the remaining text as the event title or artist name.
+Many venues embed dates and times in event titles. Clean these before returning:
+- "Saturday November 8th - Band Name" → title: "Band Name"
+- "Open Mic 7-10" → title: "Open Mic"
+- "Karaoke, 8:30pm" → title: "Karaoke"
+
+Parse the date/time information for the startsAt field, but remove it from the title.
 
 ## Important Guidelines
 
