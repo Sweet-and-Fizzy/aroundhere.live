@@ -23,38 +23,63 @@ const GENRE_LABELS: Record<string, string> = {
   'world': 'World',
   'funk': 'Funk',
   'reggae': 'Reggae',
+  'spoken-word': 'Spoken Word',
 }
 
-// Color mapping for genres using Nuxt UI badge colors
-// Chose colors far apart on the color wheel for maximum differentiation
+// Color mapping for genres - grouped by musical similarity
+// Similar genres use similar color families for intuitive visual grouping
 const GENRE_COLORS: Record<string, string> = {
-  'rock': 'red',           // Red for rock - strong, energetic
-  'indie': 'orange',       // Orange for indie - warm, creative
-  'punk': 'pink',          // Pink for punk - rebellious
-  'metal': 'gray',         // Gray for metal - dark, heavy
-  'jazz': 'indigo',        // Indigo for jazz - sophisticated
-  'blues': 'blue',         // Blue for blues - melancholy
-  'folk': 'emerald',       // Emerald for folk - natural, earthy
-  'country': 'amber',      // Amber for country - rustic
-  'bluegrass': 'lime',     // Lime for bluegrass - fresh, upbeat
-  'americana': 'rose',     // Rose for americana - nostalgic
-  'singer-songwriter': 'purple', // Purple for singer-songwriter - artistic
-  'hip-hop': 'violet',     // Violet for hip-hop - bold
-  'r-and-b': 'fuchsia',    // Fuchsia for R&B - smooth, vibrant
-  'electronic': 'cyan',    // Cyan for electronic - modern, digital
-  'classical': 'sky',      // Sky for classical - refined, airy
-  'world': 'teal',         // Teal for world - diverse, global
-  'funk': 'yellow',        // Yellow for funk - funky, groovy
-  'reggae': 'green',       // Green for reggae - relaxed, island vibes
+  // Rock family - reds to pinks
+  'rock': 'red',           // Red - strong, energetic
+  'punk': 'rose',          // Rose - rebellious, raw
+  'metal': 'pink',         // Pink - intense, bold
+
+  // Folk/Americana family - earth tones (greens to ambers)
+  'folk': 'emerald',       // Emerald - natural, earthy
+  'country': 'lime',       // Lime - rustic, fresh
+  'bluegrass': 'green',    // Green - upbeat, traditional
+  'americana': 'amber',    // Amber - nostalgic, warm
+
+  // Jazz/Blues/Classical family - cool blues to purples
+  'jazz': 'indigo',        // Indigo - sophisticated, smooth
+  'blues': 'blue',         // Blue - melancholy, soulful
+  'classical': 'violet',   // Violet - refined, elegant
+
+  // Hip-hop/R&B/Funk family - vibrant purples to magentas
+  'hip-hop': 'purple',     // Purple - bold, creative
+  'r-and-b': 'fuchsia',    // Fuchsia - smooth, vibrant
+  'funk': 'yellow',        // Yellow - funky, groovy
+
+  // Electronic/World family - teals to cyans
+  'electronic': 'cyan',    // Cyan - modern, digital
+  'world': 'teal',         // Teal - diverse, global
+
+  // Singer-songwriter/Indie family - warm tones
+  'indie': 'orange',       // Orange - creative, independent
+  'singer-songwriter': 'sky', // Sky - artistic, intimate
+
+  // Reggae - distinct green (island vibes)
+  'reggae': 'emerald',     // Emerald - relaxed, island vibes
+
+  // Spoken word - neutral
+  'spoken-word': 'slate',  // Slate - thoughtful, literary
 }
 
 export function useGenreLabels() {
   /**
    * Get the friendly display name for a genre slug
-   * Falls back to capitalized slug if no mapping exists
+   * Falls back to title-cased slug with proper spacing if no mapping exists
    */
   function getGenreLabel(genreSlug: string): string {
-    return GENRE_LABELS[genreSlug] || genreSlug.charAt(0).toUpperCase() + genreSlug.slice(1)
+    if (GENRE_LABELS[genreSlug]) {
+      return GENRE_LABELS[genreSlug]
+    }
+    // Fallback: convert slug to title case with spaces
+    return genreSlug
+      .replace(/[-_]/g, ' ')  // Replace hyphens and underscores with spaces
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   /**
@@ -91,6 +116,7 @@ export function useGenreLabels() {
       'fuchsia': 'bg-fuchsia-50 text-gray-900',
       'pink': 'bg-pink-50 text-gray-900',
       'rose': 'bg-rose-50 text-gray-900',
+      'slate': 'bg-slate-50 text-gray-900',
       'gray': 'bg-gray-50 text-gray-900',
     }
     return colorClasses[color] || 'bg-blue-50 text-gray-900'

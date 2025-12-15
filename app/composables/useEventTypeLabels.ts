@@ -19,25 +19,43 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   'FITNESS': 'Fitness',
   'DRAG': 'Drag',
   'TRIVIA': 'Trivia',
+  'PRIVATE': 'Private Event',
+  'FILM': 'Film',
+  'SPOKEN_WORD': 'Spoken Word',
+  'OTHER': 'Other',
 }
 
-// Color mapping for event types using Nuxt UI badge colors
-// Chose distinct colors for easy visual differentiation
+// Color mapping for event types - uses BOLD, SATURATED colors to stand out from soft genre badges
+// Strategy: Event types use darker/bolder shades while genres use lighter/softer tones
+// This creates clear visual hierarchy where event type is the PRIMARY badge
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  'MUSIC': 'indigo',       // Indigo - musical, sophisticated
-  'DJ': 'violet',          // Violet - electronic, nightlife
-  'OPEN_MIC': 'amber',     // Amber - warm, welcoming
-  'KARAOKE': 'pink',       // Pink - fun, playful
-  'COMEDY': 'yellow',      // Yellow - bright, cheerful
+  // Performance types - bold primary colors
+  'MUSIC': 'indigo',       // Indigo - bold, musical
+  'DJ': 'purple',          // Purple - vibrant, nightlife
   'THEATER': 'red',        // Red - dramatic, bold
-  'GAMES': 'emerald',      // Emerald - playful, competitive
+  'COMEDY': 'yellow',      // Yellow - bright, cheerful
   'DANCE': 'fuchsia',      // Fuchsia - energetic, vibrant
-  'MARKET': 'teal',        // Teal - commercial, diverse
-  'WORKSHOP': 'cyan',      // Cyan - educational, creative
-  'PARTY': 'rose',         // Rose - celebration, festive
-  'FITNESS': 'lime',       // Lime - active, healthy
-  'DRAG': 'purple',        // Purple - fabulous, artistic
-  'TRIVIA': 'orange',      // Orange - intellectual, fun
+  'DRAG': 'pink',          // Pink - fabulous, bold
+
+  // Interactive types - bright engaging colors
+  'OPEN_MIC': 'orange',    // Orange - welcoming, creative
+  'KARAOKE': 'rose',       // Rose - fun, social
+  'TRIVIA': 'violet',      // Violet - intellectual
+  'GAMES': 'lime',         // Lime - playful, fun
+
+  // Activity types - active colors
+  'FITNESS': 'green',      // Green - active, healthy
+  'WORKSHOP': 'teal',      // Teal - educational, hands-on
+  'PARTY': 'amber',        // Amber - celebration, festive
+
+  // Cultural/media types
+  'FILM': 'blue',          // Blue - cinematic
+  'SPOKEN_WORD': 'sky',    // Sky - thoughtful, literary
+
+  // Commercial/other types
+  'MARKET': 'emerald',     // Emerald - commercial, vibrant
+  'PRIVATE': 'slate',      // Slate - exclusive
+  'OTHER': 'gray',         // Gray - neutral
 }
 
 export function useEventTypeLabels() {
@@ -59,9 +77,41 @@ export function useEventTypeLabels() {
     return EVENT_TYPE_COLORS[typeSlug] || 'gray'
   }
 
+  /**
+   * Get Tailwind badge classes for an event type (for use with :ui prop in Nuxt UI v4)
+   * Uses BOLDER backgrounds (100-200 shades) to stand out from genre badges (50 shades)
+   * Creates clear visual hierarchy - event type is PRIMARY, genres are secondary
+   */
+  function getEventTypeBadgeClasses(typeSlug: string | null | undefined): string {
+    const color = getEventTypeColor(typeSlug)
+    const colorClasses: Record<string, string> = {
+      'red': 'bg-red-100 text-red-900 font-semibold',
+      'orange': 'bg-orange-100 text-orange-900 font-semibold',
+      'amber': 'bg-amber-100 text-amber-900 font-semibold',
+      'yellow': 'bg-yellow-100 text-yellow-900 font-semibold',
+      'lime': 'bg-lime-100 text-lime-900 font-semibold',
+      'green': 'bg-green-100 text-green-900 font-semibold',
+      'emerald': 'bg-emerald-100 text-emerald-900 font-semibold',
+      'teal': 'bg-teal-100 text-teal-900 font-semibold',
+      'cyan': 'bg-cyan-100 text-cyan-900 font-semibold',
+      'sky': 'bg-sky-100 text-sky-900 font-semibold',
+      'blue': 'bg-blue-100 text-blue-900 font-semibold',
+      'indigo': 'bg-indigo-100 text-indigo-900 font-semibold',
+      'violet': 'bg-violet-100 text-violet-900 font-semibold',
+      'purple': 'bg-purple-100 text-purple-900 font-semibold',
+      'fuchsia': 'bg-fuchsia-100 text-fuchsia-900 font-semibold',
+      'pink': 'bg-pink-100 text-pink-900 font-semibold',
+      'rose': 'bg-rose-100 text-rose-900 font-semibold',
+      'slate': 'bg-slate-100 text-slate-900 font-semibold',
+      'gray': 'bg-gray-100 text-gray-900 font-semibold',
+    }
+    return colorClasses[color] || 'bg-gray-100 text-gray-900 font-semibold'
+  }
+
   return {
     eventTypeLabels: EVENT_TYPE_LABELS,
     getEventTypeLabel,
     getEventTypeColor,
+    getEventTypeBadgeClasses,
   }
 }

@@ -1525,6 +1525,9 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .search-section {

@@ -8,7 +8,7 @@ const props = defineProps<{
 const expanded = ref(false)
 const imageLoaded = ref(false)
 const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
-const { getEventTypeLabel, getEventTypeColor } = useEventTypeLabels()
+const { getEventTypeLabel, getEventTypeBadgeClasses } = useEventTypeLabels()
 
 function onImageLoad() {
   imageLoaded.value = true
@@ -105,33 +105,6 @@ const hasMoreContent = computed(() => {
 // Get event type label with friendly name
 const eventTypeLabel = computed(() => {
   return getEventTypeLabel(props.event.eventType)
-})
-
-// Get full badge classes with colors
-const eventTypeBadgeColor = computed(() => {
-  const color = getEventTypeColor(props.event.eventType)
-  const colorMap: Record<string, string> = {
-    'primary': 'blue',
-    'gray': 'gray',
-    'red': 'red',
-    'orange': 'orange',
-    'amber': 'amber',
-    'yellow': 'yellow',
-    'lime': 'lime',
-    'green': 'green',
-    'emerald': 'emerald',
-    'teal': 'teal',
-    'cyan': 'cyan',
-    'sky': 'sky',
-    'blue': 'blue',
-    'indigo': 'indigo',
-    'violet': 'violet',
-    'purple': 'purple',
-    'fuchsia': 'fuchsia',
-    'pink': 'pink',
-    'rose': 'rose',
-  }
-  return colorMap[color] || 'blue'
 })
 
 </script>
@@ -260,11 +233,11 @@ const eventTypeBadgeColor = computed(() => {
           <!-- Event Type -->
           <UBadge
             v-if="eventTypeLabel"
-            :color="eventTypeBadgeColor"
-            variant="soft"
-            size="sm"
+            :ui="{
+              base: getEventTypeBadgeClasses(event.eventType)
+            }"
+            size="md"
             :aria-label="`Event type: ${eventTypeLabel}`"
-            class="!text-gray-900"
           >
             {{ eventTypeLabel }}
           </UBadge>
