@@ -30,9 +30,44 @@ const props = defineProps<{
 // LocalStorage key for persisting filters
 const STORAGE_KEY = 'eventFilters'
 
-// Load saved filters from localStorage
+// Load filters from URL parameters first, fall back to localStorage
 function loadSavedFilters() {
   if (import.meta.client) {
+    const route = useRoute()
+    const urlParams = route.query
+
+    // If URL has any filter params, load from URL and ignore localStorage
+    if (Object.keys(urlParams).length > 0) {
+      const filters: any = {}
+
+      if (urlParams.regions && typeof urlParams.regions === 'string') {
+        filters.selectedRegions = urlParams.regions.split(',')
+      }
+      if (urlParams.cities && typeof urlParams.cities === 'string') {
+        filters.selectedCities = urlParams.cities.split(',')
+      }
+      if (urlParams.venueIds && typeof urlParams.venueIds === 'string') {
+        filters.selectedVenueIds = urlParams.venueIds.split(',')
+      }
+      if (urlParams.genres && typeof urlParams.genres === 'string') {
+        const genreValues = urlParams.genres.split(',')
+        filters.selectedGenres = genreValues.map(g => ({ label: g, value: g }))
+      }
+      if (urlParams.eventTypes && typeof urlParams.eventTypes === 'string') {
+        const typeValues = urlParams.eventTypes.split(',')
+        filters.selectedEventTypes = typeValues.map(t => ({ label: t, value: t }))
+      }
+      if (urlParams.q && typeof urlParams.q === 'string') {
+        filters.searchQuery = urlParams.q
+      }
+
+      // Only return if we found actual filter values
+      if (Object.keys(filters).length > 0) {
+        return filters
+      }
+    }
+
+    // Fall back to localStorage
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
