@@ -7,6 +7,7 @@ import { saveEvent, saveScrapedEvents } from './save-events'
 import { classifyPendingEvents } from './classify-events'
 import { FailureDetectionService } from '../services/failure-detection'
 import { executeScraperCode } from '../services/agent/executor'
+import { notifyUnclassifiedEvents } from '../services/notifications'
 
 // Import scrapers
 import { IronHorseScraper } from './venues/iron-horse'
@@ -302,6 +303,34 @@ export async function runAllScrapers(): Promise<RunnerResult[]> {
 
   // Classify all unclassified events after scraping
   await classifyPendingEvents(prisma)
+
+  // Check for unclassified events and send alert
+  const now = new Date()
+  const unclassifiedEvents = await prisma.event.findMany({
+    where: {
+      isMusic: null,
+      startsAt: { gte: now },
+      reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      isCancelled: false,
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+    orderBy: {
+      startsAt: 'asc',
+    },
+  })
+
+  if (unclassifiedEvents.length > 0) {
+    console.log(`[Runner] Found ${unclassifiedEvents.length} unclassified events`)
+    await notifyUnclassifiedEvents({
+      count: unclassifiedEvents.length,
+      sampleTitles: unclassifiedEvents.slice(0, 10).map(e => e.title),
+    })
+  } else {
+    console.log('[Runner] All events classified successfully')
+  }
 
   return results
 }
