@@ -565,28 +565,6 @@ useHead({
             </div>
           </template>
 
-          <!-- Spotify Listen Links -->
-          <div
-            v-if="spotifyArtists.length"
-            class="mb-4 pb-4 border-b border-gray-200"
-          >
-            <div class="text-sm text-gray-500 mb-2">
-              Listen on Spotify
-            </div>
-            <div class="flex flex-wrap gap-3">
-              <a
-                v-for="artist in spotifyArtists"
-                :key="artist.id"
-                :href="`https://open.spotify.com/artist/${artist.spotifyId}`"
-                target="_blank"
-                class="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium"
-              >
-                <SpotifyIcon class="w-4 h-4" />
-                {{ artist.name }}
-              </a>
-            </div>
-          </div>
-
           <!-- Rich HTML description with images/videos -->
           <div
             v-if="sanitizedDescriptionHtml"
@@ -634,6 +612,28 @@ useHead({
               />
               {{ descriptionExpanded ? 'Show less' : 'Show more' }}
             </button>
+          </div>
+
+          <!-- Spotify Listen Links -->
+          <div
+            v-if="spotifyArtists.length"
+            class="mt-4 pt-4 border-t border-gray-200"
+          >
+            <div class="text-sm text-gray-500 mb-2">
+              Listen on Spotify
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <a
+                v-for="artist in spotifyArtists"
+                :key="artist.id"
+                :href="`https://open.spotify.com/artist/${artist.spotifyId}`"
+                target="_blank"
+                class="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium"
+              >
+                <SpotifyIcon class="w-4 h-4" />
+                {{ artist.name }}
+              </a>
+            </div>
           </div>
         </UCard>
 
