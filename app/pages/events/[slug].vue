@@ -5,6 +5,26 @@ const slug = route.params.slug as string
 const { data: event, error } = await useFetch(`/api/events/by-slug/${slug}`)
 const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
 
+// Calendar dropdown handlers
+const openGoogleCalendar = () => {
+  if (googleCalendarUrl.value) {
+    window.open(googleCalendarUrl.value, '_blank')
+  }
+}
+
+const openOutlookCalendar = () => {
+  if (outlookCalendarUrl.value) {
+    window.open(outlookCalendarUrl.value, '_blank')
+  }
+}
+
+const downloadIcs = () => {
+  if (icsUrl.value) {
+    window.open(icsUrl.value, '_blank')
+  }
+}
+
+
 if (error.value) {
   throw createError({
     statusCode: 404,
@@ -48,18 +68,38 @@ const doorsTime = computed(() => {
   })
 })
 
-// Expandable description - show more by default on detail page (400 chars)
+// Expandable description - start collapsed for both plain text and HTML
 const descriptionExpanded = ref(false)
 const descriptionThreshold = 400
 
 const hasLongDescription = computed(() => {
-  return event.value?.description && event.value.description.length > descriptionThreshold
+  // Check if HTML description exists and is long
+  if (sanitizedDescriptionHtml.value) {
+    // Rough estimate: strip HTML tags and check length
+    const textContent = sanitizedDescriptionHtml.value.replace(/<[^>]*>/g, '')
+    return textContent.length > descriptionThreshold
+  }
+  // For plain text descriptions
+  if (event.value?.description) {
+    return event.value.description.length > descriptionThreshold
+  }
+  return false
 })
 
 const truncatedDescription = computed(() => {
   if (!event.value?.description) return ''
   if (!hasLongDescription.value) return event.value.description
   return event.value.description.slice(0, descriptionThreshold) + '...'
+})
+
+const truncatedHtml = computed(() => {
+  if (!sanitizedDescriptionHtml.value) return ''
+  if (!hasLongDescription.value) return sanitizedDescriptionHtml.value
+  // Simple truncation: show first N characters worth of HTML
+  const textContent = sanitizedDescriptionHtml.value.replace(/<[^>]*>/g, '')
+  if (textContent.length <= descriptionThreshold) return sanitizedDescriptionHtml.value
+  // Return first ~threshold characters of HTML content
+  return sanitizedDescriptionHtml.value.substring(0, descriptionThreshold * 2) + '...'
 })
 
 // Artists with verified Spotify matches
@@ -276,51 +316,88 @@ useHead({
         const e = event.value
         const jsonLd: Record<string, unknown> = {
           '@context': 'https://schema.org',
-          '@type': 'MusicEvent',
+          '@type': e.isMusic ? 'MusicEvent' : 'Event',
           name: e.title,
           startDate: e.startsAt,
           endDate: e.endsAt || undefined,
           doorTime: e.doorsAt || undefined,
           url: canonicalUrl.value,
           image: e.imageUrl || undefined,
-          description: e.description || undefined,
+          description: e.description || e.summary || undefined,
+          eventStatus: 'https://schema.org/EventScheduled',
         }
+
+        // Add event attendance mode if available
+        if (e.eventType) {
+          jsonLd.eventAttendanceMode = e.eventType === 'ONLINE'
+            ? 'https://schema.org/OnlineEventAttendanceMode'
+            : 'https://schema.org/OfflineEventAttendanceMode'
+        }
+
+        // Add venue/location
         if (e.venue) {
-          jsonLd.location = {
+          const location: Record<string, unknown> = {
             '@type': 'Place',
             name: e.venue.name,
-            address: {
+          }
+
+          if (e.venue.address || e.venue.city || e.venue.state || e.venue.postalCode) {
+            location.address = {
               '@type': 'PostalAddress',
               streetAddress: e.venue.address || undefined,
               addressLocality: e.venue.city || undefined,
               addressRegion: e.venue.state || undefined,
               postalCode: e.venue.postalCode || undefined,
-            },
+            }
           }
+
           if (e.venue.latitude && e.venue.longitude) {
-            (jsonLd.location as Record<string, unknown>).geo = {
+            location.geo = {
               '@type': 'GeoCoordinates',
               latitude: e.venue.latitude,
               longitude: e.venue.longitude,
             }
           }
+
+          jsonLd.location = location
         }
-        if (e.ticketUrl) {
-          jsonLd.offers = {
+
+        // Add ticket/offer information
+        if (e.ticketUrl || e.coverCharge) {
+          const offer: Record<string, unknown> = {
             '@type': 'Offer',
-            url: e.ticketUrl,
             availability: 'https://schema.org/InStock',
           }
-          if (e.coverCharge) {
-            (jsonLd.offers as Record<string, unknown>).price = e.coverCharge
+
+          if (e.ticketUrl) {
+            offer.url = e.ticketUrl
           }
+
+          if (e.coverCharge) {
+            offer.price = e.coverCharge
+            offer.priceCurrency = 'USD'
+          }
+
+          jsonLd.offers = offer
         }
+
+        // Add performers/artists
         if (e.eventArtists?.length) {
           jsonLd.performer = e.eventArtists.map((ea: { artist: { name: string } }) => ({
             '@type': 'MusicGroup',
             name: ea.artist.name,
           }))
         }
+
+        // Add organizer if source is available
+        if (e.source) {
+          jsonLd.organizer = {
+            '@type': 'Organization',
+            name: e.source.name,
+            url: e.sourceUrl || undefined,
+          }
+        }
+
         return JSON.stringify(jsonLd)
       }),
     },
@@ -343,63 +420,141 @@ useHead({
         >
       </div>
 
-      <!-- Header -->
-      <header class="mb-6">
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-          {{ event.title }}
-        </h1>
-
-        <div class="flex flex-wrap items-center gap-3 text-gray-600">
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-heroicons-calendar"
-              class="w-5 h-5 text-primary-500"
-            />
-            <time
-              :datetime="event.startsAt"
-              class="font-medium"
-            >
-              {{ formattedDate }}
-            </time>
-          </div>
-          <div
-            v-if="formattedTime"
-            class="flex items-center gap-2"
-          >
-            <UIcon
-              name="i-heroicons-clock"
-              class="w-5 h-5 text-primary-500"
-            />
-            <span>{{ formattedTime }}</span>
-            <span
-              v-if="doorsTime"
-              class="text-gray-400"
-            >(Doors: {{ doorsTime }})</span>
-          </div>
-        </div>
-
-        <!-- Genre badges -->
-        <div
-          v-if="event.canonicalGenres?.length"
-          class="mt-3 flex flex-wrap gap-2"
-        >
-          <UBadge
-            v-for="genre in event.canonicalGenres"
-            :key="genre"
-            :ui="{
-              base: getGenreBadgeClasses(genre)
-            }"
-            size="md"
-          >
-            {{ getGenreLabel(genre) }}
-          </UBadge>
-        </div>
-      </header>
-
       <!-- Main Content -->
       <div class="grid gap-6">
+        <!-- Details -->
+        <UCard>
+          <div class="space-y-3">
+            <!-- Title -->
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+              {{ event.title }}
+            </h1>
+
+            <!-- Date and Time -->
+            <div class="flex items-start justify-between gap-3">
+              <div class="font-medium text-gray-700">
+                {{ formattedDate }}
+                <span v-if="formattedTime">at {{ formattedTime }}</span>
+                <span
+                  v-if="doorsTime"
+                  class="text-gray-500 text-sm"
+                >(Doors: {{ doorsTime }})</span>
+              </div>
+              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <UDropdownMenu
+                  v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl"
+                  :items="[[
+                    { label: 'Google Calendar', icon: 'i-heroicons-calendar-days', click: openGoogleCalendar },
+                    { label: 'Outlook Calendar', icon: 'i-heroicons-calendar-days', click: openOutlookCalendar },
+                    { label: 'Download .ics', icon: 'i-heroicons-arrow-down-tray', click: downloadIcs }
+                  ]]"
+                  :popper="{ placement: 'bottom-end' }"
+                >
+                  <UButton
+                    color="gray"
+                    variant="soft"
+                    icon="i-heroicons-calendar-days"
+                    trailing-icon="i-heroicons-chevron-down"
+                    size="xs"
+                    class="transition-colors hover:bg-gray-200"
+                  >
+                    Add to Calendar
+                  </UButton>
+                </UDropdownMenu>
+              </div>
+            </div>
+
+            <!-- Genre badges -->
+            <div
+              v-if="event.canonicalGenres?.length"
+              class="flex flex-wrap gap-2"
+            >
+              <UBadge
+                v-for="genre in event.canonicalGenres"
+                :key="genre"
+                :ui="{
+                  base: getGenreBadgeClasses(genre)
+                }"
+                size="md"
+              >
+                {{ getGenreLabel(genre) }}
+              </UBadge>
+            </div>
+
+            <!-- Venue / Address -->
+            <div v-if="event.venue" class="flex items-start justify-between gap-3">
+              <div>
+                <NuxtLink
+                  :to="`/venues/${event.venue.slug}`"
+                  class="font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all px-2 py-1 -mx-2 -my-1 rounded inline-block"
+                >
+                  {{ event.venue.name }}
+                </NuxtLink>
+                <p
+                  v-if="event.venue.address"
+                  class="text-gray-600 text-sm mt-0.5"
+                >
+                  {{ event.venue.address }}<template v-if="event.venue.city">
+                    , {{ event.venue.city }}
+                  </template><template v-if="event.venue.state || event.venue.postalCode">
+                    , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
+                  </template>
+                </p>
+              </div>
+              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <a
+                  v-if="event.ticketUrl"
+                  :href="event.ticketUrl"
+                  target="_blank"
+                  class="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded text-sm text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all whitespace-nowrap"
+                >
+                  <UIcon
+                    name="i-heroicons-ticket"
+                    class="w-4 h-4"
+                  />
+                  Get Tickets
+                </a>
+                <a
+                  v-if="event.sourceUrl"
+                  :href="event.sourceUrl"
+                  target="_blank"
+                  class="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded text-sm text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all whitespace-nowrap"
+                >
+                  <UIcon
+                    name="i-heroicons-arrow-top-right-on-square"
+                    class="w-4 h-4"
+                  />
+                  Event Page
+                </a>
+                <a
+                  v-if="mapUrl"
+                  :href="mapUrl"
+                  target="_blank"
+                  class="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded text-sm text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all whitespace-nowrap"
+                >
+                  <UIcon
+                    name="i-heroicons-map"
+                    class="w-4 h-4"
+                  />
+                  View Map
+                </a>
+              </div>
+            </div>
+
+            <!-- Cover and Age -->
+            <div class="flex items-center gap-6 text-sm font-medium text-gray-700">
+              <div v-if="event.coverCharge">
+                {{ event.coverCharge }}
+              </div>
+              <div>
+                {{ event.ageRestriction === 'ALL_AGES' ? 'All Ages' : event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
+              </div>
+            </div>
+          </div>
+        </UCard>
+
         <!-- Description -->
-        <UCard v-if="sanitizedDescriptionHtml || event.description">
+        <UCard v-if="sanitizedDescriptionHtml || event.description" :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon
@@ -409,12 +564,47 @@ useHead({
               <span class="font-semibold">About</span>
             </div>
           </template>
+
+          <!-- Spotify Listen Links -->
+          <div
+            v-if="spotifyArtists.length"
+            class="mb-4 pb-4 border-b border-gray-200"
+          >
+            <div class="text-sm text-gray-500 mb-2">
+              Listen on Spotify
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <a
+                v-for="artist in spotifyArtists"
+                :key="artist.id"
+                :href="`https://open.spotify.com/artist/${artist.spotifyId}`"
+                target="_blank"
+                class="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium"
+              >
+                <SpotifyIcon class="w-4 h-4" />
+                {{ artist.name }}
+              </a>
+            </div>
+          </div>
+
           <!-- Rich HTML description with images/videos -->
           <div
             v-if="sanitizedDescriptionHtml"
             class="prose prose-gray max-w-none"
           >
-            <div v-html="sanitizedDescriptionHtml" />
+            <div v-if="!descriptionExpanded" v-html="truncatedHtml" />
+            <div v-else v-html="sanitizedDescriptionHtml" />
+            <button
+              v-if="hasLongDescription"
+              class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1"
+              @click="descriptionExpanded = !descriptionExpanded"
+            >
+              <UIcon
+                :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                class="w-4 h-4"
+              />
+              {{ descriptionExpanded ? 'Show less' : 'Show more' }}
+            </button>
           </div>
           <!-- Fallback to plain text description -->
           <div
@@ -447,54 +637,8 @@ useHead({
           </div>
         </UCard>
 
-        <!-- Venue Card -->
-        <UCard v-if="event.venue">
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-heroicons-map-pin"
-                class="w-5 h-5 text-primary-500"
-              />
-              <span class="font-semibold">Venue</span>
-            </div>
-          </template>
-
-          <NuxtLink
-            :to="`/venues/${event.venue.slug}`"
-            class="text-lg font-medium text-primary-600 hover:text-primary-700"
-          >
-            {{ event.venue.name }}
-          </NuxtLink>
-          <p
-            v-if="event.venue.address"
-            class="text-gray-600 mt-1"
-          >
-            {{ event.venue.address }}<template v-if="event.venue.city">
-              , {{ event.venue.city }}
-            </template><template v-if="event.venue.state || event.venue.postalCode">
-              , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
-            </template>
-          </p>
-          <div
-            v-if="mapUrl"
-            class="mt-2 flex gap-2"
-          >
-            <a
-              :href="mapUrl"
-              target="_blank"
-              class="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
-            >
-              <UIcon
-                name="i-heroicons-map"
-                class="w-4 h-4"
-              />
-              View on Map
-            </a>
-          </div>
-        </UCard>
-
         <!-- Artist Reviews -->
-        <UCard v-if="artistReviews.length">
+        <UCard v-if="artistReviews.length" :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon
@@ -539,130 +683,10 @@ useHead({
             </div>
           </div>
         </UCard>
-
-        <!-- Details -->
-        <UCard>
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-heroicons-ticket"
-                class="w-5 h-5 text-primary-500"
-              />
-              <span class="font-semibold">Details</span>
-            </div>
-          </template>
-
-          <dl class="grid grid-cols-2 gap-4">
-            <div v-if="event.coverCharge">
-              <dt class="text-sm text-gray-500">
-                Cover
-              </dt>
-              <dd class="font-medium">
-                {{ event.coverCharge }}
-              </dd>
-            </div>
-
-            <div>
-              <dt class="text-sm text-gray-500">
-                Age
-              </dt>
-              <dd class="font-medium">
-                {{ event.ageRestriction === 'ALL_AGES' ? 'All Ages' : event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
-              </dd>
-            </div>
-
-            <div v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl">
-              <dt class="text-sm text-gray-500">
-                Calendar
-              </dt>
-              <dd class="font-medium">
-                <div class="flex flex-wrap gap-2">
-                  <a
-                    v-if="googleCalendarUrl"
-                    :href="googleCalendarUrl"
-                    target="_blank"
-                    class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
-                  >
-                    <UIcon
-                      name="i-heroicons-calendar-days"
-                      class="w-4 h-4"
-                    />
-                    Google Calendar
-                  </a>
-                  <a
-                    v-if="outlookCalendarUrl"
-                    :href="outlookCalendarUrl"
-                    target="_blank"
-                    class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
-                  >
-                    <UIcon
-                      name="i-heroicons-calendar-days"
-                      class="w-4 h-4"
-                    />
-                    Outlook
-                  </a>
-                  <a
-                    v-if="icsUrl"
-                    :href="icsUrl"
-                    class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
-                  >
-                    <UIcon
-                      name="i-heroicons-arrow-down-tray"
-                      class="w-4 h-4"
-                    />
-                    Download .ics
-                  </a>
-                </div>
-              </dd>
-            </div>
-
-            <div v-if="spotifyArtists.length">
-              <dt class="text-sm text-gray-500">
-                Listen
-              </dt>
-              <dd class="font-medium">
-                <div class="flex flex-wrap gap-3">
-                  <a
-                    v-for="artist in spotifyArtists"
-                    :key="artist.id"
-                    :href="`https://open.spotify.com/artist/${artist.spotifyId}`"
-                    target="_blank"
-                    class="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm"
-                  >
-                    <SpotifyIcon class="w-4 h-4" />
-                    {{ artist.name }}
-                  </a>
-                </div>
-              </dd>
-            </div>
-          </dl>
-        </UCard>
       </div>
 
       <!-- Actions -->
-      <div class="flex flex-wrap gap-3 mt-8 pt-6 border-t border-gray-200">
-        <UButton
-          v-if="event.sourceUrl"
-          :to="event.sourceUrl"
-          target="_blank"
-          size="lg"
-          color="primary"
-          icon="i-heroicons-arrow-top-right-on-square"
-        >
-          Event Page
-        </UButton>
-
-        <UButton
-          v-if="event.ticketUrl"
-          :to="event.ticketUrl"
-          target="_blank"
-          size="lg"
-          color="neutral"
-          icon="i-heroicons-ticket"
-        >
-          Get Tickets
-        </UButton>
-
+      <div class="flex flex-wrap gap-3 mt-8">
         <BackButton />
       </div>
 
