@@ -151,13 +151,6 @@ useHead({
 
       <!-- Venue List -->
       <main class="flex-1 min-w-0">
-        <!-- Compact Filters - Mobile/Tablet only -->
-        <div class="lg:hidden">
-          <VenueFilters
-            :venues="allVenues"
-            @filter="handleFilter"
-          />
-        </div>
         <div
           v-if="venues.length === 0"
           class="empty"

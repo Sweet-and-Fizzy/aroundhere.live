@@ -18,7 +18,9 @@ const form = ref({
   postalCode: '',
   website: '',
   phone: '',
+  email: '',
   description: '',
+  accessibilityInfo: '',
   venueType: 'OTHER',
   capacity: null as number | null,
   latitude: null as number | null,
@@ -40,7 +42,9 @@ watchEffect(() => {
       postalCode: venue.value.postalCode || '',
       website: venue.value.website || '',
       phone: venue.value.phone || '',
+      email: venue.value.email || '',
       description: venue.value.description || '',
+      accessibilityInfo: venue.value.accessibilityInfo || '',
       venueType: venue.value.venueType || 'OTHER',
       capacity: venue.value.capacity,
       latitude: venue.value.latitude,
@@ -244,6 +248,15 @@ useSeoMeta({
         </div>
 
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            v-model="form.email"
+            type="email"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+          >
+        </div>
+
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
           <input
             v-model="form.capacity"
@@ -257,6 +270,19 @@ useSeoMeta({
           <textarea
             v-model="form.description"
             rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+          />
+        </div>
+
+        <div class="col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Accessibility Information</label>
+          <p class="text-xs text-gray-500 mb-2">
+            Details about wheelchair access, parking, elevators, accessible restrooms, etc.
+          </p>
+          <textarea
+            v-model="form.accessibilityInfo"
+            rows="3"
+            placeholder="e.g., Wheelchair accessible entrance, accessible restrooms, parking available"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
           />
         </div>

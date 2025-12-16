@@ -50,9 +50,11 @@ model Venue {
   venueType  VenueType  @default(OTHER)
   website    String?
   phone      String?
+  email      String?
   logoUrl    String?    // Venue logo for display when events lack images
   imageUrl   String?    // Hero/banner image for venue page
   description String?   // About the venue
+  accessibilityInfo String? // Accessibility features (wheelchair access, parking, etc.)
   verified   Boolean    @default(false)
   isActive   Boolean    @default(true)
   createdAt  DateTime   @default(now())

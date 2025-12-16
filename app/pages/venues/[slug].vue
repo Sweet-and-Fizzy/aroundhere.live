@@ -14,6 +14,7 @@ interface Venue {
   postalCode?: string
   website?: string
   phone?: string
+  email?: string
   capacity?: number
   venueType?: string
   latitude?: number
@@ -21,6 +22,7 @@ interface Venue {
   logoUrl?: string
   imageUrl?: string
   description?: string
+  accessibilityInfo?: string
   region?: {
     id: string
     name: string
@@ -53,6 +55,14 @@ watch(viewMode, (newMode) => {
 })
 
 const config = useRuntimeConfig()
+
+// Check if user is admin or moderator
+const { loggedIn, user } = useUserSession()
+const isAdminOrModerator = computed(() => {
+  if (!loggedIn.value) return false
+  const role = user.value?.role as string
+  return role === 'ADMIN' || role === 'MODERATOR'
+})
 
 const seoDescription = computed(() => {
   if (!venue.value) return ''
@@ -180,10 +190,21 @@ const googleMapsUrl = computed(() => {
       </div>
 
       <div class="relative max-w-4xl mx-auto">
-        <BackButton
-          variant="light"
-          class="mb-4"
-        />
+        <div class="flex items-center justify-between mb-4">
+          <BackButton
+            variant="light"
+          />
+          <UButton
+            v-if="isAdminOrModerator && venue"
+            :to="`/admin/venues/${venue.id}/edit`"
+            color="white"
+            variant="solid"
+            icon="i-heroicons-pencil-square"
+            size="sm"
+          >
+            Edit Venue
+          </UButton>
+        </div>
         <div class="flex items-center gap-4 mt-2">
           <img
             v-if="venue.logoUrl"
@@ -195,66 +216,21 @@ const googleMapsUrl = computed(() => {
             <h1 class="text-3xl md:text-4xl font-bold drop-shadow-lg">
               {{ venue.name }}
             </h1>
-            <div
-              v-if="venue.venueType"
-              class="mt-1 text-white/70 text-sm"
-            >
-              {{ venue.venueType.replace('_', ' ') }}
-            </div>
           </div>
         </div>
-
-        <div class="mt-4 flex flex-wrap gap-4 text-white/80">
-          <a
-            v-if="fullAddress"
-            :href="googleMapsUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hover:text-white flex items-center gap-1"
-          >
-            <UIcon
-              name="i-heroicons-map-pin"
-              class="w-4 h-4"
-            />
-            {{ fullAddress }}
-          </a>
-          <a
-            v-if="venue.website"
-            :href="venue.website"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hover:text-white flex items-center gap-1"
-          >
-            <UIcon
-              name="i-heroicons-globe-alt"
-              class="w-4 h-4"
-            />
-            Website
-          </a>
-          <a
-            v-if="venue.phone"
-            :href="`tel:${venue.phone.replace(/\D/g, '')}`"
-            class="hover:text-white flex items-center gap-1"
-          >
-            <UIcon
-              name="i-heroicons-phone"
-              class="w-4 h-4"
-            />
-            {{ venue.phone }}
-          </a>
-        </div>
-
-        <p
-          v-if="venue.description"
-          class="mt-4 text-white/90 max-w-2xl"
-        >
-          {{ venue.description }}
-        </p>
       </div>
     </div>
 
-    <!-- Events Section -->
+    <!-- Contact & Location Card -->
     <div class="max-w-4xl mx-auto">
+      <VenueContactCard
+        v-if="venue"
+        :venue="venue"
+      />
+    </div>
+
+    <!-- Events Section -->
+    <div class="max-w-4xl mx-auto mt-8">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-semibold text-gray-900">
           Upcoming Events ({{ events.length }})

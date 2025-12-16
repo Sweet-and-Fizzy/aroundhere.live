@@ -22,27 +22,37 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const updated = await prisma.venue.update({
-    where: { id },
-    data: {
-      name: body.name,
-      slug: body.slug,
-      address: body.address,
-      city: body.city,
-      state: body.state,
-      postalCode: body.postalCode,
-      website: body.website,
-      phone: body.phone,
-      description: body.description,
-      venueType: body.venueType,
-      capacity: body.capacity ? parseInt(body.capacity) : null,
-      latitude: body.latitude ? parseFloat(body.latitude) : null,
-      longitude: body.longitude ? parseFloat(body.longitude) : null,
-      logoUrl: body.logoUrl || null,
-      imageUrl: body.imageUrl || null,
-      isActive: body.isActive,
-    },
-  })
+  try {
+    const updated = await prisma.venue.update({
+      where: { id },
+      data: {
+        name: body.name,
+        slug: body.slug,
+        address: body.address,
+        city: body.city,
+        state: body.state,
+        postalCode: body.postalCode,
+        website: body.website,
+        phone: body.phone,
+        email: body.email || null,
+        description: body.description || null,
+        accessibilityInfo: body.accessibilityInfo || null,
+        venueType: body.venueType,
+        capacity: body.capacity ? parseInt(body.capacity) : null,
+        latitude: body.latitude ? parseFloat(body.latitude) : null,
+        longitude: body.longitude ? parseFloat(body.longitude) : null,
+        logoUrl: body.logoUrl || null,
+        imageUrl: body.imageUrl || null,
+        isActive: body.isActive,
+      },
+    })
 
-  return updated
+    return updated
+  } catch (error: any) {
+    console.error('Error updating venue:', error)
+    throw createError({
+      statusCode: 500,
+      message: `Failed to update venue: ${error.message}`,
+    })
+  }
 })

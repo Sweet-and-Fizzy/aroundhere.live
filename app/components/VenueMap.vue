@@ -28,6 +28,7 @@ const props = defineProps<{
   venues: Venue[]
   persistKey?: string // localStorage key for persisting map bounds
   showControls?: boolean // Show search, locate, and radius controls
+  forceCenter?: boolean // Force center on venues, ignore saved bounds
 }>()
 
 const emit = defineEmits<{
@@ -272,17 +273,30 @@ onMounted(async () => {
 
   if (!mapContainer.value) return
 
-  // Initialize map - use saved bounds if available to avoid pan animation
-  if (savedBounds.value) {
+  // Initialize map - use saved bounds if available to avoid pan animation (unless forceCenter is true)
+  if (savedBounds.value && !props.forceCenter) {
     const savedBoundsObj = L.latLngBounds(
       [savedBounds.value.south, savedBounds.value.west],
       [savedBounds.value.north, savedBounds.value.east]
     )
     map.value = L.map(mapContainer.value).fitBounds(savedBoundsObj)
   } else {
+    const zoom = mappableVenues.value.length > 1 ? 10 : 16
+    let centerLat = mapCenter.value[0]
+    const centerLng = mapCenter.value[1]
+
+    // For single venue, offset the latitude to account for marker icon height
+    if (mappableVenues.value.length === 1) {
+      // Default Leaflet marker is 41px tall, anchor point is at bottom
+      // We want to shift the view down so the marker appears centered
+      // At zoom 16: 1 degree latitude ≈ 6700 pixels
+      // So 20 pixels (half the marker height) ≈ 20/6700 ≈ 0.003 degrees
+      centerLat = centerLat - 0.0010  // Shift center south by ~20 pixels
+    }
+
     map.value = L.map(mapContainer.value).setView(
-      mapCenter.value as [number, number],
-      mappableVenues.value.length > 1 ? 10 : 13
+      [centerLat, centerLng],
+      zoom
     )
   }
 
@@ -305,7 +319,7 @@ onMounted(async () => {
           <br><a href="/venues/${venue.slug}">View venue</a>
         `)
         .bindTooltip(venue.name, {
-          permanent: true,
+          permanent: false,
           direction: 'top',
           offset: [0, -10],
           className: 'venue-label',
