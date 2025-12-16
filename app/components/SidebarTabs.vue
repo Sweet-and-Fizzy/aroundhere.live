@@ -39,10 +39,17 @@ function loadActiveTab(): 'filters' | 'chat' {
 
 const activeTab = ref<'filters' | 'chat'>(loadActiveTab())
 
-// Save active tab to localStorage
+// Save active tab to localStorage and scroll chat to bottom
 watch(activeTab, (newTab) => {
   if (import.meta.client) {
     localStorage.setItem(STORAGE_KEY, newTab)
+  }
+
+  // Scroll to bottom when switching to chat tab
+  if (newTab === 'chat') {
+    nextTick(() => {
+      chatRef.value?.scrollToBottom()
+    })
   }
 })
 
