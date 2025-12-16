@@ -360,7 +360,9 @@ const hasActiveFilters = computed(() => {
     selectedGenres.value.length > 0 ||
     (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') ||
     datePreset.value !== 'month' ||
-    mapFilteredVenueIds.value !== null
+    mapFilteredVenueIds.value !== null ||
+    selectedRegions.value.length > 0 ||
+    selectedCities.value.length > 0
   )
 })
 
@@ -373,6 +375,8 @@ const activeFilterCount = computed(() => {
   if (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') count++
   if (datePreset.value !== 'month') count++
   if (mapFilteredVenueIds.value !== null) count++
+  if (selectedRegions.value.length > 0) count++
+  if (selectedCities.value.length > 0) count++
   return count
 })
 
@@ -381,6 +385,8 @@ function resetFilters() {
   selectedVenueIds.value = []
   selectedGenres.value = []
   selectedEventTypes.value = ['ALL_MUSIC']
+  selectedRegions.value = []
+  selectedCities.value = []
   datePreset.value = 'month'
   customDateRange.value = undefined
   mapFilteredVenueIds.value = null
