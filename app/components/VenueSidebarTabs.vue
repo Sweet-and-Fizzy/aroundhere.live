@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
+
 defineProps<{
   venues?: Array<{
     id: string
@@ -35,10 +37,20 @@ function loadActiveTab(): 'filters' | 'chat' {
 
 const activeTab = ref<'filters' | 'chat'>(loadActiveTab())
 
-// Save active tab to localStorage
+// Ref to chat component
+const chatRef = ref<{ scrollToBottom: () => void } | null>(null)
+
+// Save active tab to localStorage and scroll chat to bottom
 watch(activeTab, (newTab) => {
   if (import.meta.client) {
     localStorage.setItem(STORAGE_KEY, newTab)
+  }
+
+  // Scroll to bottom when switching to chat tab
+  if (newTab === 'chat') {
+    nextTick(() => {
+      chatRef.value?.scrollToBottom()
+    })
   }
 })
 
@@ -101,7 +113,7 @@ function handleFilter(filters: Record<string, any>) {
         v-show="activeTab === 'chat'"
         class="tab-panel chat-panel"
       >
-        <ChatInterface />
+        <ChatInterface ref="chatRef" />
       </div>
     </div>
   </div>
