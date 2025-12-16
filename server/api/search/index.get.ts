@@ -6,6 +6,8 @@ export default defineEventHandler(async (event) => {
 
   const q = (query.q as string)?.trim()
   const regionId = query.regionId as string | undefined
+  const regions = query.regions ? (query.regions as string).split(',') : undefined
+  const cities = query.cities ? (query.cities as string).split(',') : undefined
   const startDate = query.startDate ? new Date(query.startDate as string) : new Date()
   // Set endDate to end of day (23:59:59.999 UTC) to include all events on that date
   const endDate = query.endDate ? (() => {
@@ -25,6 +27,21 @@ export default defineEventHandler(async (event) => {
       statusCode: 400,
       statusMessage: 'Search query required',
     })
+  }
+
+  // If regions are specified, look up region IDs from region names
+  let regionIds: string[] | undefined
+  if (regions && regions.length > 0) {
+    const regionRecords = await prisma.region.findMany({
+      where: {
+        name: {
+          in: regions,
+          mode: 'insensitive'
+        }
+      },
+      select: { id: true },
+    })
+    regionIds = regionRecords.map(r => r.id)
   }
 
   // Base where clause (date range, status, text search)
@@ -56,7 +73,9 @@ export default defineEventHandler(async (event) => {
     ],
   }
 
-  if (regionId) {
+  if (regionIds && regionIds.length > 0) {
+    baseWhere.regionId = { in: regionIds }
+  } else if (regionId) {
     baseWhere.regionId = regionId
   }
 
@@ -70,6 +89,10 @@ export default defineEventHandler(async (event) => {
 
   if (venueIds && venueIds.length > 0) {
     filterConditions.push({ venueId: { in: venueIds } })
+  }
+
+  if (cities && cities.length > 0) {
+    filterConditions.push({ venue: { city: { in: cities } } })
   }
 
   if (genres && genres.length > 0) {

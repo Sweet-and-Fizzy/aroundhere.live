@@ -4,6 +4,7 @@ const props = defineProps<{
     id: string
     name: string
     city?: string | null
+    region?: { id: string; name: string } | null
     venueType: string
     verified: boolean
     _count?: { events: number }
@@ -56,7 +57,89 @@ const venueTypes = [
   { value: 'OTHER', label: 'Other' },
 ]
 
-// Get unique cities from venues
+// Get current region name for auto-expanding
+const { regionName: currentRegionName } = useCurrentRegion()
+
+// Track expanded regions
+const expandedRegions = ref<Set<string>>(new Set())
+
+// Group venues by region -> city
+const venuesByRegion = computed(() => {
+  const grouped = new Map<string, Map<string, typeof props.venues>>()
+
+  props.venues?.forEach(venue => {
+    const regionName = venue.region?.name || 'Other'
+    const cityName = venue.city || 'Unknown'
+
+    if (!grouped.has(regionName)) {
+      grouped.set(regionName, new Map())
+    }
+
+    const regionMap = grouped.get(regionName)!
+    if (!regionMap.has(cityName)) {
+      regionMap.set(cityName, [])
+    }
+
+    regionMap.get(cityName)!.push(venue)
+  })
+
+  // Convert to array
+  const regions = Array.from(grouped.entries())
+    .map(([region, citiesMap]) => ({
+      region,
+      cities: Array.from(citiesMap.entries())
+        .map(([city, venuesInCity]) => ({
+          city,
+          venues: venuesInCity,
+          totalVenues: venuesInCity.length
+        }))
+        .sort((a, b) => a.city.localeCompare(b.city)),
+      totalVenues: Array.from(citiesMap.values()).reduce((sum, venuesInCity) => sum + venuesInCity.length, 0)
+    }))
+
+  // Sort: current region first, then alphabetically
+  const currentRegion = currentRegionName.value?.toLowerCase() || ''
+  return regions.sort((a, b) => {
+    const aIsCurrentRegion = currentRegion && currentRegion !== 'the area' && (
+      a.region.toLowerCase().includes(currentRegion) ||
+      currentRegion.includes(a.region.toLowerCase())
+    )
+    const bIsCurrentRegion = currentRegion && currentRegion !== 'the area' && (
+      b.region.toLowerCase().includes(currentRegion) ||
+      currentRegion.includes(b.region.toLowerCase())
+    )
+
+    // Current region always first
+    if (aIsCurrentRegion && !bIsCurrentRegion) return -1
+    if (!aIsCurrentRegion && bIsCurrentRegion) return 1
+
+    // Then alphabetically
+    return a.region.localeCompare(b.region)
+  })
+})
+
+// Get cities grouped by region -> city (flattened for single-region view)
+const venuesByCity = computed(() => {
+  const cityMap = new Map<string, typeof props.venues>()
+
+  props.venues?.forEach(venue => {
+    const cityName = venue.city || 'Unknown'
+    if (!cityMap.has(cityName)) {
+      cityMap.set(cityName, [])
+    }
+    cityMap.get(cityName)!.push(venue)
+  })
+
+  return Array.from(cityMap.entries())
+    .map(([city, venuesInCity]) => ({
+      city,
+      venues: venuesInCity,
+      totalVenues: venuesInCity.length
+    }))
+    .sort((a, b) => a.city.localeCompare(b.city))
+})
+
+// Get unique cities from venues (for backward compatibility)
 const availableCities = computed(() => {
   const cities = new Set<string>()
   props.venues?.forEach(v => {
@@ -74,16 +157,6 @@ const venueTypeCounts = computed(() => {
   return counts
 })
 
-// Get city counts
-const cityCounts = computed(() => {
-  const counts: Record<string, number> = {}
-  props.venues?.forEach(v => {
-    if (v.city) {
-      counts[v.city] = (counts[v.city] || 0) + 1
-    }
-  })
-  return counts
-})
 
 // Filter available venue types to only show those that exist
 const availableVenueTypes = computed(() => {
@@ -163,6 +236,57 @@ function toggleCity(city: string) {
   applyFilters()
 }
 
+// Region and city expansion functions
+function toggleRegion(region: string) {
+  if (expandedRegions.value.has(region)) {
+    expandedRegions.value.delete(region)
+  } else {
+    expandedRegions.value.add(region)
+  }
+}
+
+
+// Check if region/city is fully/partially selected
+function isRegionFullySelected(region: string): boolean {
+  const regionData = venuesByRegion.value.find(r => r.region === region)
+  if (!regionData) return false
+
+  const allCities = regionData.cities.map(c => c.city)
+  return allCities.every(city => selectedCities.value.includes(city))
+}
+
+function isRegionPartiallySelected(region: string): boolean {
+  const regionData = venuesByRegion.value.find(r => r.region === region)
+  if (!regionData) return false
+
+  const allCities = regionData.cities.map(c => c.city)
+  const someSelected = allCities.some(city => selectedCities.value.includes(city))
+  const allSelected = allCities.every(city => selectedCities.value.includes(city))
+
+  return someSelected && !allSelected
+}
+
+function toggleRegionSelection(region: string) {
+  const regionData = venuesByRegion.value.find(r => r.region === region)
+  if (!regionData) return
+
+  const allCities = regionData.cities.map(c => c.city)
+
+  if (isRegionFullySelected(region)) {
+    // Deselect all cities in this region
+    selectedCities.value = selectedCities.value.filter(city => !allCities.includes(city))
+  } else {
+    // Select all cities in this region
+    allCities.forEach(city => {
+      if (!selectedCities.value.includes(city)) {
+        selectedCities.value.push(city)
+      }
+    })
+  }
+
+  applyFilters()
+}
+
 // Reset filters
 function resetFilters() {
   searchQuery.value = ''
@@ -202,6 +326,19 @@ watch(searchQuery, () => {
 // Watch toggle changes
 watch(hasEventsOnly, applyFilters)
 watch(verifiedOnly, applyFilters)
+
+// Auto-expand current region
+watch([venuesByRegion, currentRegionName], ([regions, regionName]) => {
+  if (regions.length > 1 && regionName && regionName !== 'the area') {
+    const matchingRegion = regions.find(r =>
+      r.region.toLowerCase().includes(regionName.toLowerCase()) ||
+      regionName.toLowerCase().includes(r.region.toLowerCase())
+    )
+    if (matchingRegion && !expandedRegions.value.has(matchingRegion.region)) {
+      expandedRegions.value.add(matchingRegion.region)
+    }
+  }
+}, { immediate: true })
 
 onMounted(() => {
   applyFilters()
@@ -273,7 +410,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- City -->
+    <!-- Location (Region/City) -->
     <div
       v-if="availableCities.length"
       class="filter-section"
@@ -287,7 +424,7 @@ onMounted(() => {
             name="i-heroicons-map-pin"
             class="w-4 h-4"
           />
-          City
+          Location
         </span>
         <span class="section-meta">
           <span
@@ -297,7 +434,7 @@ onMounted(() => {
           <span
             v-else-if="!isSectionExpanded('city')"
             class="section-summary muted"
-          >All cities</span>
+          >All locations</span>
           <UIcon
             :name="isSectionExpanded('city') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-400"
@@ -306,22 +443,94 @@ onMounted(() => {
       </button>
       <div
         v-if="isSectionExpanded('city')"
-        class="section-content"
+        class="section-content location-hierarchy"
       >
-        <button
-          v-for="city in availableCities"
-          :key="city"
-          class="checkbox-option"
-          :class="{ active: selectedCities.includes(city) }"
-          @click="toggleCity(city)"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: selectedCities.includes(city) }"
-          />
-          <span class="option-label">{{ city }}</span>
-          <span class="option-count">{{ cityCounts[city] }}</span>
-        </button>
+        <!-- Multiple regions: show region grouping -->
+        <template v-if="venuesByRegion.length > 1">
+          <div
+            v-for="{ region, cities, totalVenues } in venuesByRegion"
+            :key="region"
+            class="region-group"
+          >
+            <!-- Region header -->
+            <div class="region-header-row">
+              <button
+                class="region-header"
+                @click="toggleRegion(region)"
+              >
+                <UIcon
+                  :name="expandedRegions.has(region) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                  class="w-3.5 h-3.5"
+                />
+                <span class="region-name">{{ region }}</span>
+                <span class="option-count">{{ totalVenues }}</span>
+              </button>
+              <button
+                class="region-checkbox-btn"
+                :class="{
+                  'active': isRegionFullySelected(region),
+                  'partial': isRegionPartiallySelected(region)
+                }"
+                @click.stop="toggleRegionSelection(region)"
+              >
+                <span
+                  class="checkbox"
+                  :class="{
+                    'checked': isRegionFullySelected(region),
+                    'partial': isRegionPartiallySelected(region)
+                  }"
+                />
+              </button>
+            </div>
+
+            <!-- Cities under this region -->
+            <div
+              v-if="expandedRegions.has(region)"
+              class="region-cities"
+            >
+              <div
+                v-for="{ city, totalVenues: cityTotal } in cities"
+                :key="city"
+                class="city-row"
+              >
+                <button
+                  class="checkbox-option city-option"
+                  :class="{ active: selectedCities.includes(city) }"
+                  @click="toggleCity(city)"
+                >
+                  <span
+                    class="checkbox"
+                    :class="{ checked: selectedCities.includes(city) }"
+                  />
+                  <span class="option-label">{{ city }}</span>
+                  <span class="option-count">{{ cityTotal }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Single region: show cities directly without region grouping -->
+        <template v-else>
+          <div
+            v-for="{ city, totalVenues } in venuesByCity"
+            :key="city"
+            class="city-row"
+          >
+            <button
+              class="checkbox-option city-option"
+              :class="{ active: selectedCities.includes(city) }"
+              @click="toggleCity(city)"
+            >
+              <span
+                class="checkbox"
+                :class="{ checked: selectedCities.includes(city) }"
+              />
+              <span class="option-label">{{ city }}</span>
+              <span class="option-count">{{ totalVenues }}</span>
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -566,5 +775,90 @@ onMounted(() => {
 
 .reset-all-btn .count-badge {
   background-color: #6b7280;
+}
+
+/* Region/City Hierarchy Styles */
+.location-hierarchy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.region-group {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.25rem;
+}
+
+.region-group:last-child {
+  border-bottom: none;
+}
+
+.region-header-row {
+  display: flex;
+  align-items: stretch;
+  background: #f3f4f6;
+  border-bottom: 1px solid #d1d5db;
+  transition: background 0.15s;
+}
+
+.region-header-row:hover {
+  background: #e5e7eb;
+}
+
+.region-header {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+  justify-content: flex-start;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.region-name {
+  flex: 1;
+  text-transform: capitalize;
+}
+
+.region-checkbox-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.region-checkbox-btn .checkbox.partial {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.region-checkbox-btn .checkbox.partial::after {
+  content: '';
+  width: 0.5rem;
+  height: 2px;
+  background: white;
+  border-radius: 1px;
+}
+
+.region-cities {
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.city-row {
+  margin-bottom: 0.125rem;
+}
+
+.city-option {
+  width: 100%;
 }
 </style>

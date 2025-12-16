@@ -257,7 +257,23 @@ export class MarigoldScraper extends PlaywrightScraper {
       
       // Try to extract year from multiple sources
       let year: number | null = null
-      
+      const now = new Date()
+      const currentYear = now.getFullYear()
+
+      // Helper to check if a date with given year would be in the past
+      const wouldBeInPast = (testYear: number) => {
+        const testDate = this.createDateInTimezone(testYear, month, day, 20, 0)
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const eventDate = new Date(testDate.getFullYear(), testDate.getMonth(), testDate.getDate())
+        return eventDate < today
+      }
+
+      // Helper to check how many days in the past/future
+      const daysFromNow = (testYear: number) => {
+        const testDate = this.createDateInTimezone(testYear, month, day, 20, 0)
+        return (testDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      }
+
       // 1. Check description for year (2024, 2025, 2026, etc.)
       const descriptionText = galleryEvent.description.replace(/<[^>]+>/g, ' ')
       const yearMatch = descriptionText.match(/\b(20[2-9]\d)\b/)
@@ -265,58 +281,44 @@ export class MarigoldScraper extends PlaywrightScraper {
         const foundYear = parseInt(yearMatch[1], 10)
         // Validate: year should be reasonable (2020-2030)
         if (foundYear >= 2020 && foundYear <= 2030) {
-          year = foundYear
-        }
-      }
-      
-      // 2. Check image URL for year (e.g., /2025/09/ in upload path)
-      if (!year && galleryEvent.imageUrl) {
-        const imageYearMatch = galleryEvent.imageUrl.match(/\/(\d{4})\//)
-        if (imageYearMatch) {
-          const foundYear = parseInt(imageYearMatch[1], 10)
-          // Validate: year should be reasonable (2020-2030)
-          if (foundYear >= 2020 && foundYear <= 2030) {
+          // If this year would be in the past but next year wouldn't, use next year
+          // (description might have stale year from copied content)
+          if (wouldBeInPast(foundYear) && !wouldBeInPast(foundYear + 1)) {
+            year = foundYear + 1
+          } else {
             year = foundYear
           }
         }
       }
-      
-      // 3. If we have the event URL, we could visit it to get the year from the page
-      // But we're avoiding that due to rate limiting. The image URL year is usually reliable.
-      
-      // If no year found, use current year and apply logic
-      const now = new Date()
-      const currentYear = now.getFullYear()
-      const currentMonth = now.getMonth()
-      const currentDay = now.getDate()
-      
+
+      // 2. Check image URL for year (e.g., /2025/09/ in upload path)
+      // NOTE: Image upload year doesn't always match event year! Skip this heuristic
+      // and rely on the default logic which is smarter about recent past events.
+
+      // 3. Default: use current year, or next year if date has passed
       if (!year) {
-        year = currentYear
-        
-        // If month/day has already passed this year, it's likely a past event this year
-        // Only assume next year if we're in late December/early January and the date
-        // would be more than 3 months in the past
-        if (month < currentMonth || (month === currentMonth && day < currentDay)) {
-          // Check how far in the past this would be if it's this year
-          const testDateThisYear = this.createDateInTimezone(currentYear, month, day, 20, 0)
-          const daysAgo = (now.getTime() - testDateThisYear.getTime()) / (1000 * 60 * 60 * 24)
-          
-          // If it's more than 90 days (3 months) in the past, and we're in late year,
-          // it might be next year. But for most cases, it's a past event this year.
-          // Only assume next year if we're in November/December and the date is >90 days ago
-          if (daysAgo > 90 && currentMonth >= 10) {
-            year = currentYear + 1
-          }
-          // Otherwise, it's a past event this year (will be filtered out below)
+        const daysAgoThisYear = -daysFromNow(currentYear)
+
+        if (!wouldBeInPast(currentYear)) {
+          // Date is in the future this year - use current year
+          year = currentYear
+        } else if (daysAgoThisYear <= 14) {
+          // Date is in the recent past (within 2 weeks) - it's a past event from this year
+          // Don't push to next year, let it be filtered out as a past event
+          year = currentYear
+        } else if (!wouldBeInPast(currentYear + 1)) {
+          // Date is more than 2 weeks in the past - probably next year's event
+          // (e.g., in December, a Jan 15 date would be next year)
+          year = currentYear + 1
+        } else {
+          // Date is in the past even for next year - genuinely past event
+          year = currentYear
         }
       }
-      
-      // Create test date to validate
+
+      // Final validation: if more than 14 months away, something is wrong
       const testDate = this.createDateInTimezone(year, month, day, 20, 0)
       const monthsAway = (testDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30)
-      
-      // If the date is more than 14 months away, something is wrong
-      // Revert to current year (will be filtered as past)
       if (monthsAway > 14) {
         year = currentYear
       }

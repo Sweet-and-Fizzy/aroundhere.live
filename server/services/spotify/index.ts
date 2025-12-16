@@ -281,6 +281,37 @@ class SpotifyService {
   // ============================================
 
   /**
+   * Get an artist by their Spotify ID
+   */
+  async getArtistById(artistId: string): Promise<SpotifyArtist | null> {
+    const token = await this.getClientCredentialsToken()
+
+    const response = await fetch(`${SPOTIFY_API_BASE}/artists/${artistId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null
+      }
+      const error = await response.text()
+      throw new Error(`Get artist failed: ${error}`)
+    }
+
+    const artist = await response.json()
+    return {
+      id: artist.id,
+      name: artist.name,
+      popularity: artist.popularity,
+      genres: artist.genres,
+      images: artist.images,
+      external_urls: artist.external_urls,
+    }
+  }
+
+  /**
    * Search for an artist by name
    */
   async searchArtist(name: string, limit = 5): Promise<SpotifyArtist[]> {

@@ -222,7 +222,7 @@ export class AgentService {
           continue
         }
 
-        const generatedCode = codeResult.code
+        let generatedCode = codeResult.code
         console.log('[Agent] Code generated, length:', generatedCode.length)
 
         addThinking({
@@ -231,27 +231,82 @@ export class AgentService {
           data: { codeLength: generatedCode.length },
         })
 
-        // Validate code safety
-        addThinking({
-          type: 'evaluation',
-          message: 'Validating code safety...',
-        })
+        // Validation retry loop - give LLM a chance to fix validation errors without burning an attempt
+        const MAX_VALIDATION_RETRIES = 3
+        let validationPassed = false
+        let validation: ReturnType<typeof validateScraperCode> | null = null
 
-        const validation = validateScraperCode(
-          generatedCode,
-          sessionType === 'VENUE_INFO' ? 'venue' : 'event'
-        )
+        for (let validationRetry = 0; validationRetry < MAX_VALIDATION_RETRIES; validationRetry++) {
+          addThinking({
+            type: 'evaluation',
+            message: validationRetry === 0
+              ? 'Validating code safety...'
+              : `Validation retry ${validationRetry}/${MAX_VALIDATION_RETRIES - 1}...`,
+          })
 
-        if (!validation.isValid) {
-          console.log('[Agent] Validation failed:', validation.errors)
-          lastError = validation.errors.join(', ')
-          // Save the broken code so we can show it to the LLM for fixing
+          validation = validateScraperCode(
+            generatedCode,
+            sessionType === 'VENUE_INFO' ? 'venue' : 'event'
+          )
+
+          if (validation.isValid) {
+            validationPassed = true
+            break
+          }
+
+          // Validation failed
+          console.log(`[Agent] Validation failed (retry ${validationRetry + 1}):`, validation.errors)
+          const validationError = validation.errors.join(', ')
+
+          addThinking({
+            type: 'evaluation',
+            message: `Code validation failed: ${validationError}`,
+          })
+
+          // If we have retries left, ask LLM to fix it immediately
+          if (validationRetry < MAX_VALIDATION_RETRIES - 1) {
+            addThinking({
+              type: 'improvement',
+              message: 'Asking LLM to fix validation errors...',
+            })
+
+            const fixResult = await this.generateCode({
+              sessionType,
+              url,
+              pageHtml,
+              venueInfo,
+              llmProvider,
+              llmModel,
+              previousAttempt: {
+                code: generatedCode,
+                feedback: `VALIDATION ERROR: ${validationError}\n\nPlease fix these validation errors and return corrected code. Do not use any forbidden functions or patterns.`,
+              },
+              detailPageHtml,
+            })
+
+            if (fixResult.success && fixResult.code) {
+              generatedCode = fixResult.code
+              console.log('[Agent] Generated fix, length:', generatedCode.length)
+            } else {
+              // LLM couldn't generate a fix, give up on retries
+              console.log('[Agent] Failed to generate fix')
+              break
+            }
+          }
+        }
+
+        // If validation never passed, move to next attempt
+        if (!validationPassed || !validation) {
+          const finalError = validation?.errors.join(', ') || 'Unknown validation error'
+          console.log('[Agent] Validation failed after all retries')
+          lastError = finalError
+          // Save the broken code so we can show it to the LLM for fixing in next attempt
           if (!bestCode) {
             bestCode = generatedCode
           }
           addThinking({
-            type: 'evaluation',
-            message: `Code validation failed: ${lastError}`,
+            type: 'failure',
+            message: `Validation failed after ${MAX_VALIDATION_RETRIES} retries`,
           })
           continue
         }

@@ -207,8 +207,9 @@ function handleFilter(filters: Record<string, any>) {
 }
 
 .tab-panel:not(.chat-panel) {
-  padding: 1rem;
+  padding: 0 1rem 1rem 1rem;
   overflow-y: auto;
+  max-height: calc(100vh - 8rem);
 }
 
 .chat-panel {

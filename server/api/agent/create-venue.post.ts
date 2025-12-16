@@ -55,6 +55,7 @@ export default defineEventHandler(async (event) => {
       description: venueData.description || null,
       venueType: venueData.venueType || 'OTHER',
       capacity: venueData.capacity || null,
+      logoUrl: venueData.logoUrl || null,
       imageUrl: venueData.imageUrl || null,
       isActive: true,
     },

@@ -263,7 +263,7 @@ useHead({
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-gray-600 rounded-full text-sm text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors"
               @click="submitHeroChat(suggestion.text)"
             >
-              <span>{{ suggestion.icon }}</span>
+              <span class="brightness-200 contrast-125">{{ suggestion.icon }}</span>
               {{ suggestion.text }}
             </button>
           </div>
@@ -343,9 +343,15 @@ useHead({
           class="flex items-center justify-between gap-3 mb-3 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg"
         >
           <div class="flex items-center gap-2 text-sm text-gray-900">
-            <UIcon name="i-heroicons-musical-note" class="w-4 h-4 flex-shrink-0 text-green-600" />
+            <UIcon
+              name="i-heroicons-musical-note"
+              class="w-4 h-4 flex-shrink-0 text-green-600"
+            />
             <span>Preview music from upcoming artists on our</span>
-            <NuxtLink to="/playlist" class="font-medium underline hover:text-gray-700">
+            <NuxtLink
+              to="/playlist"
+              class="font-medium underline hover:text-gray-700"
+            >
               Spotify playlist
             </NuxtLink>
           </div>
@@ -354,7 +360,10 @@ useHead({
             title="Dismiss"
             @click="dismissPlaylistBanner"
           >
-            <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-x-mark"
+              class="w-4 h-4"
+            />
           </button>
         </div>
 

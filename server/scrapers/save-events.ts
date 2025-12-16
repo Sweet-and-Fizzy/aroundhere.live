@@ -211,27 +211,77 @@ export async function saveEvent(
 
 /**
  * Check if an event date is valid (not too far in future, not in past)
- * This catches cases where scraper incorrectly assumes next year for stale listings
+ * Also attempts to correct year inference errors from scrapers.
+ *
+ * Common problem: Scrapers see "January 15" and assign current year (2025),
+ * but if we're in December 2025, it should be January 2026.
+ *
+ * We're conservative about corrections to avoid pushing stale listings to next year.
+ * Only correct dates where the month is 1-3 months "ahead" of current month.
+ * e.g., In December, only correct January/February/March dates.
  */
-function isValidEventDate(startsAt: Date): { valid: boolean; reason?: string } {
+function isValidEventDate(startsAt: Date): { valid: boolean; reason?: string; correctedDate?: Date } {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const eventDate = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate())
 
-  // Skip events in the past
-  if (startsAt < today) {
-    return { valid: false, reason: 'past event' }
+  const msPerDay = 1000 * 60 * 60 * 24
+  const daysFromNow = (eventDate.getTime() - today.getTime()) / msPerDay
+
+  // Helper: Check if event month is 1-3 months "ahead" of current month (with year wrap)
+  // e.g., in December (11), January (0), February (1), March (2) are "ahead"
+  const isMonthSlightlyAhead = () => {
+    const currentMonth = now.getMonth()
+    const eventMonth = startsAt.getMonth()
+    // Calculate how many months ahead the event is (with wrap-around)
+    const monthsAhead = (eventMonth - currentMonth + 12) % 12
+    return monthsAhead >= 1 && monthsAhead <= 3
   }
 
-  // Skip events more than 10 months in the future
-  // This catches stale November listings being interpreted as next year when it's December
-  const maxFutureDate = new Date(now)
-  maxFutureDate.setMonth(maxFutureDate.getMonth() + 10)
+  // Event is in the future
+  if (daysFromNow >= 0) {
+    // Check if it's too far in the future (>10 months ≈ 300 days)
+    if (daysFromNow > 300) {
+      // Try subtracting a year - maybe scraper incorrectly pushed to next year
+      const correctedDate = new Date(startsAt)
+      correctedDate.setFullYear(correctedDate.getFullYear() - 1)
+      const correctedDaysFromNow = (correctedDate.getTime() - today.getTime()) / msPerDay
 
-  if (startsAt > maxFutureDate) {
-    return { valid: false, reason: 'too far in future (>10 months)' }
+      // If corrected date is in reasonable range (-14 to 300 days), use it
+      // We allow slightly past dates here since a Nov event might be just past
+      if (correctedDaysFromNow >= -14 && correctedDaysFromNow <= 300) {
+        return { valid: true, correctedDate }
+      }
+
+      return { valid: false, reason: 'too far in future (>10 months)' }
+    }
+
+    return { valid: true }
   }
 
-  return { valid: true }
+  // Event is in the past
+  const daysInPast = -daysFromNow
+
+  // Recently past (within 2 weeks) - genuinely past event, don't correct
+  if (daysInPast <= 14) {
+    return { valid: false, reason: 'past event (recent)' }
+  }
+
+  // Only attempt year correction if the month is 1-3 months "ahead" of current month
+  // This avoids pushing stale listings (e.g., March event still on calendar in December)
+  // to next year. We only correct dates that look like year-wrap issues.
+  if (isMonthSlightlyAhead()) {
+    const correctedDate = new Date(startsAt)
+    correctedDate.setFullYear(correctedDate.getFullYear() + 1)
+    const correctedDaysFromNow = (correctedDate.getTime() - today.getTime()) / msPerDay
+
+    // If corrected date is in reasonable future range (0-120 days / ~4 months), use it
+    if (correctedDaysFromNow >= 0 && correctedDaysFromNow <= 120) {
+      return { valid: true, correctedDate }
+    }
+  }
+
+  return { valid: false, reason: 'past event' }
 }
 
 /**
@@ -319,7 +369,7 @@ export async function saveScrapedEvents(
 
   for (const event of events) {
     try {
-      // Validate event date
+      // Validate event date (may return corrected date for year inference errors)
       const dateCheck = isValidEventDate(event.startsAt)
       if (!dateCheck.valid) {
         console.log(`[SaveEvent] Filtering out "${event.title}": ${dateCheck.reason}`)
@@ -327,11 +377,18 @@ export async function saveScrapedEvents(
         continue
       }
 
+      // Apply date correction if the validator detected a year inference error
+      let eventWithCorrectedDate = event
+      if (dateCheck.correctedDate) {
+        console.log(`[SaveEvent] Correcting year for "${event.title}": ${event.startsAt.toISOString().split('T')[0]} -> ${dateCheck.correctedDate.toISOString().split('T')[0]}`)
+        eventWithCorrectedDate = { ...event, startsAt: dateCheck.correctedDate }
+      }
+
       // If sourceUrls are non-unique AND scraper doesn't provide its own sourceEventId,
       // generate a composite key. Don't override scraper-provided IDs.
-      const eventToSave = hasNonUniqueUrls && !event.sourceEventId
-        ? { ...event, sourceEventId: generateCompositeKey(venue.id, event) }
-        : event
+      const eventToSave = hasNonUniqueUrls && !eventWithCorrectedDate.sourceEventId
+        ? { ...eventWithCorrectedDate, sourceEventId: generateCompositeKey(venue.id, eventWithCorrectedDate) }
+        : eventWithCorrectedDate
 
       // Track the sourceEventId for cancellation detection
       if (eventToSave.sourceEventId) {

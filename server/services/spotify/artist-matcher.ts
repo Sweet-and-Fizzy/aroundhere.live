@@ -194,34 +194,26 @@ export async function manuallyMatchArtist(
   }
 
   try {
-    // Fetch artist info from Spotify to get the name
-    const searchResults = await spotifyService.searchArtist(spotifyId, 1)
+    // Fetch artist info from Spotify using the artist ID
+    const spotifyArtist = await spotifyService.getArtistById(spotifyId)
 
-    // If search by ID didn't work, try fetching top tracks to validate the ID
-    let spotifyName = spotifyId
-    let popularTracks = null
-
-    try {
-      popularTracks = await spotifyService.getPopularTracks(spotifyId, 4)
-      // If we got tracks, the ID is valid
-      // Try to get artist name from track data
-      if (popularTracks.length > 0) {
-        // We'll use the ID as name for now - could enhance later
-      }
-    } catch {
+    if (!spotifyArtist) {
       throw new Error(`Invalid Spotify artist ID: ${spotifyId}`)
     }
 
-    // For manual matches where we have search results, use the name
-    if (searchResults.length > 0 && searchResults[0].id === spotifyId) {
-      spotifyName = searchResults[0].name
+    // Fetch popular tracks
+    let popularTracks = null
+    try {
+      popularTracks = await spotifyService.getPopularTracks(spotifyId, 4)
+    } catch (err) {
+      console.warn(`Failed to get tracks for artist ${spotifyId}:`, err)
     }
 
     await prisma.artist.update({
       where: { id: artistId },
       data: {
         spotifyId,
-        spotifyName,
+        spotifyName: spotifyArtist.name,
         spotifyMatchConfidence: 1.0,  // Manual = 100% confidence
         spotifyMatchStatus: 'VERIFIED',
         spotifyPopularTracks: popularTracks ? JSON.parse(JSON.stringify(popularTracks)) : undefined,
@@ -234,7 +226,7 @@ export async function manuallyMatchArtist(
       artistName: artist.name,
       status: 'VERIFIED',
       spotifyId,
-      spotifyName,
+      spotifyName: spotifyArtist.name,
       confidence: 1.0,
     }
   } catch (err) {

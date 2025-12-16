@@ -41,7 +41,6 @@ function formatDateHeader(date: Date): string {
   eventDate.setHours(0, 0, 0, 0)
 
   const daysDiff = Math.floor((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  const dayOfWeek = eventDate.getDay() // 0 = Sunday, 6 = Saturday
   const todayDayOfWeek = today.getDay()
 
   // Calculate days until this weekend (Saturday)

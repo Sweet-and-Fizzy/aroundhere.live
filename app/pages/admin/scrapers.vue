@@ -105,6 +105,7 @@ function resetForNewVenue() {
   savedEventCount.value = 0
   showFeedbackInput.value = false
   feedbackText.value = ''
+  lastSubmittedFeedback.value = ''
   selectedExistingVenue.value = null
   existingScraperData.value = null
   showManualForm.value = true
@@ -182,6 +183,7 @@ const attemptsData = ref<any>(null)
 // Feedback for retry
 const showFeedbackInput = ref(false)
 const feedbackText = ref('')
+const lastSubmittedFeedback = ref('')
 
 // Load attempts when modal opens
 watch(showAttemptsModal, async (show) => {
@@ -335,6 +337,7 @@ async function retryWithFeedback() {
     })
 
     sessionId.value = response.sessionId
+    lastSubmittedFeedback.value = feedbackText.value // Save for potential reuse
     feedbackText.value = '' // Clear for next time
 
     // Connect to SSE stream
@@ -379,11 +382,39 @@ async function retryWithFeedback() {
       }
     }
 
-    eventSource.onerror = () => {
+    eventSource.onerror = async () => {
       eventSource.close()
       currentEventSource.value = null
+
+      // Check if session actually completed (connection might have dropped after success)
+      if (sessionId.value) {
+        try {
+          const session = await $fetch(`/api/agent/session/${sessionId.value}`)
+          if (session.status === 'SUCCESS') {
+            status.value = 'success'
+            if (sessionType.value === 'VENUE_INFO') {
+              venueData.value = session.venueData || null
+            } else {
+              eventData.value = session.eventData || null
+            }
+            completenessScore.value = session.completenessScore || 0
+            return
+          } else if (session.status === 'FAILED') {
+            status.value = 'failed'
+            errorMessage.value = session.errorMessage || 'Scraper generation failed'
+            return
+          } else if (session.status === 'IN_PROGRESS') {
+            errorMessage.value = 'Connection lost but scraper is still running. Refresh to check status.'
+          }
+        } catch {
+          // Couldn't check session
+        }
+      }
+
       status.value = 'failed'
-      errorMessage.value = 'Connection lost'
+      if (!errorMessage.value) {
+        errorMessage.value = 'Real-time connection failed. The scraper may still be running - try refreshing.'
+      }
     }
   } catch (error: any) {
     status.value = 'failed'
@@ -553,11 +584,37 @@ async function startVenueInfoScraper() {
       }
     }
 
-    eventSource.onerror = () => {
+    eventSource.onerror = async () => {
       eventSource.close()
       currentEventSource.value = null
+
+      // Check if session actually completed (connection might have dropped after success)
+      if (sessionId.value) {
+        try {
+          const session = await $fetch(`/api/agent/session/${sessionId.value}`)
+          if (session.status === 'SUCCESS') {
+            status.value = 'success'
+            venueData.value = session.venueData || null
+            completenessScore.value = session.completenessScore || 0
+            showEventScraper.value = true
+            return
+          } else if (session.status === 'FAILED') {
+            status.value = 'failed'
+            errorMessage.value = session.errorMessage || 'Scraper generation failed'
+            return
+          } else if (session.status === 'IN_PROGRESS') {
+            // Still running - connection dropped but agent is working
+            errorMessage.value = 'Connection lost but scraper is still running. Refresh to check status.'
+          }
+        } catch {
+          // Couldn't check session
+        }
+      }
+
       status.value = 'failed'
-      errorMessage.value = 'Real-time connection failed'
+      if (!errorMessage.value) {
+        errorMessage.value = 'Real-time connection failed. The scraper may still be running - try refreshing.'
+      }
     }
   } catch (error: any) {
     status.value = 'failed'
@@ -598,6 +655,9 @@ async function startEventScraper() {
     })
 
     sessionId.value = response.sessionId
+    if (feedbackText.value.trim()) {
+      lastSubmittedFeedback.value = feedbackText.value // Save for potential reuse
+    }
     feedbackText.value = '' // Clear feedback after starting
 
     // Connect to SSE stream for real-time updates
@@ -640,11 +700,35 @@ async function startEventScraper() {
       }
     }
 
-    eventSource.onerror = () => {
+    eventSource.onerror = async () => {
       eventSource.close()
       currentEventSource.value = null
+
+      // Check if session actually completed (connection might have dropped after success)
+      if (sessionId.value) {
+        try {
+          const session = await $fetch(`/api/agent/session/${sessionId.value}`)
+          if (session.status === 'SUCCESS') {
+            status.value = 'success'
+            eventData.value = session.eventData || null
+            completenessScore.value = session.completenessScore || 0
+            return
+          } else if (session.status === 'FAILED') {
+            status.value = 'failed'
+            errorMessage.value = session.errorMessage || 'Scraper generation failed'
+            return
+          } else if (session.status === 'IN_PROGRESS') {
+            errorMessage.value = 'Connection lost but scraper is still running. Refresh to check status.'
+          }
+        } catch {
+          // Couldn't check session
+        }
+      }
+
       status.value = 'failed'
-      errorMessage.value = 'Real-time connection failed'
+      if (!errorMessage.value) {
+        errorMessage.value = 'Real-time connection failed. The scraper may still be running - try refreshing.'
+      }
     }
   } catch (error: any) {
     status.value = 'failed'
@@ -1337,33 +1421,84 @@ useSeoMeta({
         <div
           v-for="session in sessionsData.sessions"
           :key="session.id"
-          class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-          @click="loadSession(session)"
+          class="border rounded-lg"
         >
-          <div class="flex-1 min-w-0">
-            <div class="font-medium truncate">
-              {{ session.url }}
+          <div
+            class="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer"
+            @click="loadSession(session)"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="font-medium truncate">
+                {{ session.url }}
+              </div>
+              <div class="text-sm text-gray-500">
+                {{ session.sessionType === 'VENUE_INFO' ? 'Venue' : 'Events' }}
+                <span v-if="session.eventCount"> - {{ session.eventCount }} events</span>
+                <span class="mx-1">·</span>
+                {{ new Date(session.createdAt).toLocaleString() }}
+              </div>
             </div>
-            <div class="text-sm text-gray-500">
-              {{ session.sessionType === 'VENUE_INFO' ? 'Venue' : 'Events' }}
-              <span v-if="session.eventCount"> - {{ session.eventCount }} events</span>
-              <span class="mx-1">·</span>
-              {{ new Date(session.createdAt).toLocaleString() }}
+            <div class="ml-3">
+              <span
+                class="px-2 py-1 text-xs font-medium rounded"
+                :class="{
+                  'bg-green-100 text-green-700': session.status === 'SUCCESS',
+                  'bg-red-100 text-red-700': session.status === 'FAILED',
+                  'bg-yellow-100 text-yellow-700': session.status === 'IN_PROGRESS',
+                  'bg-blue-100 text-blue-700': session.status === 'APPROVED',
+                }"
+              >
+                {{ session.status }}
+              </span>
             </div>
           </div>
-          <div class="ml-3">
-            <span
-              class="px-2 py-1 text-xs font-medium rounded"
-              :class="{
-                'bg-green-100 text-green-700': session.status === 'SUCCESS',
-                'bg-red-100 text-red-700': session.status === 'FAILED',
-                'bg-yellow-100 text-yellow-700': session.status === 'IN_PROGRESS',
-                'bg-blue-100 text-blue-700': session.status === 'APPROVED',
-              }"
-            >
-              {{ session.status }}
-            </span>
-          </div>
+
+          <!-- Expandable failure details for FAILED sessions -->
+          <details
+            v-if="session.status === 'FAILED'"
+            class="border-t"
+          >
+            <summary class="px-3 py-2 text-sm text-red-700 cursor-pointer hover:bg-red-50 flex items-center gap-2">
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              View failure details
+            </summary>
+            <div class="p-3 bg-red-50 text-sm space-y-2">
+              <div v-if="session.errorMessage">
+                <span class="font-medium text-red-900">Error:</span>
+                <span class="text-red-700"> {{ session.errorMessage }}</span>
+              </div>
+              <div v-if="session.thinking && session.thinking.length > 0">
+                <div class="font-medium text-red-900 mb-1">
+                  Last steps:
+                </div>
+                <div class="space-y-1 text-xs">
+                  <div
+                    v-for="(step, i) in session.thinking.slice(-5)"
+                    :key="i"
+                    class="flex gap-2"
+                  >
+                    <span class="text-red-600 font-mono">[{{ step.type }}]</span>
+                    <span class="text-gray-700">{{ step.message }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="text-xs text-gray-500 mt-2">
+                Iterations: {{ session.currentIteration }}/{{ session.maxIterations }}
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </div>
@@ -1630,7 +1765,7 @@ useSeoMeta({
             >
               <button
                 class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
-                @click="showFeedbackInput = true"
+                @click="feedbackText = lastSubmittedFeedback; showFeedbackInput = true"
               >
                 Retry with Feedback
               </button>
@@ -1733,7 +1868,7 @@ useSeoMeta({
           <div v-if="!showFeedbackInput">
             <button
               class="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 border border-gray-300"
-              @click="showFeedbackInput = true"
+              @click="feedbackText = lastSubmittedFeedback; showFeedbackInput = true"
             >
               Retry with Feedback
             </button>

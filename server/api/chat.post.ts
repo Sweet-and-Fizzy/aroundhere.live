@@ -85,12 +85,12 @@ export default defineEventHandler(async (event) => {
 
     // Debug: log step details (development only)
     if (process.env.NODE_ENV === 'development') {
-      console.log('Chat result steps:', result.steps?.length)
+      console.log('Chat result steps:', result.steps?.length ?? 0)
       result.steps?.forEach((step, i) => {
         console.log(`Step ${i}:`, {
           text: step.text?.substring(0, 100),
           toolCalls: step.toolCalls?.map(tc => tc.toolName),
-          toolResultsCount: step.toolResults?.length || 0,
+          toolResultsCount: step.toolResults?.length ?? 0,
           finishReason: step.finishReason,
         })
       })
@@ -106,12 +106,12 @@ export default defineEventHandler(async (event) => {
     const estimatedCost = calculateCost(CHAT_MODEL, inputTokens, outputTokens)
 
     // Extract tool usage info
-    const toolsUsed = result.steps
-      ?.flatMap((step) => step.toolCalls?.map((tc) => tc.toolName) || [])
-      .filter(Boolean) || []
-    const toolInputs = result.steps
-      ?.flatMap((step) => step.toolCalls?.map((tc) => ({ tool: tc.toolName, input: (tc as any).input })) || [])
-      .filter(Boolean) || []
+    const toolsUsed = (result.steps ?? [])
+      .flatMap((step) => (step.toolCalls ?? []).map((tc) => tc.toolName))
+      .filter(Boolean)
+    const toolInputs = (result.steps ?? [])
+      .flatMap((step) => (step.toolCalls ?? []).map((tc) => ({ tool: tc.toolName, input: (tc as any).input })))
+      .filter((ti) => ti.tool)
 
     // Log to database (non-blocking)
     const userMessage = cleanMessages[cleanMessages.length - 1]?.content || ''
@@ -125,7 +125,7 @@ export default defineEventHandler(async (event) => {
           inputTokens,
           outputTokens,
           estimatedCostUsd: estimatedCost,
-          llmCallsCount: result.steps?.length || 1,
+          llmCallsCount: result.steps?.length ?? 1,
           model: CHAT_MODEL,
           toolsUsed,
           toolInputs,
@@ -161,7 +161,7 @@ export default defineEventHandler(async (event) => {
         tokens: { input: inputTokens, output: outputTokens },
         cost: `$${estimatedCost.toFixed(4)}`,
         latency: `${latencyMs}ms`,
-        steps: result.steps?.length || 1,
+        steps: result.steps?.length ?? 1,
         toolsUsed,
       }
     }

@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
 
   // Parse query parameters
   const regionId = query.regionId as string | undefined
+  const regions = query.regions ? (query.regions as string).split(',') : undefined
   // Support both single venueId and multiple venueIds
   const venueId = query.venueId as string | undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
@@ -40,6 +41,21 @@ export default defineEventHandler(async (event) => {
   const eventType = query.eventType as string | undefined
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
 
+  // If regions are specified, look up region IDs from region names
+  let regionIds: string[] | undefined
+  if (regions && regions.length > 0) {
+    const regionRecords = await prisma.region.findMany({
+      where: {
+        name: {
+          in: regions,
+          mode: 'insensitive'
+        }
+      },
+      select: { id: true },
+    })
+    regionIds = regionRecords.map(r => r.id)
+  }
+
   // Build where clause with proper Prisma types
   const where: Prisma.EventWhereInput = {
     startsAt: {
@@ -50,16 +66,30 @@ export default defineEventHandler(async (event) => {
     reviewStatus: { in: ['APPROVED', 'PENDING'] },
     isCancelled: false,
     // Filter by music/non-music
-    // musicOnly=true (default): only isMusic=true OR unclassified (null)
-    // musicOnly=false: show all events (music AND non-music)
+    // musicOnly=true (default): only isMusic=true (exclude unclassified)
+    // musicOnly=false: show all classified events (music AND non-music)
     // If specific event types are requested, don't filter by isMusic
-    ...(!eventType && !eventTypes && musicOnly && { isMusic: { in: [true, null] } }),
-    ...(!eventType && !eventTypes && { eventType: { not: 'PRIVATE' as const } }),
+    ...(!eventType && !eventTypes && musicOnly && {
+      isMusic: true,
+      // Exclude PRIVATE events, but allow null eventType
+      OR: [
+        { eventType: { not: 'PRIVATE' as const } },
+        { eventType: null }
+      ]
+    }),
+    ...(!eventType && !eventTypes && !musicOnly && {
+      isMusic: { not: null }, // Only show classified events
+      OR: [
+        { eventType: { not: 'PRIVATE' as const } },
+        { eventType: null }
+      ]
+    }),
     // Filter by specific event type(s)
     ...(eventTypes && eventTypes.length > 0 && { eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } }),
     ...(eventType && !eventTypes && { eventType: eventType as Prisma.EnumEventTypeNullableFilter }),
     // Filter by region/venue(s)
-    ...(regionId && { regionId }),
+    ...(regionIds && regionIds.length > 0 && { regionId: { in: regionIds } }),
+    ...(regionId && !regionIds && { regionId }),
     ...(venueIds && venueIds.length > 0 && { venueId: { in: venueIds } }),
     ...(venueId && !venueIds && { venueId }),
     // Filter by genre - check canonicalGenres array (case-insensitive)

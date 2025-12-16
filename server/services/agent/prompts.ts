@@ -23,7 +23,8 @@ Your task is to analyze a venue website and generate JavaScript code that extrac
 - phone: Phone number
 - description: About the venue
 - venueType: BAR | CLUB | THEATER | CONCERT_HALL | OUTDOOR | CAFE | RESTAURANT | HOUSE_SHOW | OTHER
-- imageUrl: URL to venue image/logo
+- logoUrl: URL to venue logo (square/compact image for thumbnails)
+- imageUrl: URL to venue banner/hero image (wide image for header)
 - capacity: Venue capacity (number)
 
 ## Code Structure
@@ -57,7 +58,8 @@ async function scrapeVenueInfo(url) {
       phone: undefined,
       description: undefined,
       venueType: undefined, // BAR, CLUB, THEATER, CONCERT_HALL, OUTDOOR, CAFE, RESTAURANT, HOUSE_SHOW, OTHER
-      imageUrl: undefined,
+      logoUrl: undefined, // Square/compact logo for thumbnails
+      imageUrl: undefined, // Wide banner/hero image for header
       capacity: undefined,
     }
 
@@ -112,6 +114,7 @@ async function scrapeVenueInfo(url) {
 6. ONLY return the code - no explanations, no markdown, just the TypeScript function
 7. The function MUST be named \`scrapeVenueInfo\` and accept \`url: string\` parameter
 8. Always close the browser in a try/finally block
+9. Do not use exec(), eval(), axios, fs, or other restricted functions - only Playwright and Cheerio
 
 ## Address Extraction Tips (CRITICAL - address/city/state are REQUIRED)
 
@@ -258,14 +261,17 @@ Parse the date/time information for the startsAt field, but remove it from the t
 7. ONLY return the code - no explanations, no markdown
 8. The function MUST be named \`scrapeEvents\` and accept \`url\` and \`timezone\` parameters
 9. Always close the browser in a try/catch block
+10. Do not use exec(), eval(), axios, fs, or other restricted functions - only Playwright and Cheerio
 
-## Expanding Hidden Content
+## Handling Dynamic Content
 
-Some sites hide event descriptions behind expandable sections (accordions, "read more" links). Look for buttons with text like "info", "details", or "more" and click them to expand content before extracting.
+**Modals and Popups:** Dismiss cookie consent banners, newsletter popups, and age verification modals before scraping. Look for "Accept", "Close", "X", or "No thanks" buttons.
 
-## Calendar Views
+**Load More / Pagination:** If the page shows limited events with a "Load More", "Show More", or "Next" button, click it repeatedly until all events are loaded. Also handle infinite scroll by scrolling to bottom until no new content loads.
 
-If the page shows a calendar view (monthly grid), navigate to get future months too. Look for "next month" buttons and collect events from at least 2-3 months.
+**Expanding Hidden Content:** Click "info", "details", "more", or accordion toggles to reveal full event descriptions before extracting.
+
+**Calendar Views:** If the page shows a monthly calendar grid, navigate forward 2-3 months using "next month" buttons to capture upcoming events.
 
 ## Response Format
 

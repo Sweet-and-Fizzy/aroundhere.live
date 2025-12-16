@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick } from 'vue'
+import { nextTick, toRef } from 'vue'
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
@@ -36,7 +36,18 @@ function loadSavedFilters() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
-        return JSON.parse(saved)
+        const filters = JSON.parse(saved)
+        // Migration: If savedEventTypes contains individual music types (MUSIC, DJ, etc.),
+        // replace them with ALL_MUSIC
+        if (filters.selectedEventTypes) {
+          const types = filters.selectedEventTypes.map((t: any) => t.value)
+          const musicTypes = ['MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE']
+          const hasOnlyMusicTypes = types.length > 0 && types.every((t: string) => musicTypes.includes(t))
+          if (hasOnlyMusicTypes) {
+            filters.selectedEventTypes = [{ label: 'All Music', value: 'ALL_MUSIC' }]
+          }
+        }
+        return filters
       }
     } catch {
       // Ignore parse errors
@@ -50,9 +61,10 @@ function saveFilters() {
   if (import.meta.client) {
     const filters = {
       datePreset: datePreset.value,
-      selectedVenues: selectedVenues.value,
-      selectedGenres: selectedGenres.value,
+      selectedRegions: selectedRegions.value,
       selectedCities: selectedCities.value,
+      selectedVenueIds: selectedVenueIds.value,
+      selectedGenres: selectedGenres.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
     }
@@ -67,15 +79,39 @@ const datePreset = ref(savedFilters?.datePreset || 'month')
 const customDateRange = ref<CalendarDateRange | undefined>(undefined)
 const showCalendar = ref(false)
 
-// Multi-select for venues
-const selectedVenues = ref<{ label: string; value: string }[]>(savedFilters?.selectedVenues || [])
+// Location filter - now tracks selections at Region, City, and Venue levels separately
+const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
+const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
+const selectedVenueIds = ref<string[]>(savedFilters?.selectedVenueIds || [])
 const searchQuery = ref(savedFilters?.searchQuery || '')
 const selectedGenres = ref<{ label: string; value: string }[]>(savedFilters?.selectedGenres || [])
-const selectedCities = ref<{ label: string; value: string }[]>(savedFilters?.selectedCities || [])
 // Multi-select for event types - default to All Music
 const selectedEventTypes = ref<{ label: string; value: string }[]>(
   savedFilters?.selectedEventTypes || [{ label: 'All Music', value: 'ALL_MUSIC' }]
 )
+
+// Use the location filter composable for hierarchical Region → City → Venue selection
+const {
+  venuesByRegion,
+  venuesByCity,
+  locationSummary,
+  expandedRegions,
+  expandedCities,
+  isCityFullySelected,
+  isCityPartiallySelected,
+  toggleCitySelection,
+  isRegionFullySelected,
+  isRegionPartiallySelected,
+  toggleRegionSelection,
+} = useLocationFilter(
+  toRef(props, 'venues'),
+  toRef(props, 'facets'),
+  selectedRegions,
+  selectedCities,
+  selectedVenueIds
+)
+
+const locationPopoverOpen = ref(false)
 
 // Map filter state
 const mapFilteredVenueIds = ref<string[] | null>(null)
@@ -170,9 +206,10 @@ function resetMap() {
 const hasActiveFilters = computed(() => {
   return (
     searchQuery.value !== '' ||
-    selectedVenues.value.length > 0 ||
-    selectedGenres.value.length > 0 ||
+    selectedRegions.value.length > 0 ||
     selectedCities.value.length > 0 ||
+    selectedVenueIds.value.length > 0 ||
+    selectedGenres.value.length > 0 ||
     selectedEventTypes.value.length !== 1 ||
     selectedEventTypes.value[0]?.value !== 'ALL_MUSIC' ||
     datePreset.value !== 'month' ||
@@ -183,9 +220,10 @@ const hasActiveFilters = computed(() => {
 // Reset all filters to defaults
 function resetFilters() {
   searchQuery.value = ''
-  selectedVenues.value = []
-  selectedGenres.value = []
+  selectedRegions.value = []
   selectedCities.value = []
+  selectedVenueIds.value = []
+  selectedGenres.value = []
   selectedEventTypes.value = [{ label: 'All Music', value: 'ALL_MUSIC' }]
   datePreset.value = 'month'
   customDateRange.value = undefined
@@ -235,12 +273,6 @@ const datePresets = [
   { label: 'All Upcoming', value: 'all' },
 ]
 
-const venueItems = computed(() =>
-  (props.venues
-    ?.map(v => ({ label: v.name, value: v.id }))
-    .sort((a, b) => a.label.localeCompare(b.label)) ?? [])
-)
-
 const genreItems = computed(() =>
   (props.genres?.map(g => ({
     label: props.genreLabels?.[g] || g.charAt(0).toUpperCase() + g.slice(1),
@@ -248,57 +280,41 @@ const genreItems = computed(() =>
   })) ?? [])
 )
 
-const cityItems = computed(() => {
-  try {
-    // Use facets cityCounts if available (only cities with events)
-    if (props.facets?.cityCounts) {
-      const cities = Object.keys(props.facets.cityCounts)
-        .filter(city => props.facets!.cityCounts[city] > 0)
-        .sort((a, b) => a.localeCompare(b))
-      return cities.map(c => ({ label: c, value: c }))
-    }
-
-    // Fallback to props.cities or extracting from venues
-    const cities = props.cities || []
-    if (cities.length === 0 && props.venues) {
-      const venueCities = Array.from(new Set(
-        props.venues
-          .map(v => (v as any).city)
-          .filter(Boolean) as string[]
-      ))
-      return venueCities.map(c => ({ label: c, value: c })).sort((a, b) => a.label.localeCompare(b.label))
-    }
-    return cities.map(c => ({ label: c, value: c })).sort((a, b) => a.label.localeCompare(b.label))
-  } catch (e) {
-    // If there's any error, just return empty array
-    console.error('Error computing cityItems:', e)
-    return []
-  }
-})
-
 // Custom labels for multi-selects
-const venueLabel = computed(() => {
-  if (selectedVenues.value.length === 0) return 'Venues'
-  if (selectedVenues.value.length === 1) return selectedVenues.value[0]?.label ?? 'Venues'
-  return `${selectedVenues.value.length} venues`
+const locationLabel = computed(() => {
+  // Show summary of selected regions, cities, or venues
+  if (selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
+    return 'Location'
+  }
+  return locationSummary.value || 'Location'
 })
 
 const genreLabel = computed(() => {
-  if (selectedGenres.value.length === 0) return 'Genres'
-  if (selectedGenres.value.length === 1) return selectedGenres.value[0]?.label ?? 'Genres'
-  return `${selectedGenres.value.length} genres`
-})
+  if (selectedGenres.value.length === 0) return 'Genre'
 
-const cityLabel = computed(() => {
-  if (selectedCities.value.length === 0) return 'Cities'
-  if (selectedCities.value.length === 1) return selectedCities.value[0]?.label ?? 'Cities'
-  return `${selectedCities.value.length} cities`
+  // Filter out any undefined values
+  const validGenres = selectedGenres.value.filter(g => g?.label)
+
+  if (validGenres.length === 0) return 'Genre'
+  if (validGenres.length === 1) return validGenres[0].label
+  if (validGenres.length === 2) {
+    return `${validGenres[0].label}, ${validGenres[1].label}`
+  }
+  return `${validGenres[0].label} and ${validGenres.length - 1} more`
 })
 
 const eventTypeLabel = computed(() => {
-  if (selectedEventTypes.value.length === 0) return 'Types'
-  if (selectedEventTypes.value.length === 1) return selectedEventTypes.value[0]?.label ?? 'Types'
-  return `${selectedEventTypes.value.length} types`
+  if (selectedEventTypes.value.length === 0) return 'Type'
+
+  // Filter out any undefined values
+  const validTypes = selectedEventTypes.value.filter(t => t?.label)
+
+  if (validTypes.length === 0) return 'Type'
+  if (validTypes.length === 1) return validTypes[0].label
+  if (validTypes.length === 2) {
+    return `${validTypes[0].label}, ${validTypes[1].label}`
+  }
+  return `${validTypes[0].label} and ${validTypes.length - 1} more`
 })
 
 // Get today's CalendarDate
@@ -384,17 +400,14 @@ function getDateRange(range: string) {
 function applyFilters() {
   const { startDate, endDate } = getDateRange(datePreset.value)
 
-  // Get venue IDs from multi-select dropdown
-  const dropdownVenueIds = selectedVenues.value.map(v => v.value).filter(Boolean)
-
-  // Combine dropdown and map filters
+  // Combine location filter (selectedVenueIds) and map filters
   // If both are set, use intersection; if only one, use that one
   let venueIds: string[] | undefined
-  if (dropdownVenueIds.length > 0 && mapFilteredVenueIds.value !== null) {
+  if (selectedVenueIds.value.length > 0 && mapFilteredVenueIds.value !== null) {
     // Intersection of both filters
-    venueIds = dropdownVenueIds.filter(id => mapFilteredVenueIds.value!.includes(id))
-  } else if (dropdownVenueIds.length > 0) {
-    venueIds = dropdownVenueIds
+    venueIds = selectedVenueIds.value.filter(id => mapFilteredVenueIds.value!.includes(id))
+  } else if (selectedVenueIds.value.length > 0) {
+    venueIds = selectedVenueIds.value
   } else if (mapFilteredVenueIds.value !== null) {
     venueIds = mapFilteredVenueIds.value
   }
@@ -405,29 +418,68 @@ function applyFilters() {
   // ALL_EVENTS means no filtering by type
   const showAllEvents = eventTypes.includes('ALL_EVENTS')
 
-  // Expand ALL_MUSIC to all music-related types
-  if (!showAllEvents && eventTypes.includes('ALL_MUSIC')) {
-    const otherTypes = eventTypes.filter(t => t !== 'ALL_MUSIC')
-    const musicTypes = musicEventTypes.map(t => t.value)
-    eventTypes = [...new Set([...musicTypes, ...otherTypes])]
+  // ALL_MUSIC means filter by isMusic=true (don't expand to specific types)
+  const showAllMusic = eventTypes.includes('ALL_MUSIC')
+
+  // If ALL_MUSIC is selected, don't send specific event types
+  // Instead, rely on musicOnly=true to filter by isMusic field
+  if (showAllMusic && !showAllEvents) {
+    // Remove ALL_MUSIC from the list, keep any other specific types
+    eventTypes = eventTypes.filter(t => t !== 'ALL_MUSIC')
   }
 
-  // If no event types selected or ALL_EVENTS, show all events (including non-music)
-  const musicOnly = (eventTypes.length === 0 || showAllEvents) ? false : undefined
+  // Determine musicOnly flag
+  // - ALL_EVENTS: musicOnly=false (show all events)
+  // - ALL_MUSIC: musicOnly=true (show only music events via isMusic field)
+  // - Specific types: musicOnly=undefined (let specific types determine results)
+  const musicOnly = showAllEvents ? false : (showAllMusic && eventTypes.length === 0) ? true : undefined
 
-  emit('filter', {
+  const filters = {
     startDate,
     endDate,
+    regions: selectedRegions.value.length > 0 ? selectedRegions.value : undefined,
+    cities: selectedCities.value.length > 0 ? selectedCities.value : undefined,
     venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
     genres: selectedGenres.value.length > 0 ? selectedGenres.value.map(g => g.value) : undefined,
-    cities: selectedCities.value.length > 0 ? selectedCities.value.map(c => c.value) : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
-  })
+  }
+
+  emit('filter', filters)
+
+  // Update URL with filter parameters
+  updateUrlFromFilters(filters)
 
   // Save filters to localStorage
   saveFilters()
+}
+
+// Sync filters to URL query parameters
+function updateUrlFromFilters(filters: Record<string, any>) {
+  if (!import.meta.client) return
+
+  const router = useRouter()
+  const query: Record<string, string> = {}
+
+  // Add filters to query params
+  if (filters.regions?.length) query.regions = filters.regions.join(',')
+  if (filters.cities?.length) query.cities = filters.cities.join(',')
+  if (filters.venueIds?.length) query.venueIds = filters.venueIds.join(',')
+  if (filters.genres?.length) query.genres = filters.genres.join(',')
+  if (filters.eventTypes?.length) query.eventTypes = filters.eventTypes.join(',')
+  if (filters.q) query.q = filters.q
+  if (filters.startDate) query.startDate = filters.startDate
+  if (filters.endDate) query.endDate = filters.endDate
+
+  // Only update if query changed
+  const currentQuery = router.currentRoute.value.query
+  const queryChanged = Object.keys(query).some(key => query[key] !== currentQuery[key]) ||
+    Object.keys(currentQuery).some(key => query[key] !== currentQuery[key])
+
+  if (queryChanged) {
+    router.replace({ query })
+  }
 }
 
 // Watch for complete range selection (both start and end dates selected)
@@ -449,7 +501,7 @@ function closeCalendar() {
 }
 
 // Auto-apply on changes
-watch([selectedVenues, selectedGenres, selectedCities, selectedEventTypes], () => {
+watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes], () => {
   applyFilters()
 }, { deep: true })
 
@@ -495,48 +547,61 @@ onMounted(() => {
 <template>
   <UCard class="mb-4 sm:mb-6">
     <div class="flex flex-col gap-3">
-      <!-- Row 1: Search, Venues, Genre, Type -->
-      <div class="filter-grid">
-        <!-- Search -->
-        <div class="search-col">
-          <UInput
-            v-model="searchQuery"
-            placeholder="Search events, artists..."
-            icon="i-heroicons-magnifying-glass"
-            size="md"
+      <!-- Row 1: Search (Full Width) -->
+      <div>
+        <UInput
+          v-model="searchQuery"
+          placeholder="Search events, artists..."
+          icon="i-heroicons-magnifying-glass"
+          size="md"
+          class="w-full"
+          :ui="{ base: 'text-gray-900 border-gray-400' }"
+        />
+      </div>
+
+      <!-- Row 2: Type + Genre -->
+      <div class="flex gap-2">
+        <!-- Event Type Filter -->
+        <div class="flex-1 min-w-0">
+          <USelectMenu
+            v-model="selectedEventTypes"
+            :items="eventTypeItems"
+            multiple
             class="w-full"
             :ui="{ base: 'text-gray-900 border-gray-400' }"
-          />
-        </div>
-
-        <!-- Venue Filter -->
-        <div v-if="venues?.length">
-          <USelectMenu
-            v-model="selectedVenues"
-            :items="venueItems"
-            multiple
-            class="w-full filter-select"
-            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
           >
             <template #default>
-              <span>{{ venueLabel }}</span>
+              <span>{{ eventTypeLabel }}</span>
             </template>
             <template #leading>
               <UIcon
-                name="i-heroicons-map-pin"
+                name="i-heroicons-tag"
                 class="w-4 h-4"
+              />
+            </template>
+            <template #trailing>
+              <UButton
+                v-if="selectedEventTypes.length > 0"
+                icon="i-heroicons-x-mark"
+                size="xs"
+                color="gray"
+                variant="ghost"
+                @click.stop="selectedEventTypes = []"
               />
             </template>
           </USelectMenu>
         </div>
 
         <!-- Genre Filter -->
-        <div v-if="genres?.length">
+        <div
+          v-if="genres?.length"
+          class="flex-1 min-w-0"
+        >
           <USelectMenu
             v-model="selectedGenres"
             :items="genreItems"
             multiple
-            class="w-full filter-select"
+            class="w-full"
             :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
           >
             <template #default>
@@ -548,53 +613,193 @@ onMounted(() => {
                 class="w-4 h-4"
               />
             </template>
-          </USelectMenu>
-        </div>
-
-        <!-- City Filter -->
-        <div v-if="cityItems.length">
-          <USelectMenu
-            v-model="selectedCities"
-            :items="cityItems"
-            multiple
-            class="w-full filter-select"
-            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
-          >
-            <template #default>
-              <span>{{ cityLabel }}</span>
-            </template>
-            <template #leading>
-              <UIcon
-                name="i-heroicons-map"
-                class="w-4 h-4"
-              />
-            </template>
-          </USelectMenu>
-        </div>
-
-        <!-- Event Type Filter -->
-        <div>
-          <USelectMenu
-            v-model="selectedEventTypes"
-            :items="eventTypeItems"
-            multiple
-            class="w-full filter-select"
-            :ui="{ base: 'text-gray-900 border-gray-400' }"
-          >
-            <template #default>
-              <span>{{ eventTypeLabel }}</span>
-            </template>
-            <template #leading>
-              <UIcon
-                name="i-heroicons-sparkles"
-                class="w-4 h-4"
+            <template #trailing>
+              <UButton
+                v-if="selectedGenres.length > 0"
+                icon="i-heroicons-x-mark"
+                size="xs"
+                color="gray"
+                variant="ghost"
+                @click.stop="selectedGenres = []"
               />
             </template>
           </USelectMenu>
         </div>
       </div>
 
-      <!-- Row 2: Date filter and Reset button -->
+      <!-- Row 3: Location (Full Width) -->
+      <div
+        v-if="venuesByRegion.length || venuesByCity.length"
+        class="location-row"
+      >
+        <UPopover v-model:open="locationPopoverOpen">
+          <UButton
+            color="neutral"
+            variant="outline"
+            class="w-full justify-between"
+            trailing-icon="i-heroicons-chevron-down"
+          >
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-4 h-4 flex-shrink-0"
+              />
+              <span class="truncate">{{ locationLabel }}</span>
+              <UButton
+                v-if="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0"
+                icon="i-heroicons-x-mark"
+                size="xs"
+                color="gray"
+                variant="ghost"
+                class="ml-auto flex-shrink-0"
+                @click.stop="selectedRegions = []; selectedCities = []; selectedVenueIds = []"
+              />
+            </div>
+          </UButton>
+
+          <template #content>
+            <div class="p-2 max-h-96 overflow-y-auto w-80">
+              <!-- Multi-region: show Region → City → Venue hierarchy -->
+              <template v-if="venuesByRegion.length > 1">
+                <div
+                  v-for="{ region, cities, totalEvents } in venuesByRegion"
+                  :key="region"
+                  class="mb-2"
+                >
+                  <!-- Region Header with Checkbox -->
+                  <label class="region-header">
+                    <input
+                      type="checkbox"
+                      :checked="isRegionFullySelected(region)"
+                      :indeterminate="isRegionPartiallySelected(region)"
+                      class="checkbox"
+                      @change="toggleRegionSelection(region)"
+                    >
+                    <button
+                      class="flex-1 flex items-center gap-2"
+                      @click.prevent="expandedRegions.has(region) ? expandedRegions.delete(region) : expandedRegions.add(region)"
+                    >
+                      <UIcon
+                        :name="expandedRegions.has(region) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                        class="w-4 h-4 text-gray-500"
+                      />
+                      <span class="font-medium text-sm text-gray-700">{{ region }}</span>
+                      <span class="text-xs text-gray-500 ml-auto">({{ totalEvents }} events)</span>
+                    </button>
+                  </label>
+
+                  <!-- Cities under this region -->
+                  <div
+                    v-if="expandedRegions.has(region)"
+                    class="ml-6 mt-1 space-y-1"
+                  >
+                    <div
+                      v-for="{ city, venues: cityVenues, totalEvents: cityTotal } in cities"
+                      :key="city"
+                      class="mb-1"
+                    >
+                      <!-- City Header with Checkbox -->
+                      <label class="city-header">
+                        <input
+                          type="checkbox"
+                          :checked="isCityFullySelected(city)"
+                          :indeterminate="isCityPartiallySelected(city)"
+                          class="checkbox"
+                          @change="toggleCitySelection(city)"
+                        >
+                        <button
+                          class="flex-1 flex items-center gap-2"
+                          @click.prevent="expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
+                        >
+                          <UIcon
+                            :name="expandedCities.has(city) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                            class="w-3 h-3 text-gray-400"
+                          />
+                          <span class="text-sm font-medium text-gray-600">{{ city }}</span>
+                          <span class="text-xs text-gray-400 ml-auto">({{ cityTotal }})</span>
+                        </button>
+                      </label>
+
+                      <!-- Venues under this city -->
+                      <div
+                        v-if="expandedCities.has(city)"
+                        class="ml-6 mt-1 space-y-1"
+                      >
+                        <label
+                          v-for="venue in cityVenues"
+                          :key="venue.id"
+                          class="venue-checkbox-label"
+                        >
+                          <input
+                            type="checkbox"
+                            :checked="selectedVenueIds.includes(venue.id)"
+                            class="checkbox"
+                            @change="selectedVenueIds.includes(venue.id) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venue.id), 1) : selectedVenueIds.push(venue.id)"
+                          >
+                          <span class="text-sm">{{ venue.name }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Single region: show City → Venue hierarchy directly -->
+              <template v-else>
+                <div
+                  v-for="{ city, venues: cityVenues, totalEvents: cityTotal } in venuesByCity"
+                  :key="city"
+                  class="mb-2"
+                >
+                  <!-- City Header with Checkbox -->
+                  <label class="city-header">
+                    <input
+                      type="checkbox"
+                      :checked="isCityFullySelected(city)"
+                      :indeterminate="isCityPartiallySelected(city)"
+                      class="checkbox"
+                      @change="toggleCitySelection(city)"
+                    >
+                    <button
+                      class="flex-1 flex items-center gap-2"
+                      @click.prevent="expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
+                    >
+                      <UIcon
+                        :name="expandedCities.has(city) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                        class="w-4 h-4 text-gray-500"
+                      />
+                      <span class="font-medium text-sm text-gray-700">{{ city }}</span>
+                      <span class="text-xs text-gray-500 ml-auto">({{ cityTotal }} events)</span>
+                    </button>
+                  </label>
+
+                  <!-- Venues under this city -->
+                  <div
+                    v-if="expandedCities.has(city)"
+                    class="ml-6 mt-1 space-y-1"
+                  >
+                    <label
+                      v-for="venue in cityVenues"
+                      :key="venue.id"
+                      class="venue-checkbox-label"
+                    >
+                      <input
+                        type="checkbox"
+                        :checked="selectedVenueIds.includes(venue.id)"
+                        class="checkbox"
+                        @change="selectedVenueIds.includes(venue.id) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venue.id), 1) : selectedVenueIds.push(venue.id)"
+                      >
+                      <span class="text-sm">{{ venue.name }}</span>
+                    </label>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </UPopover>
+      </div>
+
+      <!-- Row 3: Date Filter -->
       <div class="flex gap-2">
         <UPopover
           v-model:open="showCalendar"
@@ -606,11 +811,22 @@ onMounted(() => {
             class="w-full justify-between"
             trailing-icon="i-heroicons-chevron-down"
           >
-            <UIcon
-              name="i-heroicons-calendar"
-              class="w-4 h-4 mr-1.5"
-            />
-            <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+              <UIcon
+                name="i-heroicons-calendar"
+                class="w-4 h-4 flex-shrink-0"
+              />
+              <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
+              <UButton
+                v-if="datePreset !== 'month'"
+                icon="i-heroicons-x-mark"
+                size="xs"
+                color="gray"
+                variant="ghost"
+                class="ml-auto flex-shrink-0"
+                @click.stop="datePreset = 'month'; customDateRange = undefined"
+              />
+            </div>
           </UButton>
 
           <template #content>
@@ -658,24 +874,9 @@ onMounted(() => {
             </div>
           </template>
         </UPopover>
-
-        <UButton
-          v-if="hasActiveFilters"
-          color="neutral"
-          variant="outline"
-          size="md"
-          class="flex-shrink-0"
-          @click="resetFilters"
-        >
-          <UIcon
-            name="i-heroicons-x-mark"
-            class="w-4 h-4 mr-1"
-          />
-          Reset
-        </UButton>
       </div>
 
-      <!-- Row 3: Map Filter (Accordion) -->
+      <!-- Row 4: Map Filter (Accordion) -->
       <UAccordion
         v-if="venues?.length"
         v-model="mapAccordionOpen"
@@ -714,6 +915,29 @@ onMounted(() => {
           </div>
         </template>
       </UAccordion>
+
+      <!-- Reset All Button -->
+      <div
+        v-if="hasActiveFilters"
+        class="flex justify-center"
+      >
+        <UButton
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="resetFilters"
+        >
+          <UIcon
+            name="i-heroicons-x-mark"
+            class="w-4 h-4 mr-1"
+          />
+          Reset All Filters
+          <span
+            v-if="activeFilterCount > 0"
+            class="ml-1 text-xs opacity-75"
+          >({{ activeFilterCount }})</span>
+        </UButton>
+      </div>
     </div>
   </UCard>
 </template>
@@ -728,28 +952,17 @@ onMounted(() => {
 
 @media (min-width: 640px) {
   .filter-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.75rem;
   }
 }
 
-@media (min-width: 1024px) {
-  .filter-grid {
-    /* Search (3) + Venue (1) + Types (1) + Genres (1) = 6 columns */
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
+/* Location row takes full width */
+.location-row {
+  display: block;
+  width: 100%;
 }
 
-/* Search spans full width on mobile, 2 on tablet, 3 on desktop */
-.filter-grid .search-col {
-  grid-column: span 2;
-}
-
-@media (min-width: 1024px) {
-  .filter-grid .search-col {
-    grid-column: span 3;
-  }
-}
 
 /* Force black text and borders on form controls for better contrast */
 :deep(input),
@@ -784,5 +997,85 @@ onMounted(() => {
 .map-accordion :deep(button[data-state] span) {
   font-size: 0.875rem;
   color: #111827;
+}
+
+/* Region header styling */
+.region-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: background-color 0.15s;
+  text-align: left;
+}
+
+.region-header button {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.region-header:hover {
+  background: #f3f4f6;
+}
+
+/* City header styling (for hierarchical view) */
+.city-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s;
+  text-align: left;
+}
+
+.city-header:hover {
+  background: #f9fafb;
+}
+
+/* City checkbox label (legacy - for simple city list) */
+.city-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s;
+  text-align: left;
+}
+
+.city-checkbox-label:hover {
+  background: #f9fafb;
+}
+
+/* Venue checkbox label */
+.venue-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s;
+  text-align: left;
+}
+
+.venue-checkbox-label:hover {
+  background: #f9fafb;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 </style>

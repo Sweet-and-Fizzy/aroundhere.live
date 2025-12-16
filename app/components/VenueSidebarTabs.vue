@@ -4,6 +4,7 @@ defineProps<{
     id: string
     name: string
     city?: string | null
+    region?: { id: string; name: string } | null
     venueType: string
     verified: boolean
     _count?: { events: number }

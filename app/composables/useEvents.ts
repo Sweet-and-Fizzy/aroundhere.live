@@ -1,5 +1,7 @@
 export interface EventFilters {
   regionId?: string
+  regions?: string[]
+  cities?: string[]
   venueId?: string
   venueIds?: string[]
   startDate?: string
@@ -88,6 +90,8 @@ export function useEvents() {
       const params = new URLSearchParams()
 
       if (filters.regionId) params.set('regionId', filters.regionId)
+      if (filters.regions?.length) params.set('regions', filters.regions.join(','))
+      if (filters.cities?.length) params.set('cities', filters.cities.join(','))
       if (filters.venueId) params.set('venueId', filters.venueId)
       if (filters.venueIds?.length) params.set('venueIds', filters.venueIds.join(','))
       if (filters.startDate) params.set('startDate', filters.startDate)
@@ -95,7 +99,7 @@ export function useEvents() {
       if (filters.genres?.length) params.set('genres', filters.genres.join(','))
       if (filters.offset) params.set('offset', filters.offset.toString())
       if (filters.limit) params.set('limit', filters.limit.toString())
-      if (filters.musicOnly === false) params.set('musicOnly', 'false')
+      if (filters.musicOnly !== undefined) params.set('musicOnly', filters.musicOnly.toString())
       if (filters.eventType) params.set('eventType', filters.eventType)
       if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
 
@@ -128,13 +132,15 @@ export function useEvents() {
 
       if (filters.q) params.set('q', filters.q)
       if (filters.regionId) params.set('regionId', filters.regionId)
+      if (filters.regions?.length) params.set('regions', filters.regions.join(','))
+      if (filters.cities?.length) params.set('cities', filters.cities.join(','))
       if (filters.startDate) params.set('startDate', filters.startDate)
       if (filters.endDate) params.set('endDate', filters.endDate)
       if (filters.genres?.length) params.set('genres', filters.genres.join(','))
       if (filters.venueId) params.set('venueId', filters.venueId)
       if (filters.venueIds?.length) params.set('venueIds', filters.venueIds.join(','))
       if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
-      if (filters.musicOnly === false) params.set('musicOnly', 'false')
+      if (filters.musicOnly !== undefined) params.set('musicOnly', filters.musicOnly.toString())
 
       const response = await $fetch<{
         events: Event[]

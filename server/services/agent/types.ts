@@ -16,6 +16,7 @@ export interface VenueInfo {
   description?: string
   venueType?: 'BAR' | 'CLUB' | 'THEATER' | 'CONCERT_HALL' | 'OUTDOOR' | 'CAFE' | 'RESTAURANT' | 'HOUSE_SHOW' | 'OTHER'
   capacity?: number
+  logoUrl?: string
   imageUrl?: string
 }
 
@@ -61,7 +62,7 @@ export interface ScraperGenerationResult {
 
 // Required and optional fields for different scraper types
 export const VENUE_REQUIRED_FIELDS = ['name', 'website', 'address', 'city', 'state']
-export const VENUE_OPTIONAL_FIELDS = ['postalCode', 'phone', 'description', 'venueType', 'imageUrl', 'capacity']
+export const VENUE_OPTIONAL_FIELDS = ['postalCode', 'phone', 'description', 'venueType', 'logoUrl', 'imageUrl', 'capacity']
 
 export const EVENT_REQUIRED_FIELDS = ['title', 'startsAt', 'sourceUrl']
 export const EVENT_OPTIONAL_FIELDS = [

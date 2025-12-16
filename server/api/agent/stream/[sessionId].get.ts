@@ -30,9 +30,16 @@ export default defineEventHandler(async (event) => {
   let lastIndex = 0
   let isComplete = false
   let intervalId: NodeJS.Timeout
+  let heartbeatCount = 0
 
   // Poll database for updates every 500ms
   intervalId = setInterval(async () => {
+    // Send heartbeat every 15 seconds to keep connection alive
+    heartbeatCount++
+    if (heartbeatCount % 30 === 0) {
+      event.node.res.write(`: heartbeat ${Date.now()}\n\n`)
+    }
+
     try {
       const session = await prisma.agentSession.findUnique({
         where: { id: sessionId },

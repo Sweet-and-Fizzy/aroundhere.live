@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick } from 'vue'
+import { nextTick, toRef } from 'vue'
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
@@ -14,7 +14,7 @@ const emit = defineEmits<{
 const route = useRoute()
 
 const props = defineProps<{
-  venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null }[]
+  venues?: { id: string; name: string; slug: string; city?: string | null; latitude?: number | null; longitude?: number | null }[]
   genres?: string[]
   genreLabels?: Record<string, string>
   facets?: {
@@ -39,7 +39,7 @@ const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'month', 'all'
 // Load filters from URL params (takes priority over localStorage)
 function loadFiltersFromUrl() {
   const query = route.query
-  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities
+  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities || query.regions
 
   if (!hasUrlFilters) return null
 
@@ -55,10 +55,11 @@ function loadFiltersFromUrl() {
     searchQuery: (query.q as string) || '',
     // Venues are stored by slug in URL, we'll need to map them to IDs later
     venueSlug: query.venues ? (query.venues as string).split(',') : [],
-    selectedCities: query.cities ? (query.cities as string).split(',') : [],
     selectedGenres: query.genres ? (query.genres as string).split(',') : [],
     selectedEventTypes: validatedTypes.length > 0 ? validatedTypes : ['ALL_MUSIC'],
     datePreset: validatedDate,
+    selectedRegions: query.regions ? (query.regions as string).split(',') : [],
+    selectedCities: query.cities ? (query.cities as string).split(',') : [],
   }
 }
 
@@ -87,8 +88,9 @@ function saveFilters() {
     const filters = {
       datePreset: datePreset.value,
       selectedVenueIds: selectedVenueIds.value,
-      selectedGenres: selectedGenres.value,
+      selectedRegions: selectedRegions.value,
       selectedCities: selectedCities.value,
+      selectedGenres: selectedGenres.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
       expandedSection: expandedSection.value,
@@ -108,6 +110,16 @@ function updateUrl() {
     query.q = searchQuery.value
   }
 
+  // Regions
+  if (selectedRegions.value.length > 0) {
+    query.regions = selectedRegions.value.join(',')
+  }
+
+  // Cities
+  if (selectedCities.value.length > 0) {
+    query.cities = selectedCities.value.join(',')
+  }
+
   // Venues - use slugs for readable URLs
   if (selectedVenueIds.value.length > 0) {
     const venueSlugs = selectedVenueIds.value
@@ -116,11 +128,6 @@ function updateUrl() {
     if (venueSlugs.length > 0) {
       query.venues = venueSlugs.join(',')
     }
-  }
-
-  // Cities
-  if (selectedCities.value.length > 0) {
-    query.cities = selectedCities.value.join(',')
   }
 
   // Genres
@@ -183,12 +190,36 @@ const searchQuery = ref(savedFilters?.searchQuery || '')
 const selectedGenres = ref<string[]>(
   savedFilters?.selectedGenres?.map((g: any) => g.value || g) || []
 )
-const selectedCities = ref<string[]>(
-  savedFilters?.selectedCities?.map((c: any) => c.value || c) || []
-)
 // Event types as simple string array for checkboxes
 const selectedEventTypes = ref<string[]>(
   savedFilters?.selectedEventTypes?.map((e: any) => e.value || e) || ['ALL_MUSIC']
+)
+
+// Location filters: regions and cities
+const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
+const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
+
+// Use location filter composable for hierarchical filtering
+const {
+  venuesByRegion: locationVenuesByRegion,
+  venuesByCity: locationVenuesByCity,
+  filteredVenues: locationFilteredVenues,
+  selectedVenueObjects: locationSelectedVenueObjects,
+  locationSummary,
+  expandedRegions: locationExpandedRegions,
+  expandedCities: locationExpandedCities,
+  isCityFullySelected,
+  isCityPartiallySelected,
+  toggleCitySelection: composableToggleCitySelection,
+  isRegionFullySelected,
+  isRegionPartiallySelected,
+  toggleRegionSelection: composableToggleRegionSelection,
+} = useLocationFilter(
+  toRef(props, 'venues'),
+  toRef(props, 'facets'),
+  selectedRegions,
+  selectedCities,
+  selectedVenueIds
 )
 
 // Map filter state
@@ -270,11 +301,22 @@ function filterVenuesByRadius() {
 function onMapVisibleVenues(venueIds: string[]) {
   // Always update filtered venues when we receive visible venues from the map
   // This is called on initial load and whenever the map view changes
-  mapFilteredVenueIds.value = venueIds
-  // Clear any selected venues that are no longer visible on the map
-  selectedVenueIds.value = selectedVenueIds.value.filter(id =>
-    venueIds.includes(id)
-  )
+
+  // If we're showing most/all venues (>90% of total), treat as "no filter"
+  // This prevents the location filter from disappearing when zoomed out
+  const totalVenues = venuesWithCoords.value.length
+  const visibleRatio = venueIds.length / totalVenues
+
+  if (visibleRatio > 0.9) {
+    // Showing nearly all venues - disable map filter
+    mapFilteredVenueIds.value = null
+  } else {
+    mapFilteredVenueIds.value = venueIds
+    // Clear any selected venues that are no longer visible on the map
+    selectedVenueIds.value = selectedVenueIds.value.filter(id =>
+      venueIds.includes(id)
+    )
+  }
   applyFilters()
 }
 
@@ -316,7 +358,6 @@ const hasActiveFilters = computed(() => {
     searchQuery.value !== '' ||
     selectedVenueIds.value.length > 0 ||
     selectedGenres.value.length > 0 ||
-    selectedCities.value.length > 0 ||
     (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') ||
     datePreset.value !== 'month' ||
     mapFilteredVenueIds.value !== null
@@ -329,7 +370,6 @@ const activeFilterCount = computed(() => {
   if (searchQuery.value !== '') count++
   if (selectedVenueIds.value.length > 0) count++
   if (selectedGenres.value.length > 0) count++
-  if (selectedCities.value.length > 0) count++
   if (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') count++
   if (datePreset.value !== 'month') count++
   if (mapFilteredVenueIds.value !== null) count++
@@ -340,7 +380,6 @@ function resetFilters() {
   searchQuery.value = ''
   selectedVenueIds.value = []
   selectedGenres.value = []
-  selectedCities.value = []
   selectedEventTypes.value = ['ALL_MUSIC']
   datePreset.value = 'month'
   customDateRange.value = undefined
@@ -423,99 +462,6 @@ const showEventTypeSection = computed(() => {
   return showAllMusic.value || showAllEvents.value || musicEventTypes.value.length > 0 || nonMusicEventTypes.value.length > 0
 })
 
-// Filter cities to only show those with events (count > 0) AND that would narrow results
-// Sort alphabetically
-const availableCities = computed(() => {
-  const cityCounts = props.facets?.cityCounts ?? {}
-  const totalResults = props.resultCount ?? 0
-  return Object.keys(cityCounts)
-    .filter((city) => {
-      const count = cityCounts[city] ?? 0
-      // Must have events AND selecting it would actually narrow results
-      // Also show if already selected (so user can deselect)
-      return count > 0 && (count < totalResults || selectedCities.value.includes(city))
-    })
-    .sort((a, b) => {
-      // Sort alphabetically
-      return a.localeCompare(b)
-    })
-})
-
-// Group cities by region for organized display
-const citiesByRegion = computed(() => {
-  const cityRegions = props.facets?.cityRegions ?? {}
-  const grouped: Record<string, string[]> = {}
-
-  for (const city of availableCities.value) {
-    const region = cityRegions[city] || 'Other'
-    if (!grouped[region]) {
-      grouped[region] = []
-    }
-    grouped[region].push(city)
-  }
-
-  const { regionName } = useCurrentRegion()
-  const currentRegionName = regionName.value
-
-  // Convert to sorted array of [region, cities] pairs
-  return Object.entries(grouped).sort((a, b) => {
-    // Current region always goes first
-    if (a[0] === currentRegionName) return -1
-    if (b[0] === currentRegionName) return 1
-    // 'Other' region always goes last
-    if (a[0] === 'Other') return 1
-    if (b[0] === 'Other') return -1
-    // Otherwise sort alphabetically
-    return a[0].localeCompare(b[0])
-  })
-})
-
-// Get count for a specific city
-function getCityCount(city: string): number {
-  return props.facets?.cityCounts?.[city] ?? 0
-}
-
-// Toggle city selection
-function toggleCity(city: string) {
-  const index = selectedCities.value.indexOf(city)
-  if (index === -1) {
-    selectedCities.value.push(city)
-  } else {
-    selectedCities.value.splice(index, 1)
-  }
-  applyFilters()
-}
-
-// Track which regions are expanded (current region expanded by default)
-const expandedRegions = ref<Set<string>>(new Set())
-const { regionName } = useCurrentRegion()
-
-// Initialize only the current region as expanded when cities change
-watch(citiesByRegion, (regions) => {
-  if (expandedRegions.value.size === 0 && regions.length > 0) {
-    // First load - only expand the current region
-    const currentRegion = regions.find(([region]) => region === regionName.value)
-    if (currentRegion) {
-      expandedRegions.value.add(currentRegion[0])
-    } else {
-      // If current region not found, expand the first region
-      expandedRegions.value.add(regions[0][0])
-    }
-  }
-}, { immediate: true })
-
-function toggleRegion(region: string) {
-  if (expandedRegions.value.has(region)) {
-    expandedRegions.value.delete(region)
-  } else {
-    expandedRegions.value.add(region)
-  }
-}
-
-function isRegionExpanded(region: string) {
-  return expandedRegions.value.has(region)
-}
-
 const datePresets = [
   { label: 'Today', value: 'today' },
   { label: 'Tomorrow', value: 'tomorrow' },
@@ -531,13 +477,8 @@ const dateSummary = computed(() => {
   return preset?.label || 'Next 30 Days'
 })
 
-const venueSummary = computed(() => {
-  if (selectedVenueIds.value.length === 0) return null
-  const names = selectedVenueObjects.value.map(v => v.name)
-  if (names.length === 1) return names[0]
-  if (names.length === 2) return names.join(', ')
-  return `${names[0]} +${names.length - 1} more`
-})
+// Use locationSummary from composable (which handles regions, cities, and venues)
+const venueSummary = locationSummary
 
 const typeSummary = computed(() => {
   if (selectedEventTypes.value.length === 0) return 'All Events'
@@ -566,13 +507,6 @@ const genreSummary = computed(() => {
   return `${labels[0]} +${labels.length - 1} more`
 })
 
-const citySummary = computed(() => {
-  if (selectedCities.value.length === 0) return null
-  if (selectedCities.value.length === 1) return selectedCities.value[0]
-  if (selectedCities.value.length === 2) return selectedCities.value.join(', ')
-  return `${selectedCities.value[0]} +${selectedCities.value.length - 1} more`
-})
-
 // Filter venues to only show those with events (count > 0) AND within map area if set
 // AND that would actually narrow results
 // Sort alphabetically
@@ -586,6 +520,11 @@ const availableVenues = computed(() => {
         return false
       }
       const count = venueCounts[v.id] ?? 0
+      // If no map filter is active (showing all regions), show all venues with events
+      if (mapFilteredVenueIds.value === null) {
+        return count > 0
+      }
+      // If map filter is active, apply "narrow results" logic
       // Must have events AND selecting it would actually narrow results
       // Also show if already selected (so user can deselect)
       return count > 0 && (count < totalResults || selectedVenueIds.value.includes(v.id))
@@ -596,6 +535,40 @@ const availableVenues = computed(() => {
     })
 })
 
+// Use venuesByRegion and venuesByCity from composable
+const venuesByRegion = locationVenuesByRegion
+const venuesByCity = locationVenuesByCity
+const expandedRegions = locationExpandedRegions
+const expandedCities = locationExpandedCities
+
+function toggleCity(city: string) {
+  if (expandedCities.value.has(city)) {
+    expandedCities.value.delete(city)
+  } else {
+    expandedCities.value.add(city)
+  }
+}
+
+// Wrapper functions that use the composable and call applyFilters
+function toggleCitySelection(city: string) {
+  composableToggleCitySelection(city)
+  applyFilters()
+}
+
+// Region-level functions
+function toggleRegion(region: string) {
+  if (expandedRegions.value.has(region)) {
+    expandedRegions.value.delete(region)
+  } else {
+    expandedRegions.value.add(region)
+  }
+}
+
+function toggleRegionSelection(region: string) {
+  composableToggleRegionSelection(region)
+  applyFilters()
+}
+
 // Show more venues toggle
 const showAllVenues = ref(false)
 
@@ -604,11 +577,27 @@ const venueSearchQuery = ref('')
 const showVenueDropdown = ref(false)
 const venueSearchInput = ref<HTMLInputElement | null>(null)
 
+// All venues with events (for search - no filtering by whether they narrow results)
+const searchableVenues = computed(() => {
+  const venueCounts = props.facets?.venueCounts ?? {}
+  return (props.venues ?? [])
+    .filter((v) => {
+      // If map filter is active, only show venues in the geographic area
+      if (mapFilteredVenueIds.value !== null && !mapFilteredVenueIds.value.includes(v.id)) {
+        return false
+      }
+      const count = venueCounts[v.id] ?? 0
+      // For search, just check if venue has events
+      return count > 0
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
 // Filtered venues for autocomplete dropdown (excludes already selected)
 const venueSearchResults = computed(() => {
   if (!venueSearchQuery.value.trim()) return []
   const query = venueSearchQuery.value.toLowerCase()
-  return availableVenues.value
+  return searchableVenues.value
     .filter(v =>
       !selectedVenueIds.value.includes(v.id) &&
       v.name.toLowerCase().includes(query)
@@ -616,14 +605,19 @@ const venueSearchResults = computed(() => {
     .slice(0, 6)
 })
 
-// Get selected venue objects for displaying chips
-const selectedVenueObjects = computed(() => {
-  return (props.venues ?? []).filter(v => selectedVenueIds.value.includes(v.id))
-})
+// Use selectedVenueObjects from composable
+const selectedVenueObjects = locationSelectedVenueObjects
 
-function selectVenueFromSearch(venueId: string) {
+async function selectVenueFromSearch(venueId: string) {
   if (!selectedVenueIds.value.includes(venueId)) {
+    // Adding a venue - clear region/city filters if this is the first venue selection
+    if (selectedVenueIds.value.length === 0) {
+      selectedRegions.value = []
+      selectedCities.value = []
+    }
     selectedVenueIds.value.push(venueId)
+    // Use nextTick to ensure reactivity has processed the venue selection
+    await nextTick()
     applyFilters()
   }
   venueSearchQuery.value = ''
@@ -653,6 +647,12 @@ function onVenueSearchBlur() {
 function toggleVenue(venueId: string) {
   const index = selectedVenueIds.value.indexOf(venueId)
   if (index === -1) {
+    // Adding a venue - clear region/city filters if this is the first venue selection
+    // This prevents confusing AND logic where both broad and specific filters are active
+    if (selectedVenueIds.value.length === 0) {
+      selectedRegions.value = []
+      selectedCities.value = []
+    }
     selectedVenueIds.value.push(venueId)
   } else {
     selectedVenueIds.value.splice(index, 1)
@@ -752,16 +752,18 @@ function applyFilters() {
 
   const musicOnly = (eventTypes.length === 0 || showAllEvents) ? false : undefined
 
-  emit('filter', {
+  const filters = {
     startDate,
     endDate,
     venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
+    regions: selectedRegions.value.length > 0 ? [...selectedRegions.value] : undefined,
+    cities: selectedCities.value.length > 0 ? [...selectedCities.value] : undefined,
     q: searchQuery.value || undefined,
     genres: selectedGenres.value.length > 0 ? selectedGenres.value : undefined,
-    cities: selectedCities.value.length > 0 ? selectedCities.value : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
-  })
+  }
+  emit('filter', filters)
 
   saveFilters()
   updateUrl()
@@ -841,9 +843,11 @@ const { events: existingEvents } = useEvents()
 
 onMounted(() => {
   // Only fetch if no events exist (events persist via useState across navigations)
-  if (existingEvents.value.length === 0) {
+  // BUT: Don't fetch yet if we have pending venue slugs that need to be resolved first
+  if (existingEvents.value.length === 0 && pendingVenueSlugs.value.length === 0) {
     applyFilters()
   }
+  // If we have pending venue slugs, wait for the watch to resolve them and call applyFilters
 
   // Initialize region from saved map bounds or default center
   if (import.meta.client) {
@@ -870,7 +874,6 @@ onMounted(() => {
 function clearFiltersKeepSearch() {
   selectedVenueIds.value = []
   selectedGenres.value = []
-  selectedCities.value = []
   selectedEventTypes.value = ['ALL_EVENTS']
   datePreset.value = 'all'
   mapFilteredVenueIds.value = null
@@ -974,38 +977,39 @@ defineExpose({
     </div>
 
     <!-- Venue - only show venues with events -->
+    <!-- Location (City → Venues hierarchical view) -->
     <div
-      v-if="availableVenues.length"
+      v-if="venuesByCity.length"
       class="filter-section"
     >
       <button
         class="section-header"
-        @click="toggleSection('venue')"
+        @click="toggleSection('location')"
       >
         <span class="section-title">
           <UIcon
-            name="i-heroicons-building-storefront"
+            name="i-heroicons-map"
             class="w-4 h-4"
           />
-          Venue
+          Location
         </span>
         <span class="section-meta">
           <span
-            v-if="!isSectionExpanded('venue') && venueSummary"
+            v-if="!isSectionExpanded('location') && venueSummary"
             class="section-summary"
           >{{ venueSummary }}</span>
           <span
-            v-else-if="!isSectionExpanded('venue')"
+            v-else-if="!isSectionExpanded('location')"
             class="section-summary muted"
           >All venues</span>
           <UIcon
-            :name="isSectionExpanded('venue') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+            :name="isSectionExpanded('location') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-4 h-4 text-gray-500"
           />
         </span>
       </button>
       <div
-        v-if="isSectionExpanded('venue')"
+        v-if="isSectionExpanded('location')"
         class="section-content"
       >
         <!-- Venue search autocomplete -->
@@ -1084,127 +1088,186 @@ defineExpose({
           </TransitionGroup>
         </div>
 
-        <!-- Browse all venues toggle -->
-        <button
-          class="browse-venues-btn"
-          @click="showAllVenues = !showAllVenues"
-        >
-          <UIcon
-            :name="showAllVenues ? 'i-heroicons-chevron-up' : 'i-heroicons-list-bullet'"
-            class="w-4 h-4"
-          />
-          {{ showAllVenues ? 'Hide venue list' : 'Browse all venues' }}
-        </button>
-
-        <!-- Full venue list (collapsible) -->
-        <div
-          v-if="showAllVenues"
-          class="venue-browse-list"
-        >
-          <TransitionGroup
-            name="filter-list"
-            tag="div"
-          >
-            <button
-              v-for="venue in availableVenues"
-              :key="venue.id"
-              class="checkbox-option"
-              :class="{ active: selectedVenueIds.includes(venue.id) }"
-              @click="toggleVenue(venue.id)"
+        <!-- Hierarchical Region → City → Venues -->
+        <div class="location-hierarchy">
+          <!-- Show region grouping only when there are multiple regions -->
+          <template v-if="venuesByRegion.length > 1">
+            <div
+              v-for="{ region, cities, totalEvents } in venuesByRegion"
+              :key="region"
+              class="region-group"
             >
-              <span
-                class="checkbox"
-                :class="{ checked: selectedVenueIds.includes(venue.id) }"
-              />
-              <span class="option-label">{{ venue.name }}</span>
-              <span
-                v-if="getVenueCount(venue.id)"
-                class="option-count"
-              >
-                {{ getVenueCount(venue.id) }}
-              </span>
-            </button>
-          </TransitionGroup>
-        </div>
-      </div>
-    </div>
+              <!-- Region header -->
+              <div class="region-header-row">
+                <button
+                  class="region-header"
+                  @click="toggleRegion(region)"
+                >
+                  <UIcon
+                    :name="expandedRegions.has(region) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                    class="w-4 h-4 text-gray-600"
+                  />
+                  <span class="region-name">{{ region }}</span>
+                  <span class="option-count">{{ totalEvents }}</span>
+                </button>
+                <button
+                  class="region-checkbox-btn"
+                  :class="{
+                    'active': isRegionFullySelected(region),
+                    'partial': isRegionPartiallySelected(region)
+                  }"
+                  @click.stop="toggleRegionSelection(region)"
+                >
+                  <span
+                    class="checkbox"
+                    :class="{
+                      'checked': isRegionFullySelected(region),
+                      'partial': isRegionPartiallySelected(region)
+                    }"
+                  />
+                </button>
+              </div>
 
-    <!-- City/Location - only show cities with events, grouped by region -->
-    <div
-      v-if="availableCities.length"
-      class="filter-section"
-    >
-      <button
-        class="section-header"
-        @click="toggleSection('city')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-map"
-            class="w-4 h-4"
-          />
-          Location
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('city') && citySummary"
-            class="section-summary"
-          >{{ citySummary }}</span>
-          <span
-            v-else-if="!isSectionExpanded('city')"
-            class="section-summary muted"
-          >All locations</span>
-          <UIcon
-            :name="isSectionExpanded('city') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('city')"
-        class="section-content"
-      >
-        <!-- Group cities by region -->
-        <div
-          v-for="[region, cities] in citiesByRegion"
-          :key="region"
-          class="region-group"
-        >
-          <button
-            class="region-header"
-            @click="toggleRegion(region)"
-          >
-            <span>{{ region }}</span>
-            <UIcon
-              :name="isRegionExpanded(region) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-              class="w-3 h-3"
-            />
-          </button>
-          <TransitionGroup
-            v-if="isRegionExpanded(region)"
-            name="filter-list"
-            tag="div"
-          >
-            <button
-              v-for="city in cities"
+              <!-- Cities in this region -->
+              <div
+                v-if="expandedRegions.has(region)"
+                class="region-cities"
+              >
+                <div
+                  v-for="{ city, venues: cityVenues, totalEvents: cityTotal } in cities"
+                  :key="city"
+                  class="city-group"
+                >
+                  <!-- City header -->
+                  <div class="city-header-row">
+                    <button
+                      class="city-header"
+                      @click="toggleCity(city)"
+                    >
+                      <UIcon
+                        :name="expandedCities.has(city) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                        class="w-3.5 h-3.5 text-gray-500"
+                      />
+                      <span class="city-name">{{ city }}</span>
+                      <span class="option-count">{{ cityTotal }}</span>
+                    </button>
+                    <button
+                      class="city-checkbox-btn"
+                      :class="{
+                        'active': isCityFullySelected(city),
+                        'partial': isCityPartiallySelected(city)
+                      }"
+                      @click.stop="toggleCitySelection(city)"
+                    >
+                      <span
+                        class="checkbox"
+                        :class="{
+                          'checked': isCityFullySelected(city),
+                          'partial': isCityPartiallySelected(city)
+                        }"
+                      />
+                    </button>
+                  </div>
+
+                  <!-- Venues under this city -->
+                  <TransitionGroup
+                    v-if="expandedCities.has(city)"
+                    name="filter-list"
+                    tag="div"
+                    class="venue-list"
+                  >
+                    <button
+                      v-for="venue in cityVenues"
+                      :key="venue.id"
+                      class="checkbox-option venue-option"
+                      :class="{ active: selectedVenueIds.includes(venue.id) }"
+                      @click="toggleVenue(venue.id)"
+                    >
+                      <span
+                        class="checkbox"
+                        :class="{ checked: selectedVenueIds.includes(venue.id) }"
+                      />
+                      <span class="option-label">{{ venue.name }}</span>
+                      <span
+                        v-if="getVenueCount(venue.id)"
+                        class="option-count"
+                      >
+                        {{ getVenueCount(venue.id) }}
+                      </span>
+                    </button>
+                  </TransitionGroup>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Single region: show cities directly without region grouping -->
+          <template v-else>
+            <div
+              v-for="{ city, venues: cityVenues, totalEvents } in venuesByCity"
               :key="city"
-              class="checkbox-option"
-              :class="{ active: selectedCities.includes(city) }"
-              @click="toggleCity(city)"
+              class="city-group"
             >
-              <span
-                class="checkbox"
-                :class="{ checked: selectedCities.includes(city) }"
-              />
-              <span class="option-label">{{ city }}</span>
-              <span
-                v-if="getCityCount(city)"
-                class="option-count"
+              <!-- City header -->
+              <div class="city-header-row">
+                <button
+                  class="city-header"
+                  @click="toggleCity(city)"
+                >
+                  <UIcon
+                    :name="expandedCities.has(city) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                    class="w-3.5 h-3.5 text-gray-500"
+                  />
+                  <span class="city-name">{{ city }}</span>
+                  <span class="option-count">{{ totalEvents }}</span>
+                </button>
+                <button
+                  class="city-checkbox-btn"
+                  :class="{
+                    'active': isCityFullySelected(city),
+                    'partial': isCityPartiallySelected(city)
+                  }"
+                  @click.stop="toggleCitySelection(city)"
+                >
+                  <span
+                    class="checkbox"
+                    :class="{
+                      'checked': isCityFullySelected(city),
+                      'partial': isCityPartiallySelected(city)
+                    }"
+                  />
+                </button>
+              </div>
+
+              <!-- Venues under this city -->
+              <TransitionGroup
+                v-if="expandedCities.has(city)"
+                name="filter-list"
+                tag="div"
+                class="venue-list"
               >
-                {{ getCityCount(city) }}
-              </span>
-            </button>
-          </TransitionGroup>
+                <button
+                  v-for="venue in cityVenues"
+                  :key="venue.id"
+                  class="checkbox-option venue-option"
+                  :class="{ active: selectedVenueIds.includes(venue.id) }"
+                  @click="toggleVenue(venue.id)"
+                >
+                  <span
+                    class="checkbox"
+                    :class="{ checked: selectedVenueIds.includes(venue.id) }"
+                  />
+                  <span class="option-label">{{ venue.name }}</span>
+                  <span
+                    v-if="getVenueCount(venue.id)"
+                    class="option-count"
+                  >
+                    {{ getVenueCount(venue.id) }}
+                  </span>
+                </button>
+              </TransitionGroup>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1525,9 +1588,6 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  max-height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 .search-section {
@@ -2181,5 +2241,159 @@ defineExpose({
 
 .region-header:hover {
   color: #374151;
+}
+
+/* Hierarchical Location (Region → City → Venues) */
+.location-hierarchy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Region grouping */
+.region-group {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.region-header-row {
+  display: flex;
+  align-items: stretch;
+  background: #f3f4f6;
+  border-bottom: 1px solid #d1d5db;
+  transition: background 0.15s;
+}
+
+.region-header-row:hover {
+  background: #e5e7eb;
+}
+
+.region-header {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.region-name {
+  flex: 1;
+  text-transform: capitalize;
+}
+
+.region-checkbox-btn {
+  display: flex;
+  align-items: center;
+  padding: 0 0.625rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.region-checkbox-btn .checkbox.partial {
+  background: #93c5fd;
+  border-color: #3b82f6;
+}
+
+.region-checkbox-btn .checkbox.partial::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 2px;
+  background: #1e40af;
+}
+
+.region-cities {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* City grouping (nested within regions or standalone) */
+.city-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.city-header-row {
+  display: flex;
+  align-items: stretch;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.15s;
+}
+
+.city-header-row:hover {
+  background: #f3f4f6;
+}
+
+.city-header {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.city-name {
+  flex: 1;
+}
+
+.city-checkbox-btn {
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.city-checkbox-btn .checkbox.partial {
+  background: #93c5fd;
+  border-color: #3b82f6;
+}
+
+.city-checkbox-btn .checkbox.partial::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 2px;
+  background: #1e40af;
+}
+
+.venue-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.venue-option {
+  padding-left: 2rem;
+  border-top: 1px solid #f3f4f6;
 }
 </style>

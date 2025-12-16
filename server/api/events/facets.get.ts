@@ -63,7 +63,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // Music filter condition (used in multiple places)
-  const musicCondition: Prisma.EventWhereInput = { OR: [{ isMusic: true }, { isMusic: null }] }
+  // Only include classified events (exclude isMusic: null)
+  const musicCondition: Prisma.EventWhereInput = { isMusic: true }
 
   // Get venue counts (without venue filter applied)
   const venueConditions: Prisma.EventWhereInput[] = []
