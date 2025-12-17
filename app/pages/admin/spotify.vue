@@ -13,6 +13,12 @@ interface Artist {
   spotifyMatchStatus: 'PENDING' | 'AUTO_MATCHED' | 'NEEDS_REVIEW' | 'VERIFIED' | 'NO_MATCH'
   spotifyPopularTracks: any // Can be array or other JsonValue types from Prisma serialization
   eventCount: number
+  nextEvent: {
+    id: string
+    title: string
+    slug: string
+    startsAt: string
+  } | null
 }
 
 interface SpotifySearchResult {
@@ -421,6 +427,9 @@ useSeoMeta({
           <div class="text-sm text-green-700 mt-1">
             Scanned {{ extractResult.eventsScanned }} events:
             {{ extractResult.artistsCreated || extractResult.artistsFound }} artists created,
+            <template v-if="extractResult.artistsResetFromNoMatch">
+              {{ extractResult.artistsResetFromNoMatch }} reset from NO_MATCH,
+            </template>
             {{ extractResult.eventsLinked || 0 }} events linked,
             {{ extractResult.skipped }} skipped
           </div>
@@ -704,6 +713,18 @@ useSeoMeta({
               <div class="text-sm text-gray-500">
                 {{ artist.eventCount }} event{{ artist.eventCount === 1 ? '' : 's' }}
               </div>
+              <div
+                v-if="artist.nextEvent"
+                class="mt-1"
+              >
+                <NuxtLink
+                  :to="`/events/${artist.nextEvent.slug}`"
+                  target="_blank"
+                  class="text-xs text-primary-600 hover:text-primary-700 hover:underline"
+                >
+                  Next: {{ artist.nextEvent.title }}
+                </NuxtLink>
+              </div>
             </td>
             <td class="px-6 py-4">
               <div
@@ -754,82 +775,109 @@ useSeoMeta({
               <div class="flex justify-end gap-2">
                 <!-- For NEEDS_REVIEW: Verify or Reject -->
                 <template v-if="artist.spotifyMatchStatus === 'NEEDS_REVIEW'">
-                  <button
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-green-600 hover:text-green-700 disabled:opacity-50"
+                    color="success"
+                    variant="solid"
+                    size="xs"
+                    icon="i-heroicons-check-circle"
+                    square
+                    title="Verify match"
                     @click="verifyMatch(artist.id)"
-                  >
-                    Verify
-                  </button>
-                  <button
+                  />
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                    color="neutral"
+                    variant="soft"
+                    size="xs"
+                    icon="i-heroicons-magnifying-glass"
+                    square
+                    title="Search for artist"
                     @click="openSearchModal(artist)"
-                  >
-                    Search
-                  </button>
-                  <button
+                  />
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                    color="error"
+                    variant="solid"
+                    size="xs"
+                    icon="i-heroicons-x-circle"
+                    square
+                    title="Mark as no match"
                     @click="markNoMatch(artist.id)"
-                  >
-                    No Match
-                  </button>
+                  />
                 </template>
 
                 <!-- For AUTO_MATCHED: Verify or Change -->
                 <template v-else-if="artist.spotifyMatchStatus === 'AUTO_MATCHED'">
-                  <button
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-green-600 hover:text-green-700 disabled:opacity-50"
+                    color="success"
+                    variant="solid"
+                    size="xs"
+                    icon="i-heroicons-check-circle"
+                    square
+                    title="Verify match"
                     @click="verifyMatch(artist.id)"
-                  >
-                    Verify
-                  </button>
-                  <button
+                  />
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                    color="neutral"
+                    variant="soft"
+                    size="xs"
+                    icon="i-heroicons-pencil-square"
+                    square
+                    title="Change match"
                     @click="openSearchModal(artist)"
-                  >
-                    Change
-                  </button>
+                  />
                 </template>
 
                 <!-- For VERIFIED: Allow changing -->
                 <template v-else-if="artist.spotifyMatchStatus === 'VERIFIED'">
-                  <button
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                    color="neutral"
+                    variant="soft"
+                    size="xs"
+                    icon="i-heroicons-pencil-square"
+                    square
+                    title="Change match"
                     @click="openSearchModal(artist)"
-                  >
-                    Change
-                  </button>
-                  <button
+                  />
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                    color="error"
+                    variant="solid"
+                    size="xs"
+                    icon="i-heroicons-trash"
+                    square
+                    title="Remove match"
                     @click="markNoMatch(artist.id)"
-                  >
-                    Remove
-                  </button>
+                  />
                 </template>
 
                 <!-- For others: Search or Reset -->
                 <template v-else>
-                  <button
+                  <UButton
                     :disabled="saving === artist.id"
-                    class="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                    color="primary"
+                    variant="solid"
+                    size="xs"
+                    icon="i-heroicons-magnifying-glass"
+                    square
+                    title="Search for artist"
                     @click="openSearchModal(artist)"
-                  >
-                    Search
-                  </button>
-                  <button
+                  />
+                  <UButton
                     v-if="artist.spotifyMatchStatus !== 'PENDING'"
                     :disabled="saving === artist.id"
-                    class="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                    color="neutral"
+                    variant="soft"
+                    size="xs"
+                    icon="i-heroicons-arrow-path"
+                    square
+                    title="Reset to pending"
                     @click="resetToPending(artist.id)"
-                  >
-                    Reset
-                  </button>
+                  />
                 </template>
               </div>
             </td>

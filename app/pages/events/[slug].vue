@@ -3,26 +3,98 @@ const route = useRoute()
 const slug = route.params.slug as string
 
 const { data: event, error } = await useFetch(`/api/events/by-slug/${slug}`)
-const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
+const { getGenreLabel, getGenreBadgeClasses, genreLabels } = useGenreLabels()
+const { getEventTypeLabel, getEventTypeBadgeClasses, eventTypeLabels } = useEventTypeLabels()
+const { user } = useUserSession()
+
+// Constants
+const DESCRIPTION_THRESHOLD = 400
+const DESCRIPTION_HTML_TRUNCATE_MULTIPLIER = 2
+const DEFAULT_EVENT_DURATION_MS = 3 * 60 * 60 * 1000 // 3 hours
+const CALENDAR_DESCRIPTION_MAX_LENGTH = 1000
+
+// Inline editing for classification
+const isEditing = ref(false)
+const editEventType = ref<string | null>(null)
+const editGenres = ref<string[]>([])
+const saving = ref(false)
+
+const canEdit = computed(() => {
+  return user.value && (user.value.role === 'ADMIN' || user.value.role === 'MODERATOR')
+})
+
+const availableEventTypes = computed(() => {
+  return Object.entries(eventTypeLabels).map(([value, label]) => ({
+    value,
+    label: label as string,
+  }))
+})
+
+const availableGenres = computed(() => {
+  return Object.entries(genreLabels).map(([value, label]) => ({
+    value,
+    label: label as string,
+  }))
+})
+
+function startEditing() {
+  editEventType.value = event.value?.eventType || null
+  editGenres.value = [...(event.value?.canonicalGenres || [])]
+  isEditing.value = true
+}
+
+function cancelEditing() {
+  isEditing.value = false
+  editEventType.value = null
+  editGenres.value = []
+}
+
+const toast = useToast()
+
+async function saveEditing() {
+  if (!event.value) return
+
+  saving.value = true
+  try {
+    await $fetch(`/api/events/${event.value.id}/classification`, {
+      method: 'PATCH',
+      body: {
+        eventType: editEventType.value,
+        canonicalGenres: editGenres.value,
+      },
+    })
+
+    // Update local event data
+    event.value.eventType = editEventType.value
+    event.value.canonicalGenres = editGenres.value
+
+    isEditing.value = false
+    toast.add({
+      title: 'Success',
+      description: 'Event classification updated',
+      color: 'green',
+    })
+  } catch (error: any) {
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || 'Failed to update event classification',
+      color: 'red',
+    })
+  } finally {
+    saving.value = false
+  }
+}
 
 // Calendar dropdown handlers
-const openGoogleCalendar = () => {
-  if (googleCalendarUrl.value) {
-    window.open(googleCalendarUrl.value, '_blank')
+const openUrl = (url: string | null) => {
+  if (url) {
+    window.open(url, '_blank')
   }
 }
 
-const openOutlookCalendar = () => {
-  if (outlookCalendarUrl.value) {
-    window.open(outlookCalendarUrl.value, '_blank')
-  }
-}
-
-const downloadIcs = () => {
-  if (icsUrl.value) {
-    window.open(icsUrl.value, '_blank')
-  }
-}
+const openGoogleCalendar = () => openUrl(googleCalendarUrl.value)
+const openOutlookCalendar = () => openUrl(outlookCalendarUrl.value)
+const downloadIcs = () => openUrl(icsUrl.value)
 
 
 if (error.value) {
@@ -68,20 +140,30 @@ const doorsTime = computed(() => {
   })
 })
 
+// Format age restriction for display
+const formattedAgeRestriction = computed(() => {
+  if (!event.value?.ageRestriction) return ''
+  if (event.value.ageRestriction === 'ALL_AGES') return 'All Ages'
+  return event.value.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+')
+})
+
 // Expandable description - start collapsed for both plain text and HTML
 const descriptionExpanded = ref(false)
-const descriptionThreshold = 400
+
+// Helper to strip HTML tags (cached to avoid repeated computation)
+const descriptionTextContent = computed(() => {
+  if (!sanitizedDescriptionHtml.value) return ''
+  return sanitizedDescriptionHtml.value.replace(/<[^>]*>/g, '')
+})
 
 const hasLongDescription = computed(() => {
   // Check if HTML description exists and is long
   if (sanitizedDescriptionHtml.value) {
-    // Rough estimate: strip HTML tags and check length
-    const textContent = sanitizedDescriptionHtml.value.replace(/<[^>]*>/g, '')
-    return textContent.length > descriptionThreshold
+    return descriptionTextContent.value.length > DESCRIPTION_THRESHOLD
   }
   // For plain text descriptions
   if (event.value?.description) {
-    return event.value.description.length > descriptionThreshold
+    return event.value.description.length > DESCRIPTION_THRESHOLD
   }
   return false
 })
@@ -89,17 +171,16 @@ const hasLongDescription = computed(() => {
 const truncatedDescription = computed(() => {
   if (!event.value?.description) return ''
   if (!hasLongDescription.value) return event.value.description
-  return event.value.description.slice(0, descriptionThreshold) + '...'
+  return event.value.description.slice(0, DESCRIPTION_THRESHOLD) + '...'
 })
 
 const truncatedHtml = computed(() => {
   if (!sanitizedDescriptionHtml.value) return ''
   if (!hasLongDescription.value) return sanitizedDescriptionHtml.value
   // Simple truncation: show first N characters worth of HTML
-  const textContent = sanitizedDescriptionHtml.value.replace(/<[^>]*>/g, '')
-  if (textContent.length <= descriptionThreshold) return sanitizedDescriptionHtml.value
+  if (descriptionTextContent.value.length <= DESCRIPTION_THRESHOLD) return sanitizedDescriptionHtml.value
   // Return first ~threshold characters of HTML content
-  return sanitizedDescriptionHtml.value.substring(0, descriptionThreshold * 2) + '...'
+  return sanitizedDescriptionHtml.value.substring(0, DESCRIPTION_THRESHOLD * DESCRIPTION_HTML_TRUNCATE_MULTIPLIER) + '...'
 })
 
 // Artists with verified Spotify matches
@@ -138,9 +219,25 @@ const artistReviews = computed(() => {
   return reviews
 })
 
+// Build venue location string (reusable for maps and calendar)
+const venueLocationParts = computed(() => {
+  if (!event.value?.venue) return []
+  const parts: string[] = []
+  if (event.value.venue.name) parts.push(event.value.venue.name)
+  if (event.value.venue.address) parts.push(event.value.venue.address)
+  if (event.value.venue.city) parts.push(event.value.venue.city)
+  if (event.value.venue.state || event.value.venue.postalCode) {
+    parts.push([event.value.venue.state, event.value.venue.postalCode].filter(Boolean).join(' '))
+  }
+  return parts
+})
+
+const venueLocationString = computed(() => venueLocationParts.value.join(', '))
+
 // Google Maps URL for venue
 const mapUrl = computed(() => {
   if (!event.value?.venue) return ''
+  // For map, we want address, city, state/zip (not venue name)
   const parts: string[] = []
   if (event.value.venue.address) parts.push(event.value.venue.address)
   if (event.value.venue.city) parts.push(event.value.venue.city)
@@ -164,11 +261,11 @@ const googleCalendarUrl = computed(() => {
   const params = new URLSearchParams()
   params.set('action', 'TEMPLATE')
   params.set('text', event.value.title)
-  
+
   if (event.value.startsAt) {
     const startDate = new Date(event.value.startsAt)
-    const endDate = event.value.endsAt ? new Date(event.value.endsAt) : new Date(startDate.getTime() + 3 * 60 * 60 * 1000)
-    
+    const endDate = event.value.endsAt ? new Date(event.value.endsAt) : new Date(startDate.getTime() + DEFAULT_EVENT_DURATION_MS)
+
     // Format: YYYYMMDDTHHMMSS
     const formatDate = (date: Date) => {
       const year = date.getUTCFullYear()
@@ -179,26 +276,19 @@ const googleCalendarUrl = computed(() => {
       const seconds = String(date.getUTCSeconds()).padStart(2, '0')
       return `${year}${month}${day}T${hours}${minutes}${seconds}Z`
     }
-    
+
     params.set('dates', `${formatDate(startDate)}/${formatDate(endDate)}`)
   }
-  
-  // Build location
-  const locationParts = []
-  if (event.value.venue?.name) locationParts.push(event.value.venue.name)
-  if (event.value.venue?.address) locationParts.push(event.value.venue.address)
-  if (event.value.venue?.city) locationParts.push(event.value.venue.city)
-  if (event.value.venue?.state || event.value.venue?.postalCode) {
-    locationParts.push([event.value.venue.state, event.value.venue.postalCode].filter(Boolean).join(' '))
+
+  // Use shared location string
+  if (venueLocationString.value) {
+    params.set('location', venueLocationString.value)
   }
-  if (locationParts.length > 0) {
-    params.set('location', locationParts.join(', '))
-  }
-  
+
   if (event.value.description) {
-    params.set('details', event.value.description.substring(0, 1000))
+    params.set('details', event.value.description.substring(0, CALENDAR_DESCRIPTION_MAX_LENGTH))
   }
-  
+
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 })
 
@@ -206,32 +296,25 @@ const googleCalendarUrl = computed(() => {
 const outlookCalendarUrl = computed(() => {
   if (!event.value) return ''
   const params = new URLSearchParams()
-  
+
   params.set('subject', event.value.title)
-  
+
   if (event.value.startsAt) {
     const startDate = new Date(event.value.startsAt)
-    const endDate = event.value.endsAt ? new Date(event.value.endsAt) : new Date(startDate.getTime() + 3 * 60 * 60 * 1000)
+    const endDate = event.value.endsAt ? new Date(event.value.endsAt) : new Date(startDate.getTime() + DEFAULT_EVENT_DURATION_MS)
     params.set('startdt', startDate.toISOString())
     params.set('enddt', endDate.toISOString())
   }
-  
-  // Build location
-  const locationParts = []
-  if (event.value.venue?.name) locationParts.push(event.value.venue.name)
-  if (event.value.venue?.address) locationParts.push(event.value.venue.address)
-  if (event.value.venue?.city) locationParts.push(event.value.venue.city)
-  if (event.value.venue?.state || event.value.venue?.postalCode) {
-    locationParts.push([event.value.venue.state, event.value.venue.postalCode].filter(Boolean).join(' '))
+
+  // Use shared location string
+  if (venueLocationString.value) {
+    params.set('location', venueLocationString.value)
   }
-  if (locationParts.length > 0) {
-    params.set('location', locationParts.join(', '))
-  }
-  
+
   if (event.value.description) {
-    params.set('body', event.value.description.substring(0, 1000))
+    params.set('body', event.value.description.substring(0, CALENDAR_DESCRIPTION_MAX_LENGTH))
   }
-  
+
   return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`
 })
 
@@ -406,23 +489,23 @@ useHead({
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto">
+  <div class="max-w-6xl mx-auto">
     <div v-if="event">
-      <!-- Hero Image -->
-      <div
-        v-if="event.imageUrl"
-        class="mb-6"
-      >
-        <img
-          :src="event.imageUrl"
-          :alt="event.title"
-          class="w-full max-h-[28rem] object-contain mx-auto rounded-xl"
+      <!-- Two Column Layout: Image + Details -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Hero Image -->
+        <div
+          v-if="event.imageUrl"
+          class="lg:sticky lg:top-6 lg:self-start"
         >
-      </div>
+          <img
+            :src="event.imageUrl"
+            :alt="event.title"
+            class="w-full max-h-[32rem] object-contain mx-auto rounded-xl"
+          >
+        </div>
 
-      <!-- Main Content -->
-      <div class="grid gap-6">
-        <!-- Details -->
+        <!-- Details Card -->
         <UCard>
           <div class="space-y-3">
             <!-- Title -->
@@ -431,114 +514,175 @@ useHead({
             </h1>
 
             <!-- Date and Time -->
-            <div class="flex items-start justify-between gap-3">
-              <div class="font-medium text-gray-700">
-                {{ formattedDate }}
-                <span v-if="formattedTime">at {{ formattedTime }}</span>
-                <span
-                  v-if="doorsTime"
-                  class="text-gray-500 text-sm"
-                >(Doors: {{ doorsTime }})</span>
-              </div>
-              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <UDropdownMenu
-                  v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl"
-                  :items="[[
-                    { label: 'Google Calendar', icon: 'i-heroicons-calendar-days', click: openGoogleCalendar },
-                    { label: 'Outlook Calendar', icon: 'i-heroicons-calendar-days', click: openOutlookCalendar },
-                    { label: 'Download .ics', icon: 'i-heroicons-arrow-down-tray', click: downloadIcs }
-                  ]]"
-                  :popper="{ placement: 'bottom-end' }"
+            <div class="font-medium text-gray-700">
+              {{ formattedDate }}
+              <span v-if="formattedTime">at {{ formattedTime }}</span>
+              <span
+                v-if="doorsTime"
+                class="text-gray-500 text-sm ml-2"
+              >(Doors: {{ doorsTime }})</span>
+              <UDropdownMenu
+                v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl"
+                :items="[[
+                  { label: 'Google Calendar', icon: 'i-heroicons-calendar-days', click: openGoogleCalendar },
+                  { label: 'Outlook Calendar', icon: 'i-heroicons-calendar-days', click: openOutlookCalendar },
+                  { label: 'Download .ics', icon: 'i-heroicons-arrow-down-tray', click: downloadIcs }
+                ]]"
+                :popper="{ placement: 'bottom-start' }"
+              >
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  icon="i-heroicons-calendar-days"
+                  trailing-icon="i-heroicons-chevron-down"
+                  size="xs"
+                  class="ml-2"
                 >
-                  <UButton
-                    color="gray"
-                    variant="soft"
-                    icon="i-heroicons-calendar-days"
-                    trailing-icon="i-heroicons-chevron-down"
-                    size="xs"
-                    class="transition-colors hover:bg-gray-200"
-                  >
-                    Add to Calendar
-                  </UButton>
-                </UDropdownMenu>
+                  Calendar
+                </UButton>
+              </UDropdownMenu>
+            </div>
+
+            <!-- Event Type & Genre badges with inline editing -->
+            <div v-if="!isEditing">
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Event Type Badge -->
+                <UBadge
+                  v-if="event.eventType"
+                  :ui="{
+                    base: getEventTypeBadgeClasses(event.eventType)
+                  }"
+                  size="md"
+                >
+                  {{ getEventTypeLabel(event.eventType) }}
+                </UBadge>
+
+                <!-- Genre Badges -->
+                <UBadge
+                  v-for="genre in event.canonicalGenres"
+                  :key="genre"
+                  :ui="{
+                    base: getGenreBadgeClasses(genre)
+                  }"
+                  size="md"
+                >
+                  {{ getGenreLabel(genre) }}
+                </UBadge>
+
+                <!-- Edit Button (Admin/Moderator only) -->
+                <UButton
+                  v-if="canEdit"
+                  size="xs"
+                  color="gray"
+                  variant="soft"
+                  icon="i-heroicons-pencil-square"
+                  aria-label="Edit event classification"
+                  @click="startEditing"
+                >
+                  Edit
+                </UButton>
               </div>
             </div>
 
-            <!-- Genre badges -->
+            <!-- Inline Editing Form -->
             <div
-              v-if="event.canonicalGenres?.length"
-              class="flex flex-wrap gap-2"
+              v-else
+              class="space-y-3 p-3 bg-gray-50 rounded-lg"
             >
-              <UBadge
-                v-for="genre in event.canonicalGenres"
-                :key="genre"
-                :ui="{
-                  base: getGenreBadgeClasses(genre)
-                }"
-                size="md"
-              >
-                {{ getGenreLabel(genre) }}
-              </UBadge>
+              <!-- Event Type Select -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                <select
+                  v-model="editEventType"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option :value="null">
+                    (None)
+                  </option>
+                  <option
+                    v-for="type in availableEventTypes"
+                    :key="type.value"
+                    :value="type.value"
+                  >
+                    {{ type.label }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Genres Multi-Select -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Genres</label>
+                <div class="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md bg-white min-h-[2.5rem]">
+                  <label
+                    v-for="genre in availableGenres"
+                    :key="genre.value"
+                    class="inline-flex items-center px-2 py-1 rounded text-xs cursor-pointer transition-colors"
+                    :class="editGenres.includes(genre.value) ? 'bg-primary-100 text-primary-700 font-medium' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                  >
+                    <input
+                      v-model="editGenres"
+                      type="checkbox"
+                      :value="genre.value"
+                      class="sr-only"
+                    >
+                    {{ genre.label }}
+                  </label>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2">
+                <UButton
+                  size="sm"
+                  color="primary"
+                  :loading="saving"
+                  @click="saveEditing"
+                >
+                  Save
+                </UButton>
+                <UButton
+                  size="sm"
+                  color="gray"
+                  variant="outline"
+                  :disabled="saving"
+                  @click="cancelEditing"
+                >
+                  Cancel
+                </UButton>
+              </div>
             </div>
 
             <!-- Venue / Address -->
-            <div v-if="event.venue" class="flex items-start justify-between gap-3">
-              <div>
-                <NuxtLink
-                  :to="`/venues/${event.venue.slug}`"
-                  class="font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all px-2 py-1 -mx-2 -my-1 rounded inline-block"
-                >
-                  {{ event.venue.name }}
-                </NuxtLink>
-                <p
-                  v-if="event.venue.address"
-                  class="text-gray-600 text-sm mt-0.5"
-                >
-                  {{ event.venue.address }}<template v-if="event.venue.city">
-                    , {{ event.venue.city }}
-                  </template><template v-if="event.venue.state || event.venue.postalCode">
-                    , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
-                  </template>
-                </p>
-              </div>
-              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <a
-                  v-if="event.ticketUrl"
-                  :href="event.ticketUrl"
-                  target="_blank"
-                  class="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded text-sm text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all whitespace-nowrap"
-                >
-                  <UIcon
-                    name="i-heroicons-ticket"
-                    class="w-4 h-4"
-                  />
-                  Get Tickets
-                </a>
-                <a
-                  v-if="event.sourceUrl"
-                  :href="event.sourceUrl"
-                  target="_blank"
-                  class="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded text-sm text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all whitespace-nowrap"
-                >
-                  <UIcon
-                    name="i-heroicons-arrow-top-right-on-square"
-                    class="w-4 h-4"
-                  />
-                  Event Page
-                </a>
-                <a
-                  v-if="mapUrl"
-                  :href="mapUrl"
-                  target="_blank"
-                  class="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded text-sm text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all whitespace-nowrap"
-                >
-                  <UIcon
-                    name="i-heroicons-map"
-                    class="w-4 h-4"
-                  />
-                  View Map
-                </a>
-              </div>
+            <div v-if="event.venue">
+              <NuxtLink
+                :to="`/venues/${event.venue.slug}`"
+                class="font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all px-2 py-1 -mx-2 -my-1 rounded inline-block"
+              >
+                {{ event.venue.name }}
+              </NuxtLink>
+              <UButton
+                v-if="mapUrl"
+                :href="mapUrl"
+                target="_blank"
+                color="neutral"
+                variant="soft"
+                icon="i-heroicons-map"
+                size="xs"
+                class="ml-3"
+                external
+              >
+                Map
+              </UButton>
+              <p
+                v-if="event.venue.address"
+                class="text-gray-600 text-sm mt-0.5"
+              >
+                {{ event.venue.address }}<template v-if="event.venue.city">
+                  , {{ event.venue.city }}
+                </template><template v-if="event.venue.state || event.venue.postalCode">
+                  , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
+                </template>
+              </p>
             </div>
 
             <!-- Cover and Age -->
@@ -547,14 +691,48 @@ useHead({
                 {{ event.coverCharge }}
               </div>
               <div>
-                {{ event.ageRestriction === 'ALL_AGES' ? 'All Ages' : event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
+                {{ formattedAgeRestriction }}
               </div>
+            </div>
+
+            <!-- Tickets and Event Links -->
+            <div
+              v-if="event.ticketUrl || event.sourceUrl"
+              class="flex flex-wrap items-center gap-2"
+            >
+              <UButton
+                v-if="event.ticketUrl"
+                :href="event.ticketUrl"
+                target="_blank"
+                color="neutral"
+                variant="soft"
+                icon="i-heroicons-ticket"
+                size="xs"
+                external
+              >
+                Get Tickets
+              </UButton>
+              <UButton
+                v-if="event.sourceUrl"
+                :href="event.sourceUrl"
+                target="_blank"
+                color="neutral"
+                variant="soft"
+                icon="i-heroicons-arrow-top-right-on-square"
+                size="xs"
+                external
+              >
+                Official Page
+              </UButton>
             </div>
           </div>
         </UCard>
+      </div>
 
+      <!-- Full Width Content Below -->
+      <div class="grid gap-6">
         <!-- Description -->
-        <UCard v-if="sanitizedDescriptionHtml || event.description" :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }">
+        <UCard v-if="sanitizedDescriptionHtml || event.description" :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }" class="max-w-3xl mx-auto w-full">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon
@@ -570,8 +748,8 @@ useHead({
             v-if="sanitizedDescriptionHtml"
             class="prose prose-gray max-w-none"
           >
-            <div v-if="!descriptionExpanded" v-html="truncatedHtml" />
-            <div v-else v-html="sanitizedDescriptionHtml" />
+            <div v-if="!descriptionExpanded" v-html="truncatedHtml" class="html-content-container" />
+            <div v-else v-html="sanitizedDescriptionHtml" class="html-content-container" />
             <button
               v-if="hasLongDescription"
               class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1"
@@ -638,7 +816,7 @@ useHead({
         </UCard>
 
         <!-- Artist Reviews -->
-        <UCard v-if="artistReviews.length" :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }">
+        <UCard v-if="artistReviews.length" :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }" class="max-w-3xl mx-auto w-full">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon
@@ -686,7 +864,7 @@ useHead({
       </div>
 
       <!-- Actions -->
-      <div class="flex flex-wrap gap-3 mt-8">
+      <div class="flex flex-wrap gap-3 mt-8 justify-center">
         <BackButton />
       </div>
 
@@ -799,6 +977,36 @@ useHead({
 </template>
 
 <style scoped>
+/* Isolate HTML content to prevent layout breaking */
+.html-content-container {
+  position: relative;
+  contain: layout style paint;
+  display: block;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Reset Squarespace-specific styles that might break layout */
+.html-content-container :deep(.sqs-layout),
+.html-content-container :deep(.sqs-block),
+.html-content-container :deep(.row),
+.html-content-container :deep(.col) {
+  position: static !important;
+  display: block !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  float: none !important;
+  clear: both !important;
+}
+
+/* Prevent absolute positioning from escaping */
+.html-content-container :deep(*[style*="position: absolute"]),
+.html-content-container :deep(*[style*="position:absolute"]) {
+  position: relative !important;
+}
+
 /* Styles for rich HTML content - using native CSS for Tailwind v4 compatibility */
 .prose :deep(figure) {
   margin-top: 1rem;

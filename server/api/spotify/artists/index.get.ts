@@ -54,6 +54,31 @@ export default defineEventHandler(async (event) => {
             eventArtists: true,
           },
         },
+        eventArtists: {
+          select: {
+            event: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                startsAt: true,
+              },
+            },
+          },
+          where: {
+            event: {
+              startsAt: {
+                gte: new Date(),
+              },
+            },
+          },
+          orderBy: {
+            event: {
+              startsAt: 'asc',
+            },
+          },
+          take: 1,
+        },
       },
       orderBy: [
         { spotifyMatchStatus: 'asc' },
@@ -69,7 +94,9 @@ export default defineEventHandler(async (event) => {
     artists: artists.map((a) => ({
       ...a,
       eventCount: a._count.eventArtists,
+      nextEvent: a.eventArtists[0]?.event || null,
       _count: undefined,
+      eventArtists: undefined,
     })),
     total,
     limit,

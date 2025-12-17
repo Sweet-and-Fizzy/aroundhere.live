@@ -176,13 +176,11 @@ function formatDateHeader(date: Date): string {
           <colgroup v-if="hideVenue">
             <col class="w-[70px] sm:w-20">
             <col>
-            <col class="w-auto hidden md:table-column">
           </colgroup>
           <colgroup v-else>
             <col class="w-[70px] sm:w-20">
             <col>
             <col class="hidden sm:table-column sm:w-[32%]">
-            <col class="w-auto hidden md:table-column">
           </colgroup>
           <thead class="bg-gray-100 border-y border-gray-300 sticky top-[38px] sm:top-[42px] z-10">
             <tr class="text-xs text-gray-600 font-medium uppercase tracking-wide">
@@ -197,9 +195,6 @@ function formatDateHeader(date: Date): string {
                 class="text-left py-1.5 px-2 sm:px-3 hidden sm:table-cell"
               >
                 Venue
-              </th>
-              <th class="text-right py-1.5 px-2 sm:px-3 hidden md:table-cell">
-                Category
               </th>
             </tr>
           </thead>

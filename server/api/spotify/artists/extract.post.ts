@@ -84,6 +84,7 @@ export default defineEventHandler(async (event) => {
   // Create artists and link to events
   let created = 0
   let linked = 0
+  let resetFromNoMatch = 0
 
   for (const extracted of artistMap.values()) {
     // Find or create artist
@@ -100,6 +101,14 @@ export default defineEventHandler(async (event) => {
         },
       })
       created++
+    } else if (artist.spotifyMatchStatus === 'NO_MATCH') {
+      // If artist was marked NO_MATCH but appears at a new event,
+      // reset to PENDING to try matching again (they might have joined Spotify)
+      artist = await prisma.artist.update({
+        where: { id: artist.id },
+        data: { spotifyMatchStatus: 'PENDING' },
+      })
+      resetFromNoMatch++
     }
 
     // Link to events
@@ -124,6 +133,7 @@ export default defineEventHandler(async (event) => {
     eventsScanned: events.length,
     skipped,
     artistsCreated: created,
+    artistsResetFromNoMatch: resetFromNoMatch,
     eventsLinked: linked,
   }
 })

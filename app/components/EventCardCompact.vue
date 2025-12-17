@@ -135,17 +135,35 @@ const eventTypeLabel = computed(() => {
       >TBA</span>
     </td>
 
-    <!-- Title -->
+    <!-- Title with badges -->
     <td class="py-1 px-2 sm:px-3">
       <NuxtLink
         :to="`/events/${event.slug}`"
-        class="block truncate"
+        class="block"
       >
-        <div
-          class="font-semibold text-sm sm:text-base text-gray-900 truncate group-hover:text-primary-600 transition-colors"
-          :title="event.title"
-        >
-          {{ event.title }}
+        <div class="flex items-center gap-2">
+          <div
+            class="font-semibold text-sm sm:text-base text-gray-900 truncate group-hover:text-primary-600 transition-colors flex-1"
+            :title="event.title"
+          >
+            {{ event.title }}
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <span
+              v-if="eventTypeLabel"
+              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-900"
+              :class="eventTypeBadgeClass"
+            >
+              {{ eventTypeLabel }}
+            </span>
+            <span
+              v-if="primaryGenre"
+              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-900"
+              :class="genreBadgeClass"
+            >
+              {{ getGenreLabel(primaryGenre) }}
+            </span>
+          </div>
         </div>
       </NuxtLink>
     </td>
@@ -176,24 +194,5 @@ const eventTypeLabel = computed(() => {
       </div>
     </td>
 
-    <!-- Category badges -->
-    <td class="py-1 px-2 sm:px-3 text-right hidden md:table-cell">
-      <div class="flex items-center gap-1 justify-end">
-        <span
-          v-if="eventTypeLabel"
-          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-900"
-          :class="eventTypeBadgeClass"
-        >
-          {{ eventTypeLabel }}
-        </span>
-        <span
-          v-if="primaryGenre"
-          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-900"
-          :class="genreBadgeClass"
-        >
-          {{ getGenreLabel(primaryGenre) }}
-        </span>
-      </div>
-    </td>
   </tr>
 </template>
