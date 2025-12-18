@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref, type ComputedRef } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 
 export interface Venue {
   id: string

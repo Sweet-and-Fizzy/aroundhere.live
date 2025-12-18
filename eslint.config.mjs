@@ -36,6 +36,7 @@ const nuxtGlobals = {
   navigateTo: 'readonly',
   $fetch: 'readonly',
   useEvents: 'readonly',
+  useToast: 'readonly',
   // Nuxt auth utils
   useUserSession: 'readonly',
   getUserSession: 'readonly',
@@ -88,6 +89,7 @@ const nuxtGlobals = {
   useCurrentRegion: 'readonly',
   useGenreLabels: 'readonly',
   useEventTypeLabels: 'readonly',
+  useLocationFilter: 'readonly',
   // Browser/DOM globals
   KeyboardEvent: 'readonly',
   Event: 'readonly',

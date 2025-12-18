@@ -140,33 +140,6 @@ useHead({
   ],
 })
 
-const fullAddress = computed(() => {
-  if (!venue.value) return ''
-  const parts: string[] = []
-  
-  if (venue.value.address) {
-    parts.push(venue.value.address.trim())
-  }
-  
-  if (venue.value.city) {
-    parts.push(venue.value.city.trim())
-  }
-  
-  // Format state and postal code together with proper spacing
-  if (venue.value.state || venue.value.postalCode) {
-    const stateZip = [venue.value.state?.trim(), venue.value.postalCode?.trim()].filter(Boolean).join(' ')
-    if (stateZip) {
-      parts.push(stateZip)
-    }
-  }
-  
-  return parts.join(', ')
-})
-
-const googleMapsUrl = computed(() => {
-  if (!fullAddress.value) return ''
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress.value)}`
-})
 </script>
 
 <template>

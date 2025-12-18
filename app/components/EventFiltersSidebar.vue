@@ -203,7 +203,6 @@ const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
 const {
   venuesByRegion: locationVenuesByRegion,
   venuesByCity: locationVenuesByCity,
-  filteredVenues: locationFilteredVenues,
   selectedVenueObjects: locationSelectedVenueObjects,
   locationSummary,
   expandedRegions: locationExpandedRegions,
@@ -511,34 +510,6 @@ const genreSummary = computed(() => {
   if (labels.length === 1) return labels[0]
   if (labels.length === 2) return labels.join(', ')
   return `${labels[0]} +${labels.length - 1} more`
-})
-
-// Filter venues to only show those with events (count > 0) AND within map area if set
-// AND that would actually narrow results
-// Sort alphabetically
-const availableVenues = computed(() => {
-  const venueCounts = props.facets?.venueCounts ?? {}
-  const totalResults = props.resultCount ?? 0
-  return (props.venues ?? [])
-    .filter((v) => {
-      // If map filter is active, only show venues in the geographic area
-      if (mapFilteredVenueIds.value !== null && !mapFilteredVenueIds.value.includes(v.id)) {
-        return false
-      }
-      const count = venueCounts[v.id] ?? 0
-      // If no map filter is active (showing all regions), show all venues with events
-      if (mapFilteredVenueIds.value === null) {
-        return count > 0
-      }
-      // If map filter is active, apply "narrow results" logic
-      // Must have events AND selecting it would actually narrow results
-      // Also show if already selected (so user can deselect)
-      return count > 0 && (count < totalResults || selectedVenueIds.value.includes(v.id))
-    })
-    .sort((a, b) => {
-      // Sort alphabetically
-      return a.name.localeCompare(b.name)
-    })
 })
 
 // Use venuesByRegion and venuesByCity from composable

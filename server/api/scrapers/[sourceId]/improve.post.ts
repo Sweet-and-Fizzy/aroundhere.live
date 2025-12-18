@@ -3,9 +3,8 @@
  * Use AI to improve an existing scraper based on user feedback and test results
  */
 
-import crypto from 'crypto'
 import { prisma } from '../../../utils/prisma'
-import { AgentService } from '../../../services/agent'
+import { addScraperJob } from '../../../queues/scraper'
 
 export default defineEventHandler(async (event) => {
   // Check authentication
@@ -95,87 +94,46 @@ export default defineEventHandler(async (event) => {
     }
 
     // Use environment-configured LLM or fallback to default
-    const llmProvider = (process.env.SCRAPER_LLM_PROVIDER || 'anthropic') as 'anthropic' | 'openai' | 'google' | 'deepseek'
+    const llmProvider = process.env.SCRAPER_LLM_PROVIDER || 'anthropic'
     const llmModel = process.env.SCRAPER_LLM_MODEL || 'claude-sonnet-4-5-20250929'
 
-    // Start AI generation in background
-    const agentService = new AgentService()
+    // Create agent session first
+    const agentSession = await prisma.agentSession.create({
+      data: {
+        url: source.website,
+        sessionType: 'EVENT_SCRAPER',
+        llmProvider,
+        llmModel,
+        maxIterations: 2,
+        status: 'IN_PROGRESS',
+        sourceId,
+      },
+    })
 
-    // Kick off generation in background (don't await completion)
-    // The promise will handle version creation when complete
-    const generationPromise = agentService.generateEventScraper({
+    // Add job to queue - worker will process it
+    await addScraperJob({
+      type: 'improve-scraper',
+      sourceId,
+      sessionId: agentSession.id,
       url: source.website,
       llmProvider,
       llmModel,
       maxIterations: 2,
-      previousCode: code || undefined,
-      userFeedback: feedbackMessage,
       venueInfo: {
         name: source.name,
         website: source.website,
       },
-      sourceId, // Pass sourceId so AgentService can check for existing session
+      code: code || undefined,
+      userFeedback: feedbackMessage,
+      userId: user.id,
     })
 
-    // Handle completion in background - create version when done
-    generationPromise.then(async (result) => {
-      if (result.success && result.generatedCode) {
-        try {
-          const lastVersion = await prisma.scraperVersion.findFirst({
-            where: { sourceId },
-            orderBy: { versionNumber: 'desc' },
-            select: { versionNumber: true },
-          })
-
-          const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1
-
-          await prisma.scraperVersion.create({
-            data: {
-              sourceId,
-              versionNumber: nextVersionNumber,
-              code: result.generatedCode,
-              codeHash: crypto.createHash('sha256').update(result.generatedCode).digest('hex'),
-              description: `AI improvement: ${feedback.substring(0, 100)}`,
-              createdBy: user.id,
-              createdFrom: 'AI_GENERATED',
-              agentSessionId: result.sessionId,
-              isActive: false,
-            },
-          })
-          console.log('[Improve] Created version', nextVersionNumber, 'for session', result.sessionId)
-        } catch (error) {
-          console.error('[Improve] Failed to create version:', error)
-        }
-      }
-    }).catch((error) => {
-      console.error('[Improve] Generation failed:', error)
-    })
-
-    // The AgentService creates/finds the session synchronously at the start
-    // Give it a moment to initialize, then query for the session
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    const session = await prisma.agentSession.findFirst({
-      where: {
-        sourceId,
-        sessionType: 'EVENT_SCRAPER',
-        status: 'IN_PROGRESS',
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    })
-
-    if (!session) {
-      throw createError({
-        statusCode: 500,
-        message: 'Failed to create AI generation session',
-      })
-    }
+    console.log(`[Improve] Queued job for session ${agentSession.id}`)
 
     return {
       success: true,
-      sessionId: session.id,
-      message: 'AI generation started',
+      sessionId: agentSession.id,
+      message: 'AI generation queued',
     }
   } catch (error: any) {
     if (error.statusCode) {

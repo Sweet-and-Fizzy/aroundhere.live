@@ -3,8 +3,8 @@
  * POST /api/agent/start
  */
 
-import { agentService } from '../../services/agent'
 import prisma from '../../utils/prisma'
+import { addScraperJob } from '../../queues/scraper'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -53,35 +53,39 @@ export default defineEventHandler(async (event) => {
         llmModel,
         maxIterations: maxIterations || 5,
         status: 'IN_PROGRESS',
-        venueId: existingVenueId || null, // Link to existing venue if provided
+        venueId: existingVenueId || null,
       },
     })
 
-    // Start generation in background (don't await)
-    const generationPromise = sessionType === 'VENUE_INFO'
-      ? agentService.generateVenueScraper({
-          url,
-          llmProvider,
-          llmModel,
-          maxIterations,
-          userFeedback,
-        })
-      : agentService.generateEventScraper({
-          url,
-          llmProvider,
-          llmModel,
-          maxIterations,
-          venueInfo,
-          userFeedback,
-          previousCode, // Pass existing code for updates
-        })
+    // Add job to queue based on session type
+    if (sessionType === 'VENUE_INFO') {
+      await addScraperJob({
+        type: 'generate-venue',
+        url,
+        sessionId: session.id,
+        llmProvider,
+        llmModel,
+        maxIterations: maxIterations || 5,
+        userFeedback,
+      })
+    } else {
+      await addScraperJob({
+        type: 'generate-events',
+        url,
+        sessionId: session.id,
+        llmProvider,
+        llmModel,
+        maxIterations: maxIterations || 5,
+        venueInfo,
+        userFeedback,
+        previousCode,
+        venueId: existingVenueId,
+      })
+    }
 
-    // Don't await - let it run in background
-    generationPromise.catch((error) => {
-      console.error('Background agent generation error:', error)
-    })
+    console.log(`[Agent] Queued ${sessionType} job for session ${session.id}`)
 
-    // Return session ID immediately so client can start streaming
+    // Return session ID immediately so client can start polling
     return {
       success: true,
       sessionId: session.id,

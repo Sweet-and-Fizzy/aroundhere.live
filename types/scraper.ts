@@ -87,7 +87,7 @@ export interface GetVersionsResponse {
   totalVersions: number
 }
 
-export interface GetVersionCodeResponse extends ScraperVersionWithCode {}
+export type GetVersionCodeResponse = ScraperVersionWithCode
 
 export interface CreateVersionResponse {
   success: boolean
@@ -105,7 +105,7 @@ export interface ActivateVersionResponse {
   }
 }
 
-export interface TestScraperResponse extends TestResults {}
+export type TestScraperResponse = TestResults
 
 export interface ListScrapersResponse {
   scrapers: ScraperListItem[]

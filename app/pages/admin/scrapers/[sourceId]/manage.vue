@@ -37,6 +37,7 @@ const testResults = ref<TestScraperResponse | null>(null)
 const showNewVersionDialog = ref(false)
 const newVersionDescription = ref('')
 const aiFeedback = ref('')
+const lastAIPrompt = ref<string>('')
 const aiSessionId = ref<string | null>(null)
 const aiProgress = ref<string>('')
 
@@ -251,6 +252,8 @@ async function improveWithAI() {
     })
 
     aiSessionId.value = response.sessionId
+    // Save the prompt before clearing for later use
+    lastAIPrompt.value = aiFeedback.value
     aiFeedback.value = ''
 
     if (response.success && response.sessionId) {
@@ -303,9 +306,17 @@ async function pollAIProgress(sessionId: string) {
         if (newVersion) {
           await loadVersion(newVersion.id)
 
+          // Mark as changed so Save button becomes enabled
+          hasChanges.value = true
+
           // Auto-run test preview
           aiProgress.value = '✓ Complete! Running test preview...'
           await testPreview()
+
+          // If test preview succeeded and we have the AI prompt, pre-fill version description
+          if (testResults.value?.success && lastAIPrompt.value) {
+            newVersionDescription.value = lastAIPrompt.value
+          }
         }
 
         setTimeout(() => {
@@ -449,6 +460,35 @@ onBeforeUnmount(() => {
       }
     })
   }
+})
+
+// Computed: map artists to their events
+const artistsWithEvents = computed(() => {
+  if (!testResults.value?.events) return []
+
+  const artistMap = new Map<string, any[]>()
+
+  testResults.value.events.forEach((event: any) => {
+    if (event.artists && Array.isArray(event.artists)) {
+      event.artists.forEach((artist: string) => {
+        if (artist && artist.trim()) {
+          const artistName = artist.trim()
+          if (!artistMap.has(artistName)) {
+            artistMap.set(artistName, [])
+          }
+          artistMap.get(artistName)!.push({
+            title: event.title,
+            startsAt: event.startsAt,
+          })
+        }
+      })
+    }
+  })
+
+  // Convert to array and sort by artist name
+  return Array.from(artistMap.entries())
+    .map(([artist, events]) => ({ artist, events }))
+    .sort((a, b) => a.artist.localeCompare(b.artist))
 })
 
 // Adapt scraped event to EventCard format
@@ -863,6 +903,38 @@ function adaptEventForCard(event: any, index: number) {
                     <span :class="field.percentage === 100 ? 'text-green-600' : 'text-orange-600'">
                       {{ field.field }}: {{ field.percentage.toFixed(0) }}%
                     </span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="artistsWithEvents.length > 0">
+                <p class="text-sm font-medium mb-2">
+                  Artists Found ({{ artistsWithEvents.length }}):
+                </p>
+                <div class="space-y-3">
+                  <div
+                    v-for="{ artist, events } in artistsWithEvents"
+                    :key="artist"
+                    class="text-sm"
+                  >
+                    <div class="font-medium text-gray-900 dark:text-gray-100">
+                      {{ artist }}
+                    </div>
+                    <div class="ml-4 mt-1 space-y-1">
+                      <div
+                        v-for="(event, idx) in events"
+                        :key="idx"
+                        class="text-xs text-gray-600 dark:text-gray-400"
+                      >
+                        → {{ event.title }}
+                        <span
+                          v-if="event.startsAt"
+                          class="text-gray-500 dark:text-gray-500"
+                        >
+                          ({{ new Date(event.startsAt).toLocaleDateString() }})
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
