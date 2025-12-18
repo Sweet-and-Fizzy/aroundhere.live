@@ -85,6 +85,43 @@ async function saveEditing() {
   }
 }
 
+// Cancel/restore event
+const cancelling = ref(false)
+
+async function toggleCancelled() {
+  if (!event.value) return
+
+  const willCancel = !event.value.isCancelled
+  const action = willCancel ? 'cancelled' : 'restored'
+
+  cancelling.value = true
+  try {
+    await $fetch(`/api/events/${event.value.id}/cancel`, {
+      method: 'PATCH',
+      body: {
+        isCancelled: willCancel,
+      },
+    })
+
+    // Update local event data
+    event.value.isCancelled = willCancel
+
+    toast.add({
+      title: 'Success',
+      description: `Event ${action} successfully`,
+      color: 'green',
+    })
+  } catch (error: any) {
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || `Failed to ${willCancel ? 'cancel' : 'restore'} event`,
+      color: 'red',
+    })
+  } finally {
+    cancelling.value = false
+  }
+}
+
 // Calendar dropdown handlers
 const openUrl = (url: string | null) => {
   if (url) {
@@ -506,10 +543,27 @@ useHead({
         </div>
 
         <!-- Details Card -->
-        <UCard>
+        <UCard class="relative">
+          <!-- Cancel/Restore Button (Admin Only) -->
+          <UTooltip
+            v-if="canEdit"
+            :text="event.isCancelled ? 'Restore this event' : 'Mark as cancelled'"
+            :popper="{ placement: 'left' }"
+          >
+            <UButton
+              :icon="event.isCancelled ? 'i-heroicons-arrow-uturn-left' : 'i-heroicons-x-circle'"
+              :color="event.isCancelled ? 'green' : 'red'"
+              variant="ghost"
+              size="sm"
+              :loading="cancelling"
+              class="absolute top-4 right-4 z-10"
+              @click="toggleCancelled"
+            />
+          </UTooltip>
+
           <div class="space-y-3">
             <!-- Title -->
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 pr-12">
               {{ event.title }}
             </h1>
 

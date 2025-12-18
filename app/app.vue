@@ -63,6 +63,7 @@ const userMenuItems = computed(() => {
       { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
       { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
       { label: 'Spotify', icon: 'i-heroicons-musical-note', to: '/admin/spotify' },
+      { label: 'Cancelled Events', icon: 'i-heroicons-x-circle', to: '/admin/events/cancelled' },
     ]
     if (isFullAdmin.value) {
       adminItems.push({ label: 'Users', icon: 'i-heroicons-users', to: '/admin/users' })
@@ -233,6 +234,17 @@ const userMenuItems = computed(() => {
                         class="w-4 h-4"
                       />
                       Spotify
+                    </NuxtLink>
+                    <NuxtLink
+                      to="/admin/events/cancelled"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-x-circle"
+                        class="w-4 h-4"
+                      />
+                      Cancelled Events
                     </NuxtLink>
                     <NuxtLink
                       v-if="isFullAdmin"
