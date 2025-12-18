@@ -1,6 +1,7 @@
 <script setup lang="ts">
-const { user } = useUserSession()
+const { user, clear: clearSession } = useUserSession()
 const route = useRoute()
+const router = useRouter()
 const { regionName, loaded: regionLoaded, updateRegion } = useCurrentRegion()
 
 // Initialize region on app mount
@@ -33,31 +34,47 @@ const isAdmin = computed(() => {
 
 const isFullAdmin = computed(() => user.value?.role === 'ADMIN')
 
-const adminMenuItems = computed(() => {
-  const items = [
-    [
-      { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
-      { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
-      { label: 'Spotify', icon: 'i-heroicons-musical-note', to: '/admin/spotify' },
-    ],
-  ]
-
-  // Only show Users to full admins
-  if (isFullAdmin.value) {
-    items.push([
-      { label: 'Users', icon: 'i-heroicons-users', to: '/admin/users' },
-    ])
-  }
-
-  return items
-})
-
 // Mobile menu state
 const mobileMenuOpen = ref(false)
 
 // Close mobile menu on route change
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false
+})
+
+// Logout handler
+async function handleLogout() {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  await clearSession()
+  mobileMenuOpen.value = false
+  router.push('/')
+}
+
+const userMenuItems = computed(() => {
+  const items: any[][] = [
+    [
+      { label: user.value?.email, disabled: true },
+    ],
+  ]
+
+  // Add admin links if user is admin/moderator
+  if (isAdmin.value) {
+    const adminItems = [
+      { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
+      { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
+      { label: 'Spotify', icon: 'i-heroicons-musical-note', to: '/admin/spotify' },
+    ]
+    if (isFullAdmin.value) {
+      adminItems.push({ label: 'Users', icon: 'i-heroicons-users', to: '/admin/users' })
+    }
+    items.push(adminItems)
+  }
+
+  items.push([
+    { label: 'Logout', icon: 'i-heroicons-arrow-right-on-rectangle', onSelect: handleLogout },
+  ])
+
+  return items
 })
 </script>
 
@@ -110,17 +127,16 @@ watch(() => route.fullPath, () => {
                 Contact
               </NuxtLink>
 
-              <!-- Admin Dropdown -->
+              <!-- User Menu -->
               <UDropdownMenu
-                v-if="isAdmin"
-                :items="adminMenuItems"
+                v-if="user"
+                :items="userMenuItems"
               >
                 <button class="flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
                   <UIcon
-                    name="i-heroicons-cog-6-tooth"
+                    name="i-heroicons-user-circle"
                     class="w-5 h-5"
                   />
-                  <span>Admin</span>
                   <UIcon
                     name="i-heroicons-chevron-down"
                     class="w-4 h-4"
@@ -176,57 +192,72 @@ watch(() => route.fullPath, () => {
                 Contact
               </NuxtLink>
 
-              <!-- Admin Links for Mobile -->
-              <template v-if="isAdmin">
+              <!-- User section for Mobile -->
+              <template v-if="user">
                 <div class="border-t border-gray-700 mt-2 pt-2">
-                  <div class="px-3 py-1 text-xs text-gray-500 uppercase tracking-wide">
-                    Admin
+                  <div class="px-3 py-2 text-sm text-gray-400 truncate">
+                    {{ user.email }}
                   </div>
-                  <NuxtLink
-                    to="/admin/venues"
-                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
-                    active-class="text-white bg-gray-800 font-medium"
+
+                  <!-- Admin links for mobile -->
+                  <template v-if="isAdmin">
+                    <NuxtLink
+                      to="/admin/venues"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-building-storefront"
+                        class="w-4 h-4"
+                      />
+                      Venues
+                    </NuxtLink>
+                    <NuxtLink
+                      to="/admin/scrapers"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-code-bracket"
+                        class="w-4 h-4"
+                      />
+                      Scrapers
+                    </NuxtLink>
+                    <NuxtLink
+                      to="/admin/spotify"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-musical-note"
+                        class="w-4 h-4"
+                      />
+                      Spotify
+                    </NuxtLink>
+                    <NuxtLink
+                      v-if="isFullAdmin"
+                      to="/admin/users"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-users"
+                        class="w-4 h-4"
+                      />
+                      Users
+                    </NuxtLink>
+                  </template>
+
+                  <button
+                    class="w-full px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2 text-left"
+                    @click="handleLogout"
                   >
                     <UIcon
-                      name="i-heroicons-building-storefront"
+                      name="i-heroicons-arrow-right-on-rectangle"
                       class="w-4 h-4"
                     />
-                    Venues
-                  </NuxtLink>
-                  <NuxtLink
-                    to="/admin/scrapers"
-                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
-                    active-class="text-white bg-gray-800 font-medium"
-                  >
-                    <UIcon
-                      name="i-heroicons-code-bracket"
-                      class="w-4 h-4"
-                    />
-                    Scrapers
-                  </NuxtLink>
-                  <NuxtLink
-                    to="/admin/spotify"
-                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
-                    active-class="text-white bg-gray-800 font-medium"
-                  >
-                    <UIcon
-                      name="i-heroicons-musical-note"
-                      class="w-4 h-4"
-                    />
-                    Spotify
-                  </NuxtLink>
-                  <NuxtLink
-                    v-if="isFullAdmin"
-                    to="/admin/users"
-                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
-                    active-class="text-white bg-gray-800 font-medium"
-                  >
-                    <UIcon
-                      name="i-heroicons-users"
-                      class="w-4 h-4"
-                    />
-                    Users
-                  </NuxtLink>
+                    Logout
+                  </button>
                 </div>
               </template>
             </div>

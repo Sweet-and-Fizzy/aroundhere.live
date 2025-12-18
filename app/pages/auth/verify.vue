@@ -1,20 +1,22 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen flex items-center justify-center bg-gray-900 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
-        <h1 class="text-4xl font-bold text-white mb-2">
-          AroundHere
-        </h1>
+        <img
+          src="/around-here-logo.svg"
+          alt="AroundHere.Live"
+          class="h-8 mx-auto"
+        >
       </div>
 
-      <div class="bg-white rounded-lg shadow-xl p-8">
+      <div class="bg-white rounded-xl shadow-xl p-8">
         <!-- Loading State -->
         <div
           v-if="loading"
           class="text-center py-8"
         >
           <svg
-            class="animate-spin h-12 w-12 text-purple-600 mx-auto"
+            class="animate-spin h-10 w-10 text-gray-900 mx-auto"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -33,7 +35,7 @@
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
-          <p class="mt-4 text-gray-600">
+          <p class="mt-4 text-gray-500">
             Verifying your magic link...
           </p>
         </div>
@@ -98,7 +100,7 @@
           <div class="mt-6">
             <NuxtLink
               to="/login"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              class="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-semibold rounded-lg text-white bg-gray-900 hover:bg-gray-800 transition-colors"
             >
               Request a new magic link
             </NuxtLink>
@@ -112,6 +114,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
+const { fetch: refreshSession } = useUserSession()
 
 const loading = ref(true)
 const success = ref(false)
@@ -131,6 +134,9 @@ onMounted(async () => {
       method: 'GET',
       query: { token },
     })
+
+    // Refresh the client-side session state so admin menu appears
+    await refreshSession()
 
     success.value = true
 

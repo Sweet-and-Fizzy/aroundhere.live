@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ScraperListItem, ListScrapersResponse } from '~/types/scraper'
+
 definePageMeta({
   middleware: 'admin',
 })
@@ -87,6 +89,28 @@ const existingVenueId = ref<string | null>(null) // Set when using existing venu
 // Saved state (after scraper approved)
 const savedVenueId = ref<string | null>(null)
 const savedEventCount = ref(0)
+
+// Existing scrapers list
+const existingScrapers = ref<ScraperListItem[]>([])
+const loadingScrapers = ref(false)
+
+// Fetch existing scrapers
+async function fetchScrapers() {
+  loadingScrapers.value = true
+  try {
+    const data = await $fetch<ListScrapersResponse>('/api/scrapers/list')
+    existingScrapers.value = data.scrapers.filter(s => s.hasCode)
+  } catch (error) {
+    console.error('Failed to fetch scrapers:', error)
+  } finally {
+    loadingScrapers.value = false
+  }
+}
+
+// Load scrapers on mount
+onMounted(() => {
+  fetchScrapers()
+})
 
 // Reset to add another venue
 function resetForNewVenue() {
@@ -230,33 +254,6 @@ watch(availableVenues, (venues) => {
     }
   }
 }, { once: true })
-
-// Recent sessions
-const { data: sessionsData, refresh: refreshSessions } = await useFetch('/api/agent/sessions?limit=5')
-
-// Load a previous session
-async function loadSession(session: any) {
-  sessionId.value = session.id
-  url.value = session.url
-  sessionType.value = session.sessionType
-  status.value = session.status === 'SUCCESS' ? 'success' : session.status === 'FAILED' ? 'failed' : 'idle'
-  completenessScore.value = session.completenessScore || 0
-  errorMessage.value = session.errorMessage || ''
-  existingVenueId.value = session.venueId || null
-
-  if (session.sessionType === 'VENUE_INFO') {
-    venueData.value = session.venueData || null
-    eventData.value = null
-    showEventScraper.value = session.status === 'SUCCESS'
-  } else {
-    eventData.value = session.eventData || null
-    // For EVENT_SCRAPER, we need minimal venueData for retry
-    venueData.value = session.venue
-      ? { name: session.venue.name, website: session.venue.website || session.url }
-      : { name: 'Venue', website: session.url }
-    showEventScraper.value = true
-  }
-}
 
 // Set default provider/model from API
 watch(modelsData, (data) => {
@@ -883,9 +880,6 @@ async function approveScraper() {
       status.value = 'success'
     }
 
-    // Refresh sessions list
-    refreshSessions()
-
   } catch (error: any) {
     alert(`Failed to approve: ${error.message}`)
   }
@@ -902,6 +896,50 @@ useSeoMeta({
     <h1 class="text-3xl font-bold mb-6">
       Venue Scraper Manager
     </h1>
+
+    <!-- Existing Scrapers List -->
+    <div
+      v-if="existingScrapers.length > 0"
+      class="bg-white rounded-lg shadow p-6 mb-6"
+    >
+      <h2 class="text-xl font-semibold mb-4">
+        Existing Scrapers
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          v-for="scraper in existingScrapers"
+          :key="scraper.id"
+          class="border rounded-lg p-4"
+        >
+          <div class="flex items-start justify-between mb-2">
+            <h3 class="font-medium">
+              {{ scraper.name }}
+            </h3>
+            <UBadge
+              v-if="scraper.activeVersion"
+              size="xs"
+              color="primary"
+            >
+              v{{ scraper.activeVersion }}
+            </UBadge>
+          </div>
+          <p class="text-sm text-gray-600 mb-3">
+            {{ scraper.website }}
+          </p>
+          <NuxtLink
+            :to="`/admin/scrapers/${scraper.id}/manage`"
+            class="inline-block"
+          >
+            <UButton
+              size="sm"
+              variant="soft"
+            >
+              Manage
+            </UButton>
+          </NuxtLink>
+        </div>
+      </div>
+    </div>
 
     <!-- Mode Toggle -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -1406,100 +1444,6 @@ useSeoMeta({
         >
           {{ mode === 'update' ? 'Regenerate' : 'Start' }} Event Scraper for {{ venueData?.name || 'Existing Venue' }}
         </button>
-      </div>
-    </div>
-
-    <!-- Recent Sessions -->
-    <div
-      v-if="sessionsData?.sessions?.length && status === 'idle'"
-      class="bg-white rounded-lg shadow p-6 mb-6"
-    >
-      <h2 class="text-lg font-semibold mb-3">
-        Recent Sessions
-      </h2>
-      <div class="space-y-2">
-        <div
-          v-for="session in sessionsData.sessions"
-          :key="session.id"
-          class="border rounded-lg"
-        >
-          <div
-            class="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer"
-            @click="loadSession(session)"
-          >
-            <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">
-                {{ session.url }}
-              </div>
-              <div class="text-sm text-gray-500">
-                {{ session.sessionType === 'VENUE_INFO' ? 'Venue' : 'Events' }}
-                <span v-if="session.eventCount"> - {{ session.eventCount }} events</span>
-                <span class="mx-1">·</span>
-                {{ new Date(session.createdAt).toLocaleString() }}
-              </div>
-            </div>
-            <div class="ml-3">
-              <span
-                class="px-2 py-1 text-xs font-medium rounded"
-                :class="{
-                  'bg-green-100 text-green-700': session.status === 'SUCCESS',
-                  'bg-red-100 text-red-700': session.status === 'FAILED',
-                  'bg-yellow-100 text-yellow-700': session.status === 'IN_PROGRESS',
-                  'bg-blue-100 text-blue-700': session.status === 'APPROVED',
-                }"
-              >
-                {{ session.status }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Expandable failure details for FAILED sessions -->
-          <details
-            v-if="session.status === 'FAILED'"
-            class="border-t"
-          >
-            <summary class="px-3 py-2 text-sm text-red-700 cursor-pointer hover:bg-red-50 flex items-center gap-2">
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              View failure details
-            </summary>
-            <div class="p-3 bg-red-50 text-sm space-y-2">
-              <div v-if="session.errorMessage">
-                <span class="font-medium text-red-900">Error:</span>
-                <span class="text-red-700"> {{ session.errorMessage }}</span>
-              </div>
-              <div v-if="session.thinking && session.thinking.length > 0">
-                <div class="font-medium text-red-900 mb-1">
-                  Last steps:
-                </div>
-                <div class="space-y-1 text-xs">
-                  <div
-                    v-for="(step, i) in session.thinking.slice(-5)"
-                    :key="i"
-                    class="flex gap-2"
-                  >
-                    <span class="text-red-600 font-mono">[{{ step.type }}]</span>
-                    <span class="text-gray-700">{{ step.message }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="text-xs text-gray-500 mt-2">
-                Iterations: {{ session.currentIteration }}/{{ session.maxIterations }}
-              </div>
-            </div>
-          </details>
-        </div>
       </div>
     </div>
 

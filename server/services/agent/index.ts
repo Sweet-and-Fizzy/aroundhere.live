@@ -60,6 +60,8 @@ export class AgentService {
       previousCode,
       onThinking,
       onProgress,
+      sourceId,
+      venueId,
     } = options
 
     const thinking: AgentThinkingStep[] = []
@@ -91,9 +93,10 @@ export class AgentService {
     }
 
     // Get or create agent session in database
+    // If sourceId is provided, check for existing session by sourceId to prevent duplicates
     let session = await prisma.agentSession.findFirst({
       where: {
-        url,
+        ...(sourceId ? { sourceId } : { url }),
         sessionType,
         llmProvider,
         llmModel,
@@ -113,6 +116,8 @@ export class AgentService {
           llmModel,
           maxIterations,
           status: 'IN_PROGRESS',
+          ...(sourceId && { sourceId }),
+          ...(venueId && { venueId }),
         },
       })
     }
@@ -345,23 +350,34 @@ export class AgentService {
             message: `Execution failed: ${execution.error}`,
           })
 
-          await prisma.scraperAttempt.create({
-            data: {
-              sessionId: session.id,
-              attemptNumber: attempt,
-              generatedCode,
-              codeHash,
-              executionStatus: 'ERROR',
-              executionError: execution.error,
-              executionTime: execution.executionTime,
-              fieldsFound: [],
-              fieldsMissing: [],
-              completenessScore: 0,
-              htmlSnapshots: {
-                listing: pageHtml.substring(0, 200000), // Truncate to ~200KB for storage
+          try {
+            await prisma.scraperAttempt.create({
+              data: {
+                sessionId: session.id,
+                attemptNumber: attempt,
+                generatedCode,
+                codeHash,
+                executionStatus: 'ERROR',
+                executionError: execution.error,
+                executionTime: execution.executionTime,
+                fieldsFound: [],
+                fieldsMissing: [],
+                completenessScore: 0,
+                htmlSnapshots: {
+                  listing: pageHtml.substring(0, 200000), // Truncate to ~200KB for storage
+                  detailPages: detailPageHtml ? [{
+                    url: detailPageHtml.url,
+                    html: detailPageHtml.html.substring(0, 200000),
+                  }] : undefined,
+                },
               },
-            },
-          })
+            })
+          } catch (dbError: any) {
+            // Ignore unique constraint errors - attempt already exists
+            if (!dbError.code || dbError.code !== 'P2002') {
+              console.error('[Agent] Failed to save attempt:', dbError)
+            }
+          }
 
           continue
         }
@@ -434,23 +450,34 @@ export class AgentService {
         }
 
         // Save attempt
-        await prisma.scraperAttempt.create({
-          data: {
-            sessionId: session.id,
-            attemptNumber: attempt,
-            generatedCode,
-            codeHash,
-            executionStatus: 'SUCCESS',
-            executionTime: execution.executionTime,
-            scrapedData: execution.data,
-            fieldsFound: evaluation.fieldsFound,
-            fieldsMissing: evaluation.fieldsMissing,
-            completenessScore: evaluation.completenessScore,
-            htmlSnapshots: {
-              listing: pageHtml.substring(0, 200000), // Truncate to ~200KB for storage
-            },
+        try {
+          await prisma.scraperAttempt.create({
+            data: {
+              sessionId: session.id,
+              attemptNumber: attempt,
+              generatedCode,
+              codeHash,
+              executionStatus: 'SUCCESS',
+              executionTime: execution.executionTime,
+              scrapedData: execution.data,
+              fieldsFound: evaluation.fieldsFound,
+              fieldsMissing: evaluation.fieldsMissing,
+              completenessScore: evaluation.completenessScore,
+              htmlSnapshots: {
+                listing: pageHtml.substring(0, 200000), // Truncate to ~200KB for storage
+                detailPages: detailPageHtml ? [{
+                  url: detailPageHtml.url,
+                  html: detailPageHtml.html.substring(0, 200000),
+                }] : undefined,
+              },
           },
         })
+        } catch (dbError: any) {
+          // Ignore unique constraint errors - attempt already exists
+          if (!dbError.code || dbError.code !== 'P2002') {
+            console.error('[Agent] Failed to save attempt:', dbError)
+          }
+        }
 
         // Track best result
         if (evaluation.completenessScore > bestScore) {

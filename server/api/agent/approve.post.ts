@@ -3,6 +3,7 @@
  * POST /api/agent/approve
  */
 
+import crypto from 'crypto'
 import prisma from '../../utils/prisma'
 import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
 import { notifyScraperApproved, notifyVenueApproved } from '../../services/notifications'
@@ -225,6 +226,31 @@ export default defineEventHandler(async (event) => {
             },
           })
         }
+
+        // Create ScraperVersion v1 (or next version)
+        const lastVersion = await tx.scraperVersion.findFirst({
+          where: { sourceId: source.id },
+          orderBy: { versionNumber: 'desc' },
+          select: { versionNumber: true },
+        })
+
+        const nextVersionNumber = (lastVersion?.versionNumber ?? 0) + 1
+        const codeHash = crypto.createHash('sha256').update(session.generatedCode).digest('hex')
+
+        await tx.scraperVersion.create({
+          data: {
+            sourceId: source.id,
+            versionNumber: nextVersionNumber,
+            code: session.generatedCode,
+            codeHash,
+            description: nextVersionNumber === 1
+              ? 'Initial AI-generated scraper'
+              : `AI-generated update from session ${session.id.substring(0, 8)}`,
+            createdFrom: 'AI_GENERATED',
+            agentSessionId: session.id,
+            isActive: true,
+          },
+        })
       }
 
       // Update session as approved

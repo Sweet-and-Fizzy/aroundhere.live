@@ -240,8 +240,9 @@ model Source {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  events       Event[]       // Events where this is the canonical source
-  eventSources EventSource[] // All events this source has contributed to
+  events          Event[]          // Events where this is the canonical source
+  eventSources    EventSource[]    // All events this source has contributed to
+  scraperVersions ScraperVersion[] // Version history for AI-generated scrapers
 
   @@map("sources")
 }
@@ -576,4 +577,44 @@ model ChatLog {
   @@index([timestamp])
   @@index([ipAddress, timestamp]) // For IP-based rate limiting
   @@map("chat_logs")
+}
+
+// Scraper version history for AI-generated scrapers
+model ScraperVersion {
+  id             String   @id @default(cuid())
+  sourceId       String
+  versionNumber  Int      // Auto-increment per source (1, 2, 3, ...)
+
+  // Code and metadata
+  code           String   // The actual scraper code
+  codeHash       String   // SHA256 hash for deduplication
+  description    String?  // User-provided change description
+
+  // Origin tracking
+  createdBy      String?  // User ID if manual edit
+  createdFrom    ScraperVersionOrigin // How this version was created
+  agentSessionId String?  // Link to AgentSession if AI-generated
+
+  // Execution history
+  lastTestedAt   DateTime?
+  testResults    Json?    // { success, eventCount, errors, sampleEvents[], fieldsAnalysis }
+
+  // Status
+  isActive       Boolean  @default(false) // Only one version active per source
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  source         Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, versionNumber])
+  @@index([sourceId, isActive])
+  @@index([sourceId, codeHash]) // For duplicate detection
+  @@index([agentSessionId])
+  @@map("scraper_versions")
+}
+
+enum ScraperVersionOrigin {
+  AI_GENERATED  // Created by AI agent
+  MANUAL_EDIT   // Manually edited by user
+  ROLLBACK      // Rolled back to previous version
 }

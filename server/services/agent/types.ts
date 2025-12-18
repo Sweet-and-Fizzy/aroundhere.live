@@ -38,6 +38,8 @@ export interface ScraperGenerationOptions {
   previousCode?: string // Existing scraper code to improve upon
   onThinking?: (step: AgentThinkingStep) => void
   onProgress?: (attempt: number, total: number) => void
+  sourceId?: string // Optional source ID to associate with session
+  venueId?: string // Optional venue ID to associate with session
 }
 
 export interface FieldEvaluationResult {
