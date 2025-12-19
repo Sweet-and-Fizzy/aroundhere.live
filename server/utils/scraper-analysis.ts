@@ -114,7 +114,8 @@ export function findMissingRequiredFields(events: ScrapedEvent[]): string[] {
   const missingFields: string[] = []
 
   for (const field of REQUIRED_FIELDS) {
-    if (analysis.coverage[field].percentage < 100) {
+    // Handle empty coverage (when events array is empty)
+    if (analysis.coverage[field] && analysis.coverage[field].percentage < 100) {
       missingFields.push(field)
     }
   }
