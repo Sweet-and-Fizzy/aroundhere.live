@@ -39,6 +39,7 @@ export default defineEventHandler(async (event) => {
       venueId: venue.id,
       startsAt: { gte: new Date() },
       reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      isCancelled: false,
     },
     include: {
       eventArtists: {
