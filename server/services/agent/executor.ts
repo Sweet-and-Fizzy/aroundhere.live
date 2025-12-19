@@ -62,6 +62,8 @@ export async function executeScraperCode(
       Error,
       Map,
       Set,
+      fetch,
+      Buffer,
       // Exports object to capture the function
       exports: {},
       module: { exports: {} },

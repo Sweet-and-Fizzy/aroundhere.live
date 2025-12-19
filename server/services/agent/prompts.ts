@@ -273,6 +273,8 @@ Parse the date/time information for the startsAt field, but remove it from the t
 
 **Calendar Views:** If the page shows a monthly calendar grid, navigate forward 2-3 months using "next month" buttons to capture upcoming events.
 
+**Google Calendar Embeds:** If you find an iframe with \`calendar.google.com\` in the src, extract the calendar ID from the \`src=\` parameter. The ID is often base64-encoded (decode with \`Buffer.from(id, 'base64').toString()\` if it doesn't contain \`@\`). Use \`fetch()\` directly (not inside page.evaluate) to get the public iCal feed at \`https://calendar.google.com/calendar/ical/{encodedCalendarId}/public/basic.ics\` and parse the VEVENT blocks.
+
 ## Response Format
 
 Your response should ONLY contain the JavaScript code, nothing else. Do not include:
