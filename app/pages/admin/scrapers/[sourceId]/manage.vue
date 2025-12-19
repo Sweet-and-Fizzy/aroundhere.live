@@ -470,13 +470,15 @@ const artistsWithEvents = computed(() => {
 
   testResults.value.events.forEach((event: any) => {
     if (event.artists && Array.isArray(event.artists)) {
-      event.artists.forEach((artist: string) => {
-        if (artist && artist.trim()) {
-          const artistName = artist.trim()
-          if (!artistMap.has(artistName)) {
-            artistMap.set(artistName, [])
+      event.artists.forEach((artist: any) => {
+        // Handle both string artists and object artists { name, isHeadliner }
+        const artistName = typeof artist === 'string' ? artist : artist?.name
+        if (artistName && typeof artistName === 'string' && artistName.trim()) {
+          const cleanArtistName = artistName.trim()
+          if (!artistMap.has(cleanArtistName)) {
+            artistMap.set(cleanArtistName, [])
           }
-          artistMap.get(artistName)!.push({
+          artistMap.get(cleanArtistName)!.push({
             title: event.title,
             startsAt: event.startsAt,
           })
