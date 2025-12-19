@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     })
 
     return updated
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error updating venue:', error)
     throw createError({
       statusCode: 500,

@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Extract scraper info from config
-  const config = source.config as any
+  const config = source.config as Record<string, unknown>
 
   return {
     venue,

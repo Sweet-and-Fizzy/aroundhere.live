@@ -74,7 +74,11 @@ export default defineEventHandler(async (event) => {
   }
 
   // Build update data
-  const updateData: any = {
+  const updateData: {
+    updatedAt: Date
+    eventType?: string
+    canonicalGenres?: string[]
+  } = {
     updatedAt: new Date(),
   }
 

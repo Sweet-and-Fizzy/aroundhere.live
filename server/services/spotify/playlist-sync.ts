@@ -138,7 +138,7 @@ export async function syncPlaylist(playlistId: string): Promise<SyncResult> {
           await prisma.artist.update({
             where: { id: artist.id },
             data: {
-              spotifyPopularTracks: tracks as any, // Cast to any for Prisma JSON field
+              spotifyPopularTracks: tracks as unknown, // Cast to unknown for Prisma JSON field
               spotifyTracksUpdatedAt: new Date(),
             },
           })

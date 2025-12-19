@@ -30,7 +30,7 @@ interface DataQualityIssue {
 /**
  * Check for common data quality issues in event data
  */
-function detectEventQualityIssues(event: any): DataQualityIssue[] {
+function detectEventQualityIssues(event: Record<string, unknown>): DataQualityIssue[] {
   const issues: DataQualityIssue[] = []
 
   // Check for time patterns in title
@@ -115,7 +115,7 @@ function detectEventQualityIssues(event: any): DataQualityIssue[] {
 /**
  * Format a sample of extracted data for feedback
  */
-function formatEventSample(events: any[], maxEvents: number = 2): string {
+function formatEventSample(events: Record<string, unknown>[], maxEvents: number = 2): string {
   if (!events || events.length === 0) return ''
 
   const sample = events.slice(0, maxEvents)
@@ -222,7 +222,7 @@ export function evaluateVenueData(venueData: VenueInfo | null | undefined): Fiel
  * Evaluate event data completeness
  * Checks if events array has valid events with required fields
  */
-export function evaluateEventData(events: any[] | null | undefined): FieldEvaluationResult {
+export function evaluateEventData(events: Record<string, unknown>[] | null | undefined): FieldEvaluationResult {
   if (!events || !Array.isArray(events) || events.length === 0) {
     return {
       fieldsFound: [],

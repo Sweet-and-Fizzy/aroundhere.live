@@ -60,7 +60,7 @@ export interface ScraperJobProgress {
 export const SCRAPER_QUEUE_NAME = 'scraper-generation'
 
 // Queue instance (lazy initialization)
-let scraperQueue: Queue<ScraperJobData, any, string> | null = null
+let scraperQueue: Queue<ScraperJobData, unknown, string> | null = null
 
 export const getScraperQueue = () => {
   if (!scraperQueue) {

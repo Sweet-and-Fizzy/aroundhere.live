@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
     const latencyMs = Date.now() - startTime
 
     // Extract token usage from result (AI SDK v4 uses different property names)
-    const usage = result.usage as any
+    const usage = result.usage as { promptTokens?: number; completionTokens?: number } | undefined
     const inputTokens = usage?.promptTokens || 0
     const outputTokens = usage?.completionTokens || 0
     const estimatedCost = calculateCost(CHAT_MODEL, inputTokens, outputTokens)
@@ -110,7 +110,7 @@ export default defineEventHandler(async (event) => {
       .flatMap((step) => (step.toolCalls ?? []).map((tc) => tc.toolName))
       .filter(Boolean)
     const toolInputs = (result.steps ?? [])
-      .flatMap((step) => (step.toolCalls ?? []).map((tc) => ({ tool: tc.toolName, input: (tc as any).input })))
+      .flatMap((step) => (step.toolCalls ?? []).map((tc) => ({ tool: tc.toolName, input: (tc as { input?: unknown }).input })))
       .filter((ti) => ti.tool)
 
     // Log to database (non-blocking)
@@ -150,7 +150,7 @@ export default defineEventHandler(async (event) => {
       console.error('Failed to check thresholds:', err)
     })
 
-    const response: { response: string; sessionId: string; _debug?: any } = {
+    const response: { response: string; sessionId: string; _debug?: unknown } = {
       response: responseText,
       sessionId,
     }

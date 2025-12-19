@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
       createdAt: version.createdAt,
       updatedAt: version.updatedAt,
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }

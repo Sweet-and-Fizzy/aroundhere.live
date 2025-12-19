@@ -114,7 +114,7 @@ export default defineEventHandler(async (event) => {
       testCode = version.code
     } else {
       // Test active version (from config)
-      const config = source.config as any
+      const config = source.config as Record<string, unknown>
       if (!config?.generatedCode) {
         throw createError({
           statusCode: 400,
@@ -172,7 +172,7 @@ export default defineEventHandler(async (event) => {
       },
       warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }

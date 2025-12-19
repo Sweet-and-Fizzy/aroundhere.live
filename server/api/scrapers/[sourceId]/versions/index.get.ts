@@ -103,7 +103,7 @@ export default defineEventHandler(async (event) => {
         createdFrom: v.createdFrom,
         agentSessionId: v.agentSessionId,
         lastTestedAt: v.lastTestedAt,
-        testResults: v.testResults as any, // JSON type
+        testResults: v.testResults as unknown, // JSON type
         isActive: v.isActive,
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
@@ -112,7 +112,7 @@ export default defineEventHandler(async (event) => {
       activeVersionNumber: activeVersion?.versionNumber ?? null,
       totalVersions: versions.length,
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }

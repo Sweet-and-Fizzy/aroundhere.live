@@ -10,7 +10,7 @@ import vm from 'vm'
 
 export interface ExecutionResult {
   success: boolean
-  data?: any
+  data?: unknown
   error?: string
   executionTime: number
 }
@@ -36,10 +36,10 @@ export async function executeScraperCode(
       cheerio,
       fromZonedTime,
       console: {
-        log: (...args: any[]) => {
+        log: (...args: unknown[]) => {
           console.log('[SCRAPER]', ...args)
         },
-        error: (...args: any[]) => {
+        error: (...args: unknown[]) => {
           console.error('[SCRAPER]', ...args)
         },
       },
@@ -110,21 +110,21 @@ export async function executeScraperCode(
     })
 
     // Get exported function
-    const exported = sandbox.module.exports as any
+    const exported = sandbox.module.exports as Record<string, unknown>
 
-    let result: any
+    let result: unknown
 
     // Execute the appropriate function
-    if (exported.scrapeVenueInfo) {
+    if (exported.scrapeVenueInfo && typeof exported.scrapeVenueInfo === 'function') {
       result = await Promise.race([
-        exported.scrapeVenueInfo(url),
+        (exported.scrapeVenueInfo as (url: string) => Promise<unknown>)(url),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Execution timeout')), timeoutMs)
         ),
       ])
-    } else if (exported.scrapeEvents) {
+    } else if (exported.scrapeEvents && typeof exported.scrapeEvents === 'function') {
       result = await Promise.race([
-        exported.scrapeEvents(url, timezone),
+        (exported.scrapeEvents as (url: string, timezone: string) => Promise<unknown>)(url, timezone),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Execution timeout')), timeoutMs)
         ),

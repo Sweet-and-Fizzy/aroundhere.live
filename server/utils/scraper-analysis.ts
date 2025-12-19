@@ -16,7 +16,7 @@ export interface ScrapedEvent {
   genres?: string[] | null
   artists?: string[] | null
   ageRestriction?: string | null
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface FieldCoverage {
@@ -50,7 +50,7 @@ const OPTIONAL_FIELDS = [
 /**
  * Check if a field has a meaningful value
  */
-function hasValue(value: any): boolean {
+function hasValue(value: unknown): boolean {
   if (value === null || value === undefined) return false
   if (typeof value === 'string' && value.trim() === '') return false
   if (Array.isArray(value) && value.length === 0) return false

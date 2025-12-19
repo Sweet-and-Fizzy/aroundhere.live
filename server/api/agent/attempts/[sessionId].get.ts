@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     mergeResult = mergeVenueData(
       session.attempts.map((attempt) => ({
         attemptNumber: attempt.attemptNumber,
-        scrapedData: attempt.scrapedData as any,
+        scrapedData: attempt.scrapedData as Record<string, unknown>,
       }))
     )
   }
