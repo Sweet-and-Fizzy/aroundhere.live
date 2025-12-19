@@ -193,6 +193,5 @@ const eventTypeLabel = computed(() => {
         </span>
       </div>
     </td>
-
   </tr>
 </template>
