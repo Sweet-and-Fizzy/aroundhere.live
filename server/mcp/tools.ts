@@ -1,6 +1,13 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
+import prisma from '../utils/prisma'
+import {
+  getUserProfile,
+  findCandidateEvents,
+  scoreEventsForUser,
+  rankRecommendations,
+} from '../services/recommendations'
 
 // Helper to format date for display
 function formatEventDate(dateStr: string): string {
@@ -13,8 +20,9 @@ function getBaseUrl() {
   return process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 }
 
-// AI SDK tool definitions with Zod schemas
-export const chatTools = {
+// Factory function to create chat tools with optional user context
+export function createChatTools(userId?: string) {
+  return {
   search_events: tool({
     description:
       'Search for live music events, concerts, and shows. Use this when the user asks about events, shows, concerts, what\'s happening, or wants to find specific performances.',
@@ -237,4 +245,287 @@ export const chatTools = {
       }
     },
   }),
+
+  get_my_favorites: tool({
+    description:
+      'Get the current user\'s favorite artists, venues, and genres. Use when the user asks about their favorites, saved items, or wants to see events from their favorites.',
+    inputSchema: z.object({
+      _placeholder: z.string().optional().describe('No parameters needed'),
+    }),
+    execute: async () => {
+      if (!userId) {
+        return {
+          error: 'You need to sign in to use favorites. Visit /login to sign in.',
+          signInUrl: '/login',
+        }
+      }
+
+      const [artists, venues, genres] = await Promise.all([
+        prisma.userFavoriteArtist.findMany({
+          where: { userId },
+          include: {
+            artist: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                genres: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.userFavoriteVenue.findMany({
+          where: { userId },
+          include: {
+            venue: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                city: true,
+                state: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.userFavoriteGenre.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ])
+
+      return {
+        artists: artists.map(f => ({
+          name: f.artist.name,
+          genres: f.artist.genres?.slice(0, 3) || [],
+          url: `/artists/${f.artist.slug}`,
+        })),
+        venues: venues.map(f => ({
+          name: f.venue.name,
+          city: f.venue.city,
+          state: f.venue.state,
+          url: `/venues/${f.venue.slug}`,
+        })),
+        genres: genres.map(f => f.genre),
+        isLoggedIn: true,
+      }
+    },
+  }),
+
+  get_events_from_favorites: tool({
+    description:
+      'Get upcoming events featuring the user\'s favorite artists or at their favorite venues. Use when the user asks "what shows are my favorite artists playing" or "events at my favorite venues".',
+    inputSchema: z.object({
+      type: z.enum(['artists', 'venues', 'all']).optional().describe('Filter by favorite type: artists, venues, or all (default: all)'),
+      limit: z.number().optional().describe('Maximum number of events to return (default 20)'),
+    }),
+    execute: async (input) => {
+      if (!userId) {
+        return {
+          error: 'You need to sign in to use favorites. Visit /login to sign in.',
+          signInUrl: '/login',
+        }
+      }
+
+      const type = input.type || 'all'
+      const limit = Math.min(input.limit || 20, 20)
+      const now = new Date()
+
+      // Get user's favorites
+      const [favoriteArtists, favoriteVenues] = await Promise.all([
+        type === 'venues' ? [] : prisma.userFavoriteArtist.findMany({
+          where: { userId },
+          select: { artistId: true },
+        }),
+        type === 'artists' ? [] : prisma.userFavoriteVenue.findMany({
+          where: { userId },
+          select: { venueId: true },
+        }),
+      ])
+
+      const artistIds = favoriteArtists.map(f => f.artistId)
+      const venueIds = favoriteVenues.map(f => f.venueId)
+
+      if (artistIds.length === 0 && venueIds.length === 0) {
+        return {
+          events: [],
+          message: 'You haven\'t favorited any artists or venues yet. Use the heart icon on events to add favorites!',
+        }
+      }
+
+      // Build query conditions
+      const conditions: any[] = []
+      if (artistIds.length > 0) {
+        conditions.push({
+          eventArtists: {
+            some: {
+              artistId: { in: artistIds },
+            },
+          },
+        })
+      }
+      if (venueIds.length > 0) {
+        conditions.push({
+          venueId: { in: venueIds },
+        })
+      }
+
+      const events = await prisma.event.findMany({
+        where: {
+          startsAt: { gte: now },
+          status: 'ACTIVE',
+          OR: conditions,
+        },
+        include: {
+          venue: {
+            select: {
+              name: true,
+              slug: true,
+              city: true,
+              state: true,
+            },
+          },
+          eventArtists: {
+            include: {
+              artist: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: { order: 'asc' },
+          },
+        },
+        orderBy: { startsAt: 'asc' },
+        take: limit,
+      })
+
+      return {
+        events: events.map(e => {
+          const matchedArtists = e.eventArtists
+            .filter(ea => artistIds.includes(ea.artistId))
+            .map(ea => ea.artist.name)
+          const isVenueFavorite = venueIds.includes(e.venueId || '')
+
+          return {
+            title: e.title,
+            date: formatEventDate(e.startsAt.toISOString()),
+            venue: e.venue?.name || 'TBA',
+            city: e.venue?.city || '',
+            url: `/events/${e.slug}`,
+            matchReason: [
+              ...(matchedArtists.length > 0 ? [`Favorite artist: ${matchedArtists.join(', ')}`] : []),
+              ...(isVenueFavorite ? ['Favorite venue'] : []),
+            ].join('; '),
+            artists: e.eventArtists.map(ea => ea.artist.name).slice(0, 3),
+          }
+        }),
+        total: events.length,
+        favoriteArtistCount: artistIds.length,
+        favoriteVenueCount: venueIds.length,
+      }
+    },
+  }),
+
+  get_personalized_recommendations: tool({
+    description:
+      'Get AI-powered personalized event recommendations based on the user\'s taste profile, favorite genres, venues, artists, and described interests. Uses embedding similarity and preference matching. Use when the user asks "recommend something", "what should I see", "events I might like", "personalized recommendations", or similar.',
+    inputSchema: z.object({
+      limit: z.number().optional().describe('Maximum number of recommendations (default 10, max 15)'),
+      startDate: z.string().optional().describe('Start date in ISO format (defaults to today)'),
+      endDate: z.string().optional().describe('End date in ISO format (defaults to 2 weeks from now)'),
+    }),
+    execute: async (input) => {
+      if (!userId) {
+        return {
+          error: 'You need to sign in to get personalized recommendations. Visit /login to sign in.',
+          signInUrl: '/login',
+        }
+      }
+
+      const limit = Math.min(input.limit || 10, 15)
+      const now = new Date()
+      const startDate = input.startDate ? new Date(input.startDate) : now
+      const endDate = input.endDate ? new Date(input.endDate) : addDays(now, 14)
+
+      // Get user's profile with taste embedding and favorites
+      const userProfile = await getUserProfile(userId)
+      if (!userProfile) {
+        return {
+          error: 'Could not load your profile. Please try again.',
+        }
+      }
+
+      const hasTasteProfile = !!userProfile.tasteProfileEmbedding
+      const hasFavorites = userProfile.favoriteArtistIds.length > 0 ||
+        userProfile.favoriteVenueIds.length > 0 ||
+        userProfile.favoriteGenres.length > 0
+
+      if (!hasTasteProfile && !hasFavorites) {
+        return {
+          events: [],
+          message: 'You haven\'t set up your taste profile or added any favorites yet. Visit /interests to tell us what you like, or use the heart icon on events to favorite artists, venues, and genres.',
+          setupUrl: '/interests',
+        }
+      }
+
+      // Find candidate events with embeddings
+      const candidates = await findCandidateEvents(
+        startDate,
+        endDate,
+        [], // no exclusions
+        limit * 3, // fetch more candidates than needed for scoring
+        userProfile.regionId
+      )
+
+      if (candidates.length === 0) {
+        return {
+          events: [],
+          message: 'No upcoming events found in this date range. Try expanding the date range.',
+        }
+      }
+
+      // Score events against user's taste profile
+      const scored = await scoreEventsForUser(candidates, userProfile)
+
+      // Rank and filter by confidence (use lower threshold for chat - 0.4 instead of 0.6)
+      const ranked = rankRecommendations(scored, 0.4, limit)
+
+      if (ranked.length === 0) {
+        return {
+          events: [],
+          message: 'No strong matches found for your taste profile. This can happen if the upcoming events don\'t align with your interests. Try browsing all events or adjusting your preferences.',
+        }
+      }
+
+      return {
+        events: ranked.map(r => ({
+          title: r.event.title,
+          date: formatEventDate(r.event.startsAt.toISOString()),
+          venue: r.event.venue?.name || 'TBA',
+          city: r.event.venue?.city || '',
+          genres: r.event.canonicalGenres.slice(0, 3),
+          url: `/events/${r.event.slug}`,
+          artists: r.event.artists.map(a => a.name).slice(0, 3),
+          matchScore: Math.round(r.score * 100),
+          reasons: r.reasons,
+        })),
+        total: ranked.length,
+        profileInfo: {
+          hasTasteProfile,
+          favoriteArtistCount: userProfile.favoriteArtistIds.length,
+          favoriteVenueCount: userProfile.favoriteVenueIds.length,
+          favoriteGenreCount: userProfile.favoriteGenres.length,
+          interestDescription: userProfile.interestDescription,
+        },
+      }
+    },
+  }),
+  }
 }
+
+// Legacy export for backwards compatibility (anonymous user)
+export const chatTools = createChatTools()

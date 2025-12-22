@@ -2,6 +2,54 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+/**
+ * Shared email layout wrapper
+ * Provides consistent header, content area, and footer across all emails
+ */
+function emailLayout(options: {
+  logoUrl: string
+  content: string
+  footerContent: string
+}): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f3f4f6;">
+        <div style="background-color: #111827; padding: 32px 30px; text-align: center;">
+          <img src="${options.logoUrl}" alt="AroundHere.Live" style="height: 28px; width: auto;" />
+        </div>
+
+        <div style="background-color: #ffffff; padding: 40px 30px;">
+          ${options.content}
+        </div>
+
+        <div style="background-color: #f3f4f6; padding: 20px 30px; text-align: center;">
+          ${options.footerContent}
+        </div>
+      </body>
+    </html>
+  `
+}
+
+interface FavoriteEvent {
+  id: string
+  title: string
+  slug: string
+  startsAt: Date
+  imageUrl?: string | null
+  venue: {
+    name: string
+    city?: string | null
+  }
+  matchedArtists: string[]
+  matchedVenue: boolean
+  matchedGenres: string[]
+}
+
 export async function sendMagicLinkEmail(email: string, magicLink: string) {
   const config = useRuntimeConfig()
   const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
@@ -20,52 +68,39 @@ export async function sendMagicLinkEmail(email: string, magicLink: string) {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: email,
       subject: 'Sign in to AroundHere',
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f3f4f6;">
-            <div style="background-color: #111827; padding: 32px 30px; text-align: center;">
-              <img src="${logoUrl}" alt="AroundHere.Live" style="height: 28px; width: auto;" />
-            </div>
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">Sign in to your account</h2>
 
-            <div style="background-color: #ffffff; padding: 40px 30px;">
-              <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">Sign in to your account</h2>
+          <p style="color: #4b5563; font-size: 15px; margin-bottom: 28px;">
+            Click the button below to sign in. This link will expire in 15 minutes.
+          </p>
 
-              <p style="color: #4b5563; font-size: 15px; margin-bottom: 28px;">
-                Click the button below to sign in. This link will expire in 15 minutes.
-              </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${magicLink}"
+               style="background-color: #111827;
+                      color: #ffffff;
+                      text-decoration: none;
+                      padding: 14px 32px;
+                      border-radius: 8px;
+                      font-weight: 600;
+                      font-size: 15px;
+                      display: inline-block;">
+              Sign In
+            </a>
+          </div>
 
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="${magicLink}"
-                   style="background-color: #111827;
-                          color: #ffffff;
-                          text-decoration: none;
-                          padding: 14px 32px;
-                          border-radius: 8px;
-                          font-weight: 600;
-                          font-size: 15px;
-                          display: inline-block;">
-                  Sign In
-                </a>
-              </div>
-
-              <p style="color: #6b7280; font-size: 13px; margin-top: 32px;">
-                If you didn't request this email, you can safely ignore it.
-              </p>
-            </div>
-
-            <div style="background-color: #f3f4f6; padding: 20px 30px; text-align: center;">
-              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-                This link expires in 15 minutes for security.
-              </p>
-            </div>
-          </body>
-        </html>
-      `,
+          <p style="color: #6b7280; font-size: 13px; margin-top: 32px;">
+            If you didn't request this email, you can safely ignore it.
+          </p>
+        `,
+        footerContent: `
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            This link expires in 15 minutes for security.
+          </p>
+        `,
+      }),
       text: `
 Sign in to AroundHere
 
@@ -84,4 +119,481 @@ If you didn't request this email, you can safely ignore it.
     console.error('Failed to send magic link email:', error)
     return { success: false, error }
   }
+}
+
+/**
+ * Send artist alert email when favorite artists have new shows
+ */
+export async function sendFavoriteNotificationEmail(
+  email: string,
+  events: FavoriteEvent[]
+) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo.svg`
+
+  // Group events by date
+  const eventsByDate = new Map<string, FavoriteEvent[]>()
+  for (const event of events) {
+    const dateKey = new Date(event.startsAt).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
+    if (!eventsByDate.has(dateKey)) {
+      eventsByDate.set(dateKey, [])
+    }
+    eventsByDate.get(dateKey)!.push(event)
+  }
+
+  // Generate HTML for events
+  const eventsHtml = Array.from(eventsByDate.entries())
+    .map(([date, dateEvents]) => {
+      const eventItems = dateEvents
+        .map((event) => {
+          const artistNames = event.matchedArtists.join(', ')
+
+          const time = new Date(event.startsAt).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          })
+
+          const imageHtml = event.imageUrl
+            ? `<td style="padding: 12px 12px 12px 0; border-bottom: 1px solid #e5e7eb; vertical-align: top; width: 80px;">
+                <a href="${baseUrl}/events/${event.slug}">
+                  <img src="${event.imageUrl}" alt="" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; display: block;" />
+                </a>
+              </td>`
+            : ''
+
+          return `
+            <tr>
+              ${imageHtml}
+              <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
+                <a href="${baseUrl}/events/${event.slug}" style="color: #111827; text-decoration: none; font-weight: 500; font-size: 15px;">
+                  ${escapeHtml(event.title)}
+                </a>
+                <div style="color: #6b7280; font-size: 13px; margin-top: 4px;">
+                  ${time} @ ${escapeHtml(event.venue.name)}${event.venue.city ? `, ${escapeHtml(event.venue.city)}` : ''}
+                </div>
+                ${artistNames ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 2px;">Featuring: ${escapeHtml(artistNames)}</div>` : ''}
+              </td>
+            </tr>
+          `
+        })
+        .join('')
+
+      return `
+        <div style="margin-bottom: 24px;">
+          <h3 style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em;">
+            ${date}
+          </h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            ${eventItems}
+          </table>
+        </div>
+      `
+    })
+    .join('')
+
+  // Generate plain text version
+  const eventsText = Array.from(eventsByDate.entries())
+    .map(([date, dateEvents]) => {
+      const eventItems = dateEvents
+        .map((event) => {
+          const time = new Date(event.startsAt).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          })
+          return `  - ${event.title}\n    ${time} @ ${event.venue.name}\n    ${baseUrl}/events/${event.slug}`
+        })
+        .join('\n\n')
+
+      return `${date}\n${eventItems}`
+    })
+    .join('\n\n')
+
+  const subjectCount = events.length === 1 ? '1 new show' : `${events.length} new shows`
+
+  // Log for local development
+  if (process.dev) {
+    console.log('\n========== FAVORITE NOTIFICATION ==========')
+    console.log(`Email: ${email}`)
+    console.log(`Events: ${events.length}`)
+    console.log('============================================\n')
+  }
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: email,
+      subject: `${subjectCount} from your favorite artists`,
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">
+            New shows from your favorite artists
+          </h2>
+
+          <p style="color: #4b5563; font-size: 15px; margin-bottom: 28px;">
+            ${events.length === 1 ? 'A new show has' : `${events.length} new shows have`} been announced featuring artists you follow.
+          </p>
+
+          ${eventsHtml}
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${baseUrl}/"
+               style="background-color: #111827;
+                      color: #ffffff;
+                      text-decoration: none;
+                      padding: 14px 32px;
+                      border-radius: 8px;
+                      font-weight: 600;
+                      font-size: 15px;
+                      display: inline-block;">
+              Browse All Events
+            </a>
+          </div>
+        `,
+        footerContent: `
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            <a href="${baseUrl}/interests" style="color: #6b7280; text-decoration: underline;">Manage interests</a>
+            &nbsp;•&nbsp;
+            <a href="${baseUrl}/settings" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+          </p>
+        `,
+      }),
+      text: `
+New shows from your favorite artists
+
+${events.length === 1 ? 'A new show has' : `${events.length} new shows have`} been announced featuring artists you follow.
+
+${eventsText}
+
+---
+Browse all events: ${baseUrl}/
+Manage interests: ${baseUrl}/interests
+      `.trim(),
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send favorite notification email:', error)
+    return { success: false, error }
+  }
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+/**
+ * Types for recommendation email
+ */
+interface RecommendationEvent {
+  event: {
+    id: string
+    title: string
+    slug: string
+    startsAt: Date
+    coverCharge: string | null
+    summary: string | null
+    eventType: string | null
+    imageUrl: string | null
+    venue: {
+      name: string
+      city: string | null
+    } | null
+    artists: Array<{ name: string }>
+  }
+  matchedArtists?: string[]
+  explanation?: string
+}
+
+interface RecommendationEmailData {
+  favoriteArtistEvents: RecommendationEvent[]
+  weekendPicks: RecommendationEvent[]
+  comingUpPicks: RecommendationEvent[]
+}
+
+/**
+ * Send weekly AI-curated recommendations email
+ */
+export async function sendRecommendationEmail(
+  email: string,
+  data: RecommendationEmailData
+) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo.svg`
+
+  const { favoriteArtistEvents, weekendPicks, comingUpPicks } = data
+  const totalEvents = favoriteArtistEvents.length + weekendPicks.length + comingUpPicks.length
+
+  // Generate HTML for favorite artist section
+  const favoriteArtistsHtml = favoriteArtistEvents.length > 0
+    ? `
+      <div style="margin-bottom: 32px;">
+        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+          <span style="display: inline-block; width: 24px; height: 24px; background-color: #dc2626; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#9829;</span>
+          Your Favorite Artists This Week
+        </h3>
+        ${renderEventGrid(favoriteArtistEvents, baseUrl, true)}
+      </div>
+    `
+    : ''
+
+  // Generate HTML for weekend picks section
+  const weekendPicksHtml = weekendPicks.length > 0
+    ? `
+      <div style="margin-bottom: 32px;">
+        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+          <span style="display: inline-block; width: 24px; height: 24px; background-color: #7c3aed; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#9733;</span>
+          Weekend Picks
+        </h3>
+        ${renderEventGrid(weekendPicks, baseUrl, false)}
+      </div>
+    `
+    : ''
+
+  // Generate HTML for coming up section
+  const comingUpHtml = comingUpPicks.length > 0
+    ? `
+      <div style="margin-bottom: 32px;">
+        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+          <span style="display: inline-block; width: 24px; height: 24px; background-color: #0891b2; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#10148;</span>
+          Coming Up
+        </h3>
+        ${renderEventGrid(comingUpPicks, baseUrl, false)}
+      </div>
+    `
+    : ''
+
+  // Generate plain text version
+  const plainText = generateRecommendationPlainText(data, baseUrl)
+
+  // Log for local development
+  if (process.dev) {
+    console.log('\n========== WEEKLY RECOMMENDATIONS ==========')
+    console.log(`Email: ${email}`)
+    console.log(`Favorites: ${favoriteArtistEvents.length}`)
+    console.log(`Weekend: ${weekendPicks.length}`)
+    console.log(`Coming Up: ${comingUpPicks.length}`)
+    console.log('=============================================\n')
+  }
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: email,
+      subject: `Your weekly picks: ${totalEvents} shows we think you'll love`,
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 22px; font-weight: 600;">
+            Your Weekly Picks
+          </h2>
+
+          <p style="color: #4b5563; font-size: 15px; margin-bottom: 28px;">
+            Here are ${totalEvents} shows we think you'll love, curated just for you based on your favorites and interests.
+          </p>
+
+          ${favoriteArtistsHtml}
+          ${weekendPicksHtml}
+          ${comingUpHtml}
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${baseUrl}/"
+               style="background-color: #111827;
+                      color: #ffffff;
+                      text-decoration: none;
+                      padding: 14px 32px;
+                      border-radius: 8px;
+                      font-weight: 600;
+                      font-size: 15px;
+                      display: inline-block;">
+              Browse All Events
+            </a>
+          </div>
+        `,
+        footerContent: `
+          <p style="color: #6b7280; font-size: 12px; margin: 0 0 12px 0;">
+            <a href="${baseUrl}" style="color: #374151; text-decoration: none; font-weight: 500;">AroundHere</a> aggregates live music listings from local venues. Always check the venue website before heading out to confirm times and details.
+          </p>
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            <a href="${baseUrl}/settings" style="color: #6b7280; text-decoration: underline;">Manage preferences</a>
+            &nbsp;•&nbsp;
+            <a href="${baseUrl}/settings" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+          </p>
+        `,
+      }),
+      text: plainText,
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send recommendation email:', error)
+    return { success: false, error }
+  }
+}
+
+/**
+ * Render a single event card for the recommendation email
+ */
+function renderEventCard(
+  item: RecommendationEvent,
+  baseUrl: string,
+  isFavoriteArtist: boolean
+): string {
+  const { event, explanation } = item
+
+  const date = new Date(event.startsAt).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+  const time = new Date(event.startsAt).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+  const venue = event.venue?.name || 'TBA'
+  const city = event.venue?.city ? `, ${event.venue.city}` : ''
+
+  // Show AI explanation for non-favorites
+  const explanationHtml = !isFavoriteArtist && explanation
+    ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 6px; font-style: italic; line-height: 1.4;">${escapeHtml(explanation)}</div>`
+    : ''
+
+  const imageHtml = event.imageUrl
+    ? `<a href="${baseUrl}/events/${event.slug}" style="display: block;">
+        <img src="${event.imageUrl}" alt="" style="width: 100%; height: 140px; object-fit: cover; border-radius: 8px 8px 0 0; display: block;" />
+      </a>`
+    : `<div style="width: 100%; height: 140px; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 8px 8px 0 0;"></div>`
+
+  return `
+    <td style="width: 50%; padding: 8px; vertical-align: top;">
+      <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: #fff;">
+        ${imageHtml}
+        <div style="padding: 12px;">
+          <a href="${baseUrl}/events/${event.slug}" style="color: #111827; text-decoration: none; font-weight: 600; font-size: 14px; line-height: 1.3; display: block;">
+            ${escapeHtml(event.title)}
+          </a>
+          <div style="color: #6b7280; font-size: 12px; margin-top: 6px;">
+            ${escapeHtml(date)} @ ${escapeHtml(time)}
+          </div>
+          <div style="color: #6b7280; font-size: 12px; margin-top: 2px;">
+            ${escapeHtml(venue)}${escapeHtml(city)}
+          </div>
+          ${explanationHtml}
+        </div>
+      </div>
+    </td>
+  `
+}
+
+/**
+ * Render events in a 2-column grid
+ */
+function renderEventGrid(
+  items: RecommendationEvent[],
+  baseUrl: string,
+  isFavoriteArtist: boolean
+): string {
+  if (items.length === 0) return ''
+
+  const rows: string[] = []
+  for (let i = 0; i < items.length; i += 2) {
+    const card1 = renderEventCard(items[i], baseUrl, isFavoriteArtist)
+    const card2 = items[i + 1]
+      ? renderEventCard(items[i + 1], baseUrl, isFavoriteArtist)
+      : '<td style="width: 50%; padding: 8px;"></td>'
+    rows.push(`<tr>${card1}${card2}</tr>`)
+  }
+
+  return `<table style="width: 100%; border-collapse: collapse;">${rows.join('')}</table>`
+}
+
+/**
+ * Generate plain text version of recommendation email
+ */
+function generateRecommendationPlainText(
+  data: RecommendationEmailData,
+  baseUrl: string
+): string {
+  const { favoriteArtistEvents, weekendPicks, comingUpPicks } = data
+  const sections: string[] = []
+
+  if (favoriteArtistEvents.length > 0) {
+    const events = favoriteArtistEvents
+      .map((item) => {
+        const date = new Date(item.event.startsAt).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        })
+        const venue = item.event.venue?.name || 'TBA'
+        const detail = item.event.summary || ''
+        return `  - ${item.event.title}\n    ${date} @ ${venue}${detail ? `\n    ${detail}` : ''}\n    ${baseUrl}/events/${item.event.slug}`
+      })
+      .join('\n\n')
+    sections.push(`YOUR FAVORITE ARTISTS THIS WEEK\n${events}`)
+  }
+
+  if (weekendPicks.length > 0) {
+    const events = weekendPicks
+      .map((item) => {
+        const date = new Date(item.event.startsAt).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        })
+        const venue = item.event.venue?.name || 'TBA'
+        const details: string[] = []
+        if (item.event.summary) details.push(item.event.summary)
+        if (item.explanation) details.push(item.explanation)
+        const detailStr = details.length > 0 ? `\n    ${details.join('\n    ')}` : ''
+        return `  - ${item.event.title}\n    ${date} @ ${venue}${detailStr}\n    ${baseUrl}/events/${item.event.slug}`
+      })
+      .join('\n\n')
+    sections.push(`WEEKEND PICKS\n${events}`)
+  }
+
+  if (comingUpPicks.length > 0) {
+    const events = comingUpPicks
+      .map((item) => {
+        const date = new Date(item.event.startsAt).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        })
+        const venue = item.event.venue?.name || 'TBA'
+        const details: string[] = []
+        if (item.event.summary) details.push(item.event.summary)
+        if (item.explanation) details.push(item.explanation)
+        const detailStr = details.length > 0 ? `\n    ${details.join('\n    ')}` : ''
+        return `  - ${item.event.title}\n    ${date} @ ${venue}${detailStr}\n    ${baseUrl}/events/${item.event.slug}`
+      })
+      .join('\n\n')
+    sections.push(`COMING UP\n${events}`)
+  }
+
+  return `
+Your Weekly Picks
+
+Here are shows we think you'll love, curated just for you.
+
+${sections.join('\n\n---\n\n')}
+
+---
+AroundHere aggregates live music listings from local venues.
+Always check the venue website before heading out to confirm times and details.
+
+Browse all events: ${baseUrl}/
+Manage preferences: ${baseUrl}/settings
+  `.trim()
 }

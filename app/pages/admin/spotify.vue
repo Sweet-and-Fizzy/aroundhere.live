@@ -42,8 +42,10 @@ interface Playlist {
   trackCount: number
 }
 
-// Tabs
-const activeTab = ref<'review' | 'matched' | 'verified' | 'pending' | 'nomatch' | 'all'>('review')
+// Tabs - default to 'all' if there's a search query
+const route = useRoute()
+const initialSearch = (route.query.search as string) || ''
+const activeTab = ref<'review' | 'matched' | 'verified' | 'pending' | 'nomatch' | 'all'>(initialSearch ? 'all' : 'review')
 
 // Stats
 const { data: stats, refresh: refreshStats } = await useFetch('/api/spotify/artists/stats')
@@ -60,25 +62,28 @@ const statusFilter = computed(() => {
   }
 })
 
-// Filter
-const filterQuery = ref('')
+// Filter - initialize from URL query param
+const filterQuery = ref(initialSearch)
+
+// Debounce the filter query for server-side search
+const debouncedFilter = ref(filterQuery.value)
+let filterTimeout: ReturnType<typeof setTimeout>
+watch(filterQuery, (val) => {
+  clearTimeout(filterTimeout)
+  filterTimeout = setTimeout(() => {
+    debouncedFilter.value = val
+  }, 300)
+})
 
 const { data: artistsData, refresh: refreshArtists } = await useFetch('/api/spotify/artists', {
   query: computed(() => ({
     status: statusFilter.value,
+    search: debouncedFilter.value || undefined,
     limit: 100,
   })),
 })
 
-const artists = computed(() => {
-  const all = artistsData.value?.artists || []
-  if (!filterQuery.value.trim()) return all
-  const q = filterQuery.value.toLowerCase()
-  return all.filter((a: Artist) =>
-    a.name.toLowerCase().includes(q) ||
-    a.spotifyName?.toLowerCase().includes(q)
-  )
-})
+const artists = computed(() => artistsData.value?.artists || [])
 
 // Search modal state
 const showSearchModal = ref(false)

@@ -76,7 +76,7 @@ async function fetchVersions() {
     toast.add({
       title: 'Error',
       description: error.data?.message || 'Failed to load versions',
-      color: 'red',
+      color: 'error',
     })
   } finally {
     loading.value = false
@@ -100,7 +100,7 @@ async function loadVersion(versionId: string) {
     toast.add({
       title: 'Error',
       description: error.data?.message || 'Failed to load version',
-      color: 'red',
+      color: 'error',
     })
   }
 }
@@ -133,14 +133,14 @@ async function testPreview() {
       toast.add({
         title: 'Test Complete',
         description: `Found ${data.eventCount} events in ${(data.executionTime / 1000).toFixed(1)}s`,
-        color: 'green',
+        color: 'success',
       })
     }
   } catch (error: any) {
     toast.add({
       title: 'Test Failed',
       description: error.data?.message || 'Failed to test scraper',
-      color: 'red',
+      color: 'error',
     })
   } finally {
     testing.value = false
@@ -153,7 +153,7 @@ async function saveVersion() {
     toast.add({
       title: 'Validation Error',
       description: 'Please enter a description for this version',
-      color: 'red',
+      color: 'error',
     })
     return
   }
@@ -173,7 +173,7 @@ async function saveVersion() {
     toast.add({
       title: 'Version Saved',
       description: 'New version created successfully',
-      color: 'green',
+      color: 'success',
     })
 
     showNewVersionDialog.value = false
@@ -190,7 +190,7 @@ async function saveVersion() {
     toast.add({
       title: 'Save Failed',
       description: error.data?.message || 'Failed to save version',
-      color: 'red',
+      color: 'error',
     })
   } finally {
     saving.value = false
@@ -209,7 +209,7 @@ async function activateVersion(versionId: string) {
     toast.add({
       title: 'Version Activated',
       description: 'This version is now active in production',
-      color: 'green',
+      color: 'success',
     })
 
     await fetchVersions()
@@ -217,7 +217,7 @@ async function activateVersion(versionId: string) {
     toast.add({
       title: 'Activation Failed',
       description: error.data?.message || 'Failed to activate version',
-      color: 'red',
+      color: 'error',
     })
   } finally {
     activating.value = false
@@ -230,7 +230,7 @@ async function improveWithAI() {
     toast.add({
       title: 'Validation Error',
       description: 'Please describe what you want to improve',
-      color: 'red',
+      color: 'error',
     })
     return
   }
@@ -267,7 +267,7 @@ async function improveWithAI() {
     toast.add({
       title: 'AI Generation Failed',
       description: error.data?.message || 'Failed to start AI generation',
-      color: 'red',
+      color: 'error',
     })
     generatingWithAI.value = false
     aiProgress.value = ''
@@ -405,7 +405,7 @@ async function openDiffComparison(originalVersionId: string, modifiedVersionId: 
     toast.add({
       title: 'Error',
       description: 'Failed to load version codes for comparison',
-      color: 'red',
+      color: 'error',
     })
   }
 }
@@ -416,7 +416,7 @@ function compareWithPrevious(versionIndex: number) {
     toast.add({
       title: 'No Previous Version',
       description: 'This is the oldest version',
-      color: 'orange',
+      color: 'warning',
     })
     return
   }
@@ -656,7 +656,7 @@ function adaptEventForCard(event: any, index: number) {
               </h3>
               <UBadge
                 v-if="hasChanges"
-                color="orange"
+                color="warning"
                 size="xs"
               >
                 Unsaved
@@ -735,7 +735,7 @@ function adaptEventForCard(event: any, index: number) {
                 <span class="font-medium">v{{ version.versionNumber }}</span>
                 <UBadge
                   v-if="version.isActive"
-                  color="green"
+                  color="success"
                   size="xs"
                 >
                   Active
@@ -807,7 +807,7 @@ function adaptEventForCard(event: any, index: number) {
               </h3>
               <UBadge
                 v-if="hasChanges"
-                color="orange"
+                color="warning"
                 size="xs"
               >
                 Unsaved changes
@@ -864,7 +864,7 @@ function adaptEventForCard(event: any, index: number) {
                 v-if="testResults"
                 variant="ghost"
                 size="sm"
-                color="gray"
+                color="neutral"
                 @click="testResults = null"
               >
                 Clear Results

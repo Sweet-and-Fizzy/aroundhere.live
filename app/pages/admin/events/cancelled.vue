@@ -48,14 +48,14 @@ async function restoreEvent(eventId: string) {
     toast.add({
       title: 'Success',
       description: 'Event restored successfully',
-      color: 'green',
+      color: 'success',
     })
     refresh()
   } catch (error: any) {
     toast.add({
       title: 'Error',
       description: error.data?.message || 'Failed to restore event',
-      color: 'red',
+      color: 'error',
     })
   } finally {
     restoring.value = null
@@ -107,7 +107,7 @@ useSeoMeta({
         <UButton
           :icon="sortOrder === 'desc' ? 'i-heroicons-arrow-down' : 'i-heroicons-arrow-up'"
           size="lg"
-          color="gray"
+          color="neutral"
           variant="outline"
           @click="toggleSort"
         >
@@ -177,7 +177,7 @@ useSeoMeta({
             </td>
             <td class="px-6 py-4 text-sm">
               <UButton
-                color="green"
+                color="success"
                 variant="soft"
                 size="xs"
                 :loading="restoring === event.id"

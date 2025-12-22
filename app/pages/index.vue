@@ -1,5 +1,25 @@
 <script setup lang="ts">
+const { loggedIn, ready: sessionReady } = useUserSession()
+const { favorites, loading: favoritesLoading } = useFavorites()
 const { events, loading, pagination, searchTotalCount, fetchEvents, searchEvents } = useEvents()
+
+// Computed state for hero section - wait for session and favorites to load
+const heroReady = computed(() => {
+  // If session isn't ready yet, we're loading
+  if (!sessionReady.value) return false
+  // If not logged in, we're ready (no favorites to load)
+  if (!loggedIn.value) return true
+  // If logged in but favorites still loading, not ready
+  if (favoritesLoading.value) return false
+  return true
+})
+
+// Determine hero state based on user status
+const hasFavorites = computed(() => {
+  return favorites.value.artists.length > 0 ||
+    favorites.value.venues.length > 0 ||
+    favorites.value.genres.length > 0
+})
 
 // Fetch venues and genres for filters
 const { data: venuesData } = await useFetch('/api/venues')
@@ -39,9 +59,9 @@ const floatingChatRef = ref<{
 const heroChatInput = ref('')
 const heroChatInputRef = ref<HTMLInputElement | null>(null)
 const heroSuggestions = [
+  { icon: '✨', text: 'Recommend something for me' },
   { icon: '⭐', text: "What's happening this weekend?" },
   { icon: '🎵', text: 'When can I hear Jazz?' },
-  { icon: '💃', text: 'Where can I go dancing?' },
 ]
 
 function focusHeroInput() {
@@ -217,56 +237,124 @@ useHead({
           />
         </div>
 
-        <!-- Chat Input Section -->
+        <!-- Content changes based on user state -->
         <div class="flex-1 w-full">
-          <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
-            Ask me about local events<TypeWriter
-              v-if="regionLoaded"
-              :text="` in ${regionName}`"
-              :delay="40"
-              :start-delay="100"
-              @complete="focusHeroInput"
-            />
-          </h2>
-
-          <!-- Input Form -->
-          <form
-            class="flex gap-2 mb-3"
-            @submit.prevent="submitHeroChat"
-          >
-            <div class="flex-1 relative">
-              <input
-                ref="heroChatInputRef"
-                v-model="heroChatInput"
-                type="text"
-                placeholder="Type your question here"
-                class="hero-chat-input w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
+          <!-- Loading state while session/favorites load -->
+          <template v-if="!heroReady">
+            <div class="animate-pulse">
+              <div class="h-6 md:h-7 bg-gray-700 rounded w-2/3 mb-3 mx-auto md:mx-0" />
+              <div class="h-4 bg-gray-700 rounded w-full mb-2 mx-auto md:mx-0" />
+              <div class="h-4 bg-gray-700 rounded w-3/4 mb-4 mx-auto md:mx-0" />
+              <div class="flex gap-3 justify-center md:justify-start">
+                <div class="h-10 w-32 bg-gray-700 rounded-lg" />
+                <div class="h-10 w-28 bg-gray-700 rounded-lg" />
+              </div>
             </div>
-            <button
-              type="submit"
-              class="px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors flex items-center justify-center"
-              :disabled="!heroChatInput.trim()"
-            >
-              <UIcon
-                name="i-heroicons-arrow-right"
-                class="w-5 h-5 text-white"
-              />
-            </button>
-          </form>
+          </template>
 
-          <!-- Suggestion Chips -->
-          <div class="flex flex-wrap gap-2 justify-center md:justify-start">
-            <button
-              v-for="suggestion in heroSuggestions"
-              :key="suggestion.text"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-gray-600 rounded-full text-sm text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors"
-              @click="submitHeroChat(suggestion.text)"
+          <!-- State 1: Anonymous user - prompt to sign in -->
+          <template v-else-if="!loggedIn">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
+              Discover live music<TypeWriter
+                v-if="regionLoaded"
+                :text="` in ${regionName}`"
+                :delay="40"
+                :start-delay="100"
+              />
+            </h2>
+            <p class="text-gray-300 mb-4 text-center md:text-left">
+              Follow your favorite artists and venues. Get notified when they have upcoming shows.
+            </p>
+            <div class="flex flex-wrap gap-3 justify-center md:justify-start">
+              <NuxtLink
+                to="/login"
+                class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Get Started
+                <UIcon name="i-heroicons-arrow-right" class="w-4 h-4" />
+              </NuxtLink>
+              <NuxtLink
+                to="/how-it-works"
+                class="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-500 text-gray-300 font-medium rounded-lg hover:bg-gray-800 hover:border-gray-400 transition-colors"
+              >
+                How It Works
+              </NuxtLink>
+            </div>
+          </template>
+
+          <!-- State 2: Logged in but no interests - prompt to add interests -->
+          <template v-else-if="!hasFavorites">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
+              Welcome! Let's personalize your experience.
+            </h2>
+            <p class="text-gray-300 mb-4 text-center md:text-left">
+              Tell us what you're into to get personalized recommendations and notifications.
+            </p>
+            <div class="flex flex-wrap gap-3 justify-center md:justify-start">
+              <NuxtLink
+                to="/interests"
+                class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <UIcon name="i-heroicons-heart-solid" class="w-4 h-4 text-red-500" />
+                Add Interests
+              </NuxtLink>
+              <span class="text-gray-400 text-sm self-center">
+                or browse events below and tap the heart icon
+              </span>
+            </div>
+          </template>
+
+          <!-- State 3: Has favorites - show chat interface -->
+          <template v-else>
+            <h2 class="text-lg md:text-xl font-semibold mb-3 text-center md:text-left">
+              Ask me about local events<TypeWriter
+                v-if="regionLoaded"
+                :text="` in ${regionName}`"
+                :delay="40"
+                :start-delay="100"
+                @complete="focusHeroInput"
+              />
+            </h2>
+
+            <!-- Input Form -->
+            <form
+              class="flex gap-2 mb-3"
+              @submit.prevent="submitHeroChat"
             >
-              <span class="brightness-200 contrast-125">{{ suggestion.icon }}</span>
-              {{ suggestion.text }}
-            </button>
-          </div>
+              <div class="flex-1 relative">
+                <input
+                  ref="heroChatInputRef"
+                  v-model="heroChatInput"
+                  type="text"
+                  placeholder="Type your question here"
+                  class="hero-chat-input w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+              </div>
+              <button
+                type="submit"
+                class="px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors flex items-center justify-center"
+                :disabled="!heroChatInput.trim()"
+              >
+                <UIcon
+                  name="i-heroicons-arrow-right"
+                  class="w-5 h-5 text-white"
+                />
+              </button>
+            </form>
+
+            <!-- Suggestion Chips -->
+            <div class="flex flex-wrap gap-2 justify-center md:justify-start">
+              <button
+                v-for="suggestion in heroSuggestions"
+                :key="suggestion.text"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-gray-600 rounded-full text-sm text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors"
+                @click="submitHeroChat(suggestion.text)"
+              >
+                <span class="brightness-200 contrast-125">{{ suggestion.icon }}</span>
+                {{ suggestion.text }}
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -455,6 +543,7 @@ useHead({
           :events="events"
           :loading="loading"
           :view-mode="viewMode"
+          :active-event-types="currentFilters.eventTypes"
         />
 
         <!-- Load More / Pagination -->

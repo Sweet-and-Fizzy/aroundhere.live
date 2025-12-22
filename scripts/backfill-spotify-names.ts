@@ -27,8 +27,8 @@ async function main() {
 
   console.log(`Found ${artists.length} verified artists`)
 
-  // Filter to those where spotifyName equals spotifyId (incorrect)
-  const needsFix = artists.filter((a) => a.spotifyName === a.spotifyId)
+  // Filter to those where spotifyName equals spotifyId (incorrect) or is null/empty
+  const needsFix = artists.filter((a) => !a.spotifyName || a.spotifyName === a.spotifyId)
   console.log(`${needsFix.length} artists need spotifyName backfill`)
 
   if (needsFix.length === 0) {

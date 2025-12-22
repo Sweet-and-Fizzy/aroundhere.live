@@ -76,6 +76,9 @@ export interface ScraperListItem {
   isActive: boolean
   hasCode: boolean
   activeVersion: number | null
+  notificationsPaused: boolean
+  notificationsPausedAt: string | null
+  notificationsPausedReason: string | null
 }
 
 // API Response Types

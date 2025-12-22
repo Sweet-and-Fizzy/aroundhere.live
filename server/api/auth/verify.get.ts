@@ -1,4 +1,7 @@
 import { prisma } from '../../utils/prisma'
+import { getRequestIP } from 'h3'
+import { getLocationFromIp } from '../../services/ip-geolocation'
+import { haversineDistance } from '../../services/clustering'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -79,6 +82,61 @@ export default defineEventHandler(async (event) => {
           ...(isSuperAdmin && { role: 'ADMIN' }),
         },
       })
+    }
+
+    // Set default region based on IP if user doesn't have one
+    if (!user.regionId) {
+      try {
+        const ip = getRequestIP(event, { xForwardedFor: true })
+        if (ip) {
+          const location = await getLocationFromIp(ip)
+          if (location) {
+            // Find nearest region
+            const regions = await prisma.region.findMany({
+              where: {
+                isActive: true,
+                centroidLat: { not: null },
+                centroidLng: { not: null },
+              },
+              select: {
+                id: true,
+                centroidLat: true,
+                centroidLng: true,
+              },
+            })
+
+            if (regions.length > 0) {
+              let nearestRegion = regions[0]!
+              let nearestDistance = haversineDistance(
+                location.lat, location.lng,
+                nearestRegion.centroidLat!, nearestRegion.centroidLng!
+              )
+
+              for (const region of regions.slice(1)) {
+                const distance = haversineDistance(
+                  location.lat, location.lng,
+                  region.centroidLat!, region.centroidLng!
+                )
+                if (distance < nearestDistance) {
+                  nearestDistance = distance
+                  nearestRegion = region
+                }
+              }
+
+              // Only set region if within reasonable distance (e.g., 100 miles)
+              if (nearestDistance <= 100) {
+                user = await prisma.user.update({
+                  where: { id: user.id },
+                  data: { regionId: nearestRegion.id },
+                })
+              }
+            }
+          }
+        }
+      } catch (geoError) {
+        // Don't fail login if geolocation fails
+        console.error('Failed to set default region from IP:', geoError)
+      }
     }
 
     // Create session

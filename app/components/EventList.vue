@@ -6,6 +6,7 @@ const props = defineProps<{
   loading?: boolean
   viewMode?: 'card' | 'compact'
   hideVenue?: boolean
+  activeEventTypes?: string[]
 }>()
 
 // Group events by local date for compact view
@@ -205,6 +206,7 @@ function formatDateHeader(date: Date): string {
               :event="event"
               :hide-date="true"
               :hide-venue="hideVenue"
+              :hide-event-type="activeEventTypes?.length === 1"
             />
           </tbody>
         </table>

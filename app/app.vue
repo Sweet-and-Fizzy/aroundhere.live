@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { user, clear: clearSession } = useUserSession()
+const { user, ready: sessionReady, clear: clearSession } = useUserSession()
 const route = useRoute()
 const router = useRouter()
 const { regionName, loaded: regionLoaded, updateRegion } = useCurrentRegion()
@@ -55,11 +55,16 @@ const userMenuItems = computed(() => {
     [
       { label: user.value?.email, disabled: true },
     ],
+    [
+      { label: 'My Interests', icon: 'i-heroicons-heart', to: '/interests' },
+      { label: 'Settings', icon: 'i-heroicons-cog-6-tooth', to: '/settings' },
+    ],
   ]
 
   // Add admin links if user is admin/moderator
   if (isAdmin.value) {
     const adminItems = [
+      { label: 'Artists', icon: 'i-heroicons-user-group', to: '/admin/artists' },
       { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
       { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
       { label: 'Spotify', icon: 'i-heroicons-musical-note', to: '/admin/spotify' },
@@ -98,7 +103,7 @@ const userMenuItems = computed(() => {
             </NuxtLink>
 
             <!-- Desktop Navigation -->
-            <div class="hidden md:flex gap-6">
+            <div class="hidden md:flex items-center gap-6">
               <NuxtLink
                 to="/"
                 class="text-gray-300 hover:text-white transition-colors"
@@ -128,9 +133,15 @@ const userMenuItems = computed(() => {
                 Contact
               </NuxtLink>
 
-              <!-- User Menu -->
+              <!-- Loading state while session loads -->
+              <div
+                v-if="!sessionReady"
+                class="w-20 h-8 bg-gray-700 rounded-lg animate-pulse"
+              />
+
+              <!-- User Menu (logged in) -->
               <UDropdownMenu
-                v-if="user"
+                v-else-if="user"
                 :items="userMenuItems"
               >
                 <button class="flex items-center gap-1 text-gray-300 hover:text-white transition-colors">
@@ -144,6 +155,19 @@ const userMenuItems = computed(() => {
                   />
                 </button>
               </UDropdownMenu>
+
+              <!-- Sign In Button (logged out) -->
+              <NuxtLink
+                v-else
+                to="/login"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors text-sm font-medium"
+              >
+                <UIcon
+                  name="i-heroicons-user-circle"
+                  class="w-4 h-4"
+                />
+                Sign In
+              </NuxtLink>
             </div>
 
             <!-- Mobile Menu Button -->
@@ -194,14 +218,56 @@ const userMenuItems = computed(() => {
               </NuxtLink>
 
               <!-- User section for Mobile -->
-              <template v-if="user">
-                <div class="border-t border-gray-700 mt-2 pt-2">
+              <div class="border-t border-gray-700 mt-2 pt-2">
+                <!-- Loading state -->
+                <div
+                  v-if="!sessionReady"
+                  class="px-3 py-2"
+                >
+                  <div class="h-8 w-32 bg-gray-700 rounded animate-pulse" />
+                </div>
+
+                <template v-else-if="user">
                   <div class="px-3 py-2 text-sm text-gray-400 truncate">
                     {{ user.email }}
                   </div>
 
+                  <NuxtLink
+                    to="/interests"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-heart"
+                      class="w-4 h-4"
+                    />
+                    My Interests
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/settings"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-cog-6-tooth"
+                      class="w-4 h-4"
+                    />
+                    Settings
+                  </NuxtLink>
+
                   <!-- Admin links for mobile -->
                   <template v-if="isAdmin">
+                    <NuxtLink
+                      to="/admin/artists"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-user-group"
+                        class="w-4 h-4"
+                      />
+                      Artists
+                    </NuxtLink>
                     <NuxtLink
                       to="/admin/venues"
                       class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
@@ -270,8 +336,21 @@ const userMenuItems = computed(() => {
                     />
                     Logout
                   </button>
-                </div>
-              </template>
+                </template>
+
+                <!-- Sign In for Mobile (logged out) -->
+                <NuxtLink
+                  v-else
+                  to="/login"
+                  class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                >
+                  <UIcon
+                    name="i-heroicons-user-circle"
+                    class="w-4 h-4"
+                  />
+                  Sign In
+                </NuxtLink>
+              </div>
             </div>
           </div>
         </div>
@@ -291,6 +370,10 @@ const userMenuItems = computed(() => {
             AroundHere<Transition name="fade">
               <span v-if="regionLoaded"> - {{ regionName }}</span>
             </Transition>
+            <span class="mx-2">·</span>
+            <NuxtLink to="/how-it-works" class="hover:text-gray-700">How It Works</NuxtLink>
+            <span class="mx-2">·</span>
+            <NuxtLink to="/privacy" class="hover:text-gray-700">Privacy</NuxtLink>
           </p>
         </div>
       </footer>

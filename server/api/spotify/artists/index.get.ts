@@ -4,6 +4,7 @@
  *
  * Query params:
  *   status: SpotifyMatchStatus (PENDING, AUTO_MATCHED, NEEDS_REVIEW, VERIFIED, NO_MATCH)
+ *   search: string - filter by name (case-insensitive)
  *   limit: number (default 50)
  *   offset: number (default 0)
  */
@@ -23,6 +24,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
 
   const status = query.status as SpotifyMatchStatus | undefined
+  const search = (query.search as string || '').trim()
   const limit = Math.min(Number(query.limit) || 50, 100)
   const offset = Number(query.offset) || 0
 
@@ -34,7 +36,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const where = status ? { spotifyMatchStatus: status } : {}
+  const where: any = {}
+  if (status) {
+    where.spotifyMatchStatus = status
+  }
+  if (search) {
+    where.name = {
+      contains: search,
+      mode: 'insensitive',
+    }
+  }
 
   const [artists, total] = await Promise.all([
     prisma.artist.findMany({

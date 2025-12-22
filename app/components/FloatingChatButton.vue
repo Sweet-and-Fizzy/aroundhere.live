@@ -10,6 +10,11 @@ const chatRef = ref<{ sendMessage: (message: string) => void; scrollToBottom: ()
 
 function toggleChat() {
   showChat.value = !showChat.value
+  if (showChat.value) {
+    nextTick(() => {
+      chatRef.value?.scrollToBottom()
+    })
+  }
 }
 
 function closeChat() {

@@ -13,6 +13,11 @@ export default defineEventHandler(async (event) => {
   // Support both single venueId and multiple venueIds
   const venueId = query.venueId as string | undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
+
+  // Favorites filters
+  const favoriteArtistIds = query.favoriteArtistIds ? (query.favoriteArtistIds as string).split(',') : undefined
+  const favoriteVenueIds = query.favoriteVenueIds ? (query.favoriteVenueIds as string).split(',') : undefined
+  const favoriteGenres = query.favoriteGenres ? (query.favoriteGenres as string).split(',') : undefined
   const startDate = query.startDate ? new Date(query.startDate as string) : (() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -102,10 +107,45 @@ export default defineEventHandler(async (event) => {
     ...(city && !cities && { venue: { city: { contains: city, mode: 'insensitive' } } }),
   }
 
+  // Add favorites filters with OR logic (show events matching ANY favorite type)
+  const favoriteConditions: Prisma.EventWhereInput[] = []
+
+  if (favoriteArtistIds && favoriteArtistIds.length > 0) {
+    favoriteConditions.push({
+      eventArtists: {
+        some: {
+          artistId: { in: favoriteArtistIds },
+        },
+      },
+    })
+  }
+
+  if (favoriteVenueIds && favoriteVenueIds.length > 0) {
+    favoriteConditions.push({
+      venueId: { in: favoriteVenueIds },
+    })
+  }
+
+  if (favoriteGenres && favoriteGenres.length > 0) {
+    favoriteConditions.push({
+      canonicalGenres: { hasSome: favoriteGenres.map(g => g.toLowerCase()) },
+    })
+  }
+
+  // Combine base where with favorites (using OR for favorites)
+  const finalWhere: Prisma.EventWhereInput = favoriteConditions.length > 0
+    ? {
+        AND: [
+          where,
+          { OR: favoriteConditions },
+        ],
+      }
+    : where
+
   // Fetch events with related data
   // First get the initial batch
   let events = await prisma.event.findMany({
-    where,
+    where: finalWhere,
     include: {
       venue: {
         select: {
@@ -157,7 +197,7 @@ export default defineEventHandler(async (event) => {
     // Fetch any additional events from the same day
     const sameDayEvents = await prisma.event.findMany({
       where: {
-        ...where,
+        ...finalWhere,
         startsAt: {
           gte: lastEventDate,
           lt: nextDay,
@@ -207,7 +247,7 @@ export default defineEventHandler(async (event) => {
     events = [...events, ...sameDayEvents]
   }
 
-  const total = await prisma.event.count({ where })
+  const total = await prisma.event.count({ where: finalWhere })
 
   return {
     events,
