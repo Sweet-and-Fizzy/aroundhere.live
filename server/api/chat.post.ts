@@ -4,7 +4,7 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { getRequestIP } from 'h3'
 import prisma from '../utils/prisma'
 import { calculateCost, CHAT_MODEL } from '../utils/llm-cost'
-import { chatTools } from '../mcp/tools'
+import { createChatTools } from '../mcp/tools'
 import { validateConversation, sanitizeMessages } from '../utils/chat-validation'
 import { getChatSystemPrompt } from '../utils/chat-system-prompt'
 import {
@@ -40,6 +40,14 @@ export default defineEventHandler(async (event) => {
   // Get IP address for rate limiting and logging
   const ipAddress = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
 
+  // Get user session for personalized tools (optional - chat works for anonymous users too)
+  const session = await getUserSession(event)
+  const userId = session?.user?.id as string | undefined
+  const isLoggedIn = !!userId
+
+  // Create tools with user context for personalized features
+  const tools = createChatTools(userId)
+
   if (!messages || messages.length === 0) {
     throw createError({
       statusCode: 400,
@@ -73,12 +81,12 @@ export default defineEventHandler(async (event) => {
     // AI SDK 5 uses stopWhen instead of maxSteps for multi-step tool calls
     const result = await generateText({
       model: anthropic(CHAT_MODEL),
-      system: getChatSystemPrompt(regionName),
+      system: getChatSystemPrompt(regionName, isLoggedIn),
       messages: cleanMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
-      tools: chatTools,
+      tools,
       stopWhen: stepCountIs(5), // Allow up to 5 steps for tool calls and follow-up
       toolChoice: 'auto', // Let the model decide when to use tools
     })

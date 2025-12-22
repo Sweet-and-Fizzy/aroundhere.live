@@ -7,7 +7,7 @@ export const GENRE_DESCRIPTIONS: Record<string, string> = {
   metal: 'Metal - all metal subgenres',
   jazz: 'Jazz - jazz, bebop, fusion, big-band',
   blues: 'Blues - traditional and modern blues',
-  folk: 'Folk - traditional and contemporary folk, celtic',
+  folk: 'Folk - traditional and contemporary folk',
   country: 'Country - country, western, honky-tonk',
   bluegrass: 'Bluegrass - bluegrass, newgrass, string-band',
   americana: 'Americana - roots, roots-rock',
@@ -16,9 +16,13 @@ export const GENRE_DESCRIPTIONS: Record<string, string> = {
   'r-and-b': 'R&B/Soul - r&b, soul, neo-soul, motown',
   electronic: 'Electronic - electronic, EDM, techno, house, synth',
   classical: 'Classical - orchestral, chamber, opera',
-  world: 'World - non-Western traditions, afrobeat, latin, salsa',
+  world: 'World - non-Western traditions, afrobeat, Indian, Middle Eastern, Klezmer',
+  celtic: 'Celtic - Irish, Scottish, Breton, traditional Celtic music',
+  latin: 'Latin - salsa, bachata, cumbia, reggaeton, Latin jazz, flamenco',
   funk: 'Funk - funk, groove',
   reggae: 'Reggae - reggae, ska, dub, rocksteady',
+  jam: 'Jam - jam bands, extended improvisation, Grateful Dead tradition',
+  experimental: 'Experimental - avant-garde, noise, sound art, free improvisation',
 }
 
 export const CLASSIFICATION_SYSTEM_PROMPT = `You are an expert music event classifier for a local music listings service.

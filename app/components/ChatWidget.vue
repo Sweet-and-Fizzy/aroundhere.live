@@ -183,7 +183,7 @@ function createChat(prompt: string) {
             :icon="quickChat.icon"
             :label="quickChat.label"
             size="sm"
-            color="white"
+            color="neutral"
             variant="outline"
             class="rounded-full"
             @click="createChat(quickChat.label)"

@@ -5,7 +5,16 @@ import type { DateRange } from 'reka-ui'
 
 type CalendarDateRange = DateRange | any
 
+// Format date as YYYY-MM-DD for cleaner URLs
+function formatDateParam(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
 const { updateRegion } = useCurrentRegion()
+
+// User session for favorites filter
+const { loggedIn } = useUserSession()
+const { favorites } = useFavorites()
 
 const emit = defineEmits<{
   filter: [filters: Record<string, any>]
@@ -94,6 +103,9 @@ function saveFilters() {
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
       expandedSection: expandedSection.value,
+      filterByFavoriteArtists: filterByFavoriteArtists.value,
+      filterByFavoriteVenues: filterByFavoriteVenues.value,
+      filterByFavoriteGenres: filterByFavoriteGenres.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
   }
@@ -198,6 +210,11 @@ const selectedEventTypes = ref<string[]>(
 // Location filters: regions and cities
 const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
 const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
+
+// Favorites filters
+const filterByFavoriteArtists = ref(savedFilters?.filterByFavoriteArtists || false)
+const filterByFavoriteVenues = ref(savedFilters?.filterByFavoriteVenues || false)
+const filterByFavoriteGenres = ref(savedFilters?.filterByFavoriteGenres || false)
 
 // Use location filter composable for hierarchical filtering
 const {
@@ -361,7 +378,10 @@ const hasActiveFilters = computed(() => {
     datePreset.value !== 'month' ||
     mapFilteredVenueIds.value !== null ||
     selectedRegions.value.length > 0 ||
-    selectedCities.value.length > 0
+    selectedCities.value.length > 0 ||
+    filterByFavoriteArtists.value ||
+    filterByFavoriteVenues.value ||
+    filterByFavoriteGenres.value
   )
 })
 
@@ -376,6 +396,7 @@ const activeFilterCount = computed(() => {
   if (mapFilteredVenueIds.value !== null) count++
   if (selectedRegions.value.length > 0) count++
   if (selectedCities.value.length > 0) count++
+  if (filterByFavoriteArtists.value || filterByFavoriteVenues.value || filterByFavoriteGenres.value) count++
   return count
 })
 
@@ -391,6 +412,9 @@ function resetFilters() {
   mapFilteredVenueIds.value = null
   mapCenter.value = null
   showMapModal.value = false
+  filterByFavoriteArtists.value = false
+  filterByFavoriteVenues.value = false
+  filterByFavoriteGenres.value = false
   if (import.meta.client) {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(MAP_BOUNDS_KEY)
@@ -419,24 +443,22 @@ const allNonMusicEventTypes = [
   { label: 'Drag', value: 'DRAG' },
 ]
 
-// Filter to only show event types with events AND that would narrow results
+// Filter to only show event types that have events
 const musicEventTypes = computed(() => {
   if (!props.facets) return allMusicEventTypes
-  const totalResults = props.resultCount ?? 0
   return allMusicEventTypes.filter((t) => {
     const count = props.facets?.typeCounts?.[t.value] ?? 0
-    // Show if has events AND would narrow results, OR is already selected
-    return count > 0 && (count < totalResults || selectedEventTypes.value.includes(t.value))
+    // Show if has events OR is already selected
+    return count > 0 || selectedEventTypes.value.includes(t.value)
   })
 })
 
 const nonMusicEventTypes = computed(() => {
   if (!props.facets) return allNonMusicEventTypes
-  const totalResults = props.resultCount ?? 0
   return allNonMusicEventTypes.filter((t) => {
     const count = props.facets?.typeCounts?.[t.value] ?? 0
-    // Show if has events AND would narrow results, OR is already selected
-    return count > 0 && (count < totalResults || selectedEventTypes.value.includes(t.value))
+    // Show if has events OR is already selected
+    return count > 0 || selectedEventTypes.value.includes(t.value)
   })
 })
 
@@ -511,6 +533,39 @@ const genreSummary = computed(() => {
   if (labels.length === 2) return labels.join(', ')
   return `${labels[0]} +${labels.length - 1} more`
 })
+
+// Summary for favorites section
+const favoritesSummary = computed(() => {
+  const parts: string[] = []
+  if (filterByFavoriteArtists.value) parts.push('Artists')
+  if (filterByFavoriteVenues.value) parts.push('Venues')
+  if (filterByFavoriteGenres.value) parts.push('Genres')
+  if (parts.length === 0) return null
+  return parts.join(', ')
+})
+
+// Check if user has any favorites
+const hasFavorites = computed(() => {
+  return favorites.value.artists.length > 0 ||
+         favorites.value.venues.length > 0 ||
+         favorites.value.genres.length > 0
+})
+
+// Toggle functions for favorites
+function toggleFavoriteArtists() {
+  filterByFavoriteArtists.value = !filterByFavoriteArtists.value
+  applyFilters()
+}
+
+function toggleFavoriteVenues() {
+  filterByFavoriteVenues.value = !filterByFavoriteVenues.value
+  applyFilters()
+}
+
+function toggleFavoriteGenres() {
+  filterByFavoriteGenres.value = !filterByFavoriteGenres.value
+  applyFilters()
+}
 
 // Use venuesByRegion and venuesByCity from composable
 const venuesByRegion = locationVenuesByRegion
@@ -690,8 +745,8 @@ function getDateRange(range: string) {
         const end = customDateRange.value.end
         if (start && end) {
           return {
-            startDate: new Date(start.year, start.month - 1, start.day).toISOString(),
-            endDate: new Date(end.year, end.month - 1, end.day, 23, 59, 59, 999).toISOString(),
+            startDate: formatDateParam(new Date(start.year, start.month - 1, start.day)),
+            endDate: formatDateParam(new Date(end.year, end.month - 1, end.day)),
           }
         }
       }
@@ -701,8 +756,8 @@ function getDateRange(range: string) {
   }
 
   return {
-    startDate: startDate.toISOString(),
-    endDate: endDate?.toISOString(),
+    startDate: formatDateParam(startDate),
+    endDate: endDate ? formatDateParam(endDate) : undefined,
   }
 }
 
@@ -729,6 +784,17 @@ function applyFilters() {
 
   const musicOnly = (eventTypes.length === 0 || showAllEvents) ? false : undefined
 
+  // Build favorite IDs if filtering by favorites is enabled
+  const favoriteArtistIds = filterByFavoriteArtists.value && favorites.value.artists.length > 0
+    ? favorites.value.artists.map(a => a.id)
+    : undefined
+  const favoriteVenueIds = filterByFavoriteVenues.value && favorites.value.venues.length > 0
+    ? favorites.value.venues.map(v => v.id)
+    : undefined
+  const favoriteGenreSlugs = filterByFavoriteGenres.value && favorites.value.genres.length > 0
+    ? favorites.value.genres
+    : undefined
+
   const filters = {
     startDate,
     endDate,
@@ -739,6 +805,10 @@ function applyFilters() {
     genres: selectedGenres.value.length > 0 ? selectedGenres.value : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
+    // Favorites filters
+    favoriteArtistIds,
+    favoriteVenueIds,
+    favoriteGenres: favoriteGenreSlugs,
   }
   emit('filter', filters)
 
@@ -881,6 +951,96 @@ defineExpose({
         class="w-full"
         icon="i-heroicons-magnifying-glass"
       />
+    </div>
+
+    <!-- My Favorites - only show when logged in and has favorites -->
+    <div
+      v-if="loggedIn && hasFavorites"
+      class="filter-section"
+    >
+      <button
+        class="section-header"
+        @click="toggleSection('favorites')"
+      >
+        <span class="section-title">
+          <UIcon
+            name="i-heroicons-heart"
+            class="w-4 h-4"
+          />
+          My Favorites
+        </span>
+        <span class="section-meta">
+          <span
+            v-if="!isSectionExpanded('favorites') && favoritesSummary"
+            class="section-summary"
+          >{{ favoritesSummary }}</span>
+          <span
+            v-else-if="!isSectionExpanded('favorites')"
+            class="section-summary muted"
+          >Off</span>
+          <UIcon
+            :name="isSectionExpanded('favorites') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+            class="w-4 h-4 text-gray-500"
+          />
+        </span>
+      </button>
+      <div
+        v-if="isSectionExpanded('favorites')"
+        class="section-content"
+      >
+        <p class="text-xs text-gray-500 mb-2">
+          Show only events matching your favorites
+        </p>
+        <button
+          v-if="favorites.artists.length > 0"
+          class="checkbox-option"
+          :class="{ active: filterByFavoriteArtists }"
+          @click="toggleFavoriteArtists"
+        >
+          <span
+            class="checkbox"
+            :class="{ checked: filterByFavoriteArtists }"
+          />
+          <span class="option-label">Favorite Artists</span>
+          <span class="option-count">{{ favorites.artists.length }}</span>
+        </button>
+        <button
+          v-if="favorites.venues.length > 0"
+          class="checkbox-option"
+          :class="{ active: filterByFavoriteVenues }"
+          @click="toggleFavoriteVenues"
+        >
+          <span
+            class="checkbox"
+            :class="{ checked: filterByFavoriteVenues }"
+          />
+          <span class="option-label">Favorite Venues</span>
+          <span class="option-count">{{ favorites.venues.length }}</span>
+        </button>
+        <button
+          v-if="favorites.genres.length > 0"
+          class="checkbox-option"
+          :class="{ active: filterByFavoriteGenres }"
+          @click="toggleFavoriteGenres"
+        >
+          <span
+            class="checkbox"
+            :class="{ checked: filterByFavoriteGenres }"
+          />
+          <span class="option-label">Favorite Genres</span>
+          <span class="option-count">{{ favorites.genres.length }}</span>
+        </button>
+        <NuxtLink
+          to="/interests"
+          class="manage-favorites-link"
+        >
+          <UIcon
+            name="i-heroicons-cog-6-tooth"
+            class="w-3.5 h-3.5"
+          />
+          Manage Interests
+        </NuxtLink>
+      </div>
     </div>
 
     <!-- Date Range -->
@@ -1767,6 +1927,25 @@ defineExpose({
   font-size: 0.6875rem;
   color: #9ca3af;
   margin-left: auto;
+}
+
+/* Manage favorites link */
+.manage-favorites-link {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-decoration: none;
+  border-top: 1px solid #e5e7eb;
+  transition: color 0.15s;
+}
+
+.manage-favorites-link:hover {
+  color: #2563eb;
 }
 
 .checkbox-option.active .option-count {

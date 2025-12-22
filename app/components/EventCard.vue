@@ -72,6 +72,16 @@ const spotifyArtist = computed(() => {
   )?.artist
 })
 
+// For favorites: check if single or multi-artist event
+const hasMultipleArtists = computed(() => {
+  return (props.event.eventArtists?.length || 0) > 1
+})
+
+const singleArtist = computed(() => {
+  if (hasMultipleArtists.value || !props.event.eventArtists?.length) return null
+  return props.event.eventArtists[0].artist
+})
+
 // For display: use summary if available, otherwise truncate description
 const displaySummary = computed(() => {
   if (props.event.summary) return props.event.summary
@@ -115,7 +125,33 @@ const eventTypeLabel = computed(() => {
     :ui="{ body: 'p-0 sm:p-0' }"
   >
     <!-- Mobile-first: Stacked layout, horizontal on md+ -->
-    <div class="flex flex-col md:flex-row">
+    <div class="flex flex-col md:flex-row relative">
+      <!-- Spotify + Favorite buttons - top right corner (desktop only, over image) -->
+      <div class="hidden md:flex absolute top-2 right-2 z-10 items-center gap-1">
+        <a
+          v-if="spotifyArtist"
+          :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
+          target="_blank"
+          class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors"
+          title="Listen on Spotify"
+          @click.stop
+        >
+          <SpotifyIcon class="w-5 h-5" />
+        </a>
+        <FavoriteButton
+          v-if="singleArtist"
+          type="artist"
+          :id="singleArtist.id"
+          :name="singleArtist.name"
+          :slug="singleArtist.slug"
+          size="md"
+        />
+        <ArtistFavoriteDropdown
+          v-else-if="hasMultipleArtists && event.eventArtists"
+          :event-artists="event.eventArtists"
+          size="md"
+        />
+      </div>
       <!-- Image - Full width edge-to-edge on mobile, fixed width on desktop -->
       <!-- Only shows actual event images, not venue logos -->
       <NuxtLink
@@ -160,7 +196,7 @@ const eventTypeLabel = computed(() => {
       <!-- Event Details - add padding since card body has no padding when image/fallback is present -->
       <div class="flex-1 min-w-0 p-3 md:py-3 md:pr-3 md:pl-3 lg:pl-4">
         <!-- Date/Time row -->
-        <div class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm text-gray-700 mb-0.5">
+        <div class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm text-gray-700 sm:mb-0.5">
           <UIcon
             name="i-heroicons-calendar"
             class="w-4 h-4 text-primary-500"
@@ -192,16 +228,32 @@ const eventTypeLabel = computed(() => {
               {{ event.title }}
             </h3>
           </NuxtLink>
-          <a
-            v-if="spotifyArtist"
-            :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
-            target="_blank"
-            class="flex-shrink-0 text-[#1DB954] hover:text-[#1ed760] transition-colors mt-1"
-            title="Listen on Spotify"
-            @click.stop
-          >
-            <SpotifyIcon class="w-5 h-5" />
-          </a>
+          <!-- Spotify + Favorite buttons (mobile only, in content area) -->
+          <div class="flex md:hidden items-center gap-1 flex-shrink-0">
+            <a
+              v-if="spotifyArtist"
+              :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
+              target="_blank"
+              class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors"
+              title="Listen on Spotify"
+              @click.stop
+            >
+              <SpotifyIcon class="w-5 h-5" />
+            </a>
+            <FavoriteButton
+              v-if="singleArtist"
+              type="artist"
+              :id="singleArtist.id"
+              :name="singleArtist.name"
+              :slug="singleArtist.slug"
+              size="md"
+            />
+            <ArtistFavoriteDropdown
+              v-else-if="hasMultipleArtists && event.eventArtists"
+              :event-artists="event.eventArtists"
+              size="md"
+            />
+          </div>
         </div>
 
         <div

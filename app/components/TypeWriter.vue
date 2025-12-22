@@ -15,6 +15,12 @@ const isComplete = ref(false)
 let timeoutId: ReturnType<typeof setTimeout> | null = null
 
 function typeText() {
+  // Clear any pending timeout from previous text
+  if (timeoutId) {
+    clearTimeout(timeoutId)
+    timeoutId = null
+  }
+
   let index = 0
   displayText.value = ''
   isComplete.value = false

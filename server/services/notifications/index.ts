@@ -593,3 +593,74 @@ export async function notifyUnclassifiedEvents(params: {
   await sendSlackNotification(message, blocks)
 }
 
+// ============================================================================
+// Scraper Anomaly Detection
+// ============================================================================
+
+export interface ScraperAnomalyAlert {
+  sourceId: string
+  sourceName: string
+  venueName: string
+  anomalyType: 'high_creation_rate' | 'duplicate_spike' | 'missing_source_event_id'
+  severity: 'warning' | 'critical'
+  message: string
+  details: {
+    eventsCreated: number
+    eventsUpdated: number
+    eventsSkipped: number
+    expectedRange?: { min: number; max: number }
+    sampleTitles?: string[]
+    timestamp: Date
+  }
+}
+
+/**
+ * Alert when a scraper creates an unusually high number of new events.
+ * This could indicate a deduplication failure that will cause notification spam.
+ */
+export async function notifyScraperAnomaly(alert: ScraperAnomalyAlert): Promise<void> {
+  const emoji = alert.severity === 'critical' ? '🚨' : '⚠️'
+  const message = `${emoji} Scraper Anomaly: ${alert.sourceName}`
+
+  const typeLabels: Record<string, string> = {
+    high_creation_rate: 'Unusually High Event Creation',
+    duplicate_spike: 'Potential Duplicate Events',
+    missing_source_event_id: 'Missing Event Identifiers',
+  }
+
+  const sampleText = alert.details.sampleTitles?.length
+    ? alert.details.sampleTitles.slice(0, 5).map(t => `• ${t}`).join('\n')
+    : null
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `${emoji} *${typeLabels[alert.anomalyType] || alert.anomalyType}*`,
+          '',
+          `*Source:* ${alert.sourceName}`,
+          `*Venue:* ${alert.venueName}`,
+          '',
+          `*Message:* ${alert.message}`,
+          '',
+          `*Stats:*`,
+          `• Created: ${alert.details.eventsCreated}`,
+          `• Updated: ${alert.details.eventsUpdated}`,
+          `• Skipped: ${alert.details.eventsSkipped}`,
+          alert.details.expectedRange
+            ? `• Expected range: ${alert.details.expectedRange.min}-${alert.details.expectedRange.max}`
+            : '',
+          '',
+          sampleText ? `*Sample titles:*\n${sampleText}` : '',
+          '',
+          `_This may cause notification spam if not addressed._`,
+        ].filter(Boolean).join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+

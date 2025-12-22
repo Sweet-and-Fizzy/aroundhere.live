@@ -170,7 +170,7 @@ useHead({
           <UButton
             v-if="isAdminOrModerator && venue"
             :to="`/admin/venues/${venue.id}/edit`"
-            color="white"
+            color="neutral"
             variant="solid"
             icon="i-heroicons-pencil-square"
             size="sm"
@@ -185,10 +185,17 @@ useHead({
             :alt="`${venue.name} logo`"
             class="h-20 w-20 object-contain bg-white/10 backdrop-blur rounded-lg p-2 border border-white/20"
           >
-          <div>
+          <div class="flex items-center gap-3">
             <h1 class="text-3xl md:text-4xl font-bold drop-shadow-lg">
               {{ venue.name }}
             </h1>
+            <FavoriteButton
+              type="venue"
+              :id="venue.id"
+              :name="venue.name"
+              :slug="venue.slug"
+              size="lg"
+            />
           </div>
         </div>
       </div>

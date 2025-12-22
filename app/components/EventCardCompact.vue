@@ -5,6 +5,7 @@ const props = defineProps<{
   event: Event
   hideDate?: boolean
   hideVenue?: boolean
+  hideEventType?: boolean
 }>()
 
 const { getGenreLabel, getGenreColor } = useGenreLabels()
@@ -150,7 +151,7 @@ const eventTypeLabel = computed(() => {
           </div>
           <div class="flex items-center gap-1 flex-shrink-0">
             <span
-              v-if="eventTypeLabel"
+              v-if="eventTypeLabel && !hideEventType"
               class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-900"
               :class="eventTypeBadgeClass"
             >

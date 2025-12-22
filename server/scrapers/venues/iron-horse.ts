@@ -152,10 +152,15 @@ export class IronHorseScraper extends PlaywrightScraper {
     }
   }
 
+  // Get the Elfsight event ID for a given title
+  private getElfsightEventId(title: string): string | undefined {
+    const normalizedTitle = title.toLowerCase().trim()
+    return this.elfsightEventIds.get(normalizedTitle)
+  }
+
   // Build the direct event URL using the Elfsight event ID
   private buildEventUrl(title: string): string {
-    const normalizedTitle = title.toLowerCase().trim()
-    const eventId = this.elfsightEventIds.get(normalizedTitle)
+    const eventId = this.getElfsightEventId(title)
 
     if (eventId) {
       return `${this.config.url}#calendar-${IRON_HORSE_WIDGET_ID}-event-${eventId}`
@@ -306,7 +311,13 @@ export class IronHorseScraper extends PlaywrightScraper {
       )
       const coverCharge = this.extractPrice(priceCaption)
 
-      const sourceEventId = this.generateEventId(title, startsAt)
+      // Use Elfsight's stable event ID when available - this prevents duplicates
+      // when titles change (e.g., opener added). Only fall back to title-based ID
+      // if Elfsight ID not available.
+      const elfsightId = this.getElfsightEventId(title)
+      const sourceEventId = elfsightId
+        ? `iron-horse-elfsight-${elfsightId}`
+        : this.generateEventId(title, startsAt)
       const sourceUrl = this.buildEventUrl(title)
 
       return {

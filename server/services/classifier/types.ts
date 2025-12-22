@@ -17,8 +17,12 @@ export const CANONICAL_GENRES = [
   'electronic',
   'classical',
   'world',
+  'celtic',
+  'latin',
   'funk',
   'reggae',
+  'jam',
+  'experimental',
 ] as const
 
 export type CanonicalGenre = (typeof CANONICAL_GENRES)[number]

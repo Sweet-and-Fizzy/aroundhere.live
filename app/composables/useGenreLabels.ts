@@ -21,8 +21,12 @@ const GENRE_LABELS: Record<string, string> = {
   'electronic': 'Electronic',
   'classical': 'Classical',
   'world': 'World',
+  'celtic': 'Celtic',
+  'latin': 'Latin',
   'funk': 'Funk',
   'reggae': 'Reggae',
+  'jam': 'Jam',
+  'experimental': 'Experimental',
   'spoken-word': 'Spoken Word',
 }
 
@@ -39,6 +43,7 @@ const GENRE_COLORS: Record<string, string> = {
   'country': 'lime',       // Lime - rustic, fresh
   'bluegrass': 'green',    // Green - upbeat, traditional
   'americana': 'amber',    // Amber - nostalgic, warm
+  'celtic': 'green',       // Green - traditional, Irish vibes
 
   // Jazz/Blues/Classical family - cool blues to purples
   'jazz': 'indigo',        // Indigo - sophisticated, smooth
@@ -54,9 +59,16 @@ const GENRE_COLORS: Record<string, string> = {
   'electronic': 'cyan',    // Cyan - modern, digital
   'world': 'teal',         // Teal - diverse, global
 
+  // Latin - warm, vibrant
+  'latin': 'orange',       // Orange - warm, rhythmic
+
   // Singer-songwriter/Indie family - warm tones
-  'indie': 'orange',       // Orange - creative, independent
-  'singer-songwriter': 'sky', // Sky - artistic, intimate
+  'indie': 'sky',          // Sky - creative, independent
+  'singer-songwriter': 'slate', // Slate - artistic, intimate
+
+  // Jam/Experimental - psychedelic vibes
+  'jam': 'purple',         // Purple - psychedelic, exploratory
+  'experimental': 'gray',  // Gray - avant-garde, unconventional
 
   // Reggae - distinct green (island vibes)
   'reggae': 'emerald',     // Emerald - relaxed, island vibes

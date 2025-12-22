@@ -1,26 +1,6 @@
 import prisma from '../../utils/prisma'
 
-// Canonical genres from the classifier - these are the normalized genre labels
-const CANONICAL_GENRES = [
-  'rock',
-  'indie',
-  'punk',
-  'metal',
-  'jazz',
-  'blues',
-  'folk',
-  'country',
-  'bluegrass',
-  'americana',
-  'singer-songwriter',
-  'hip-hop',
-  'r-and-b',
-  'electronic',
-  'classical',
-  'world',
-  'funk',
-  'reggae',
-]
+import { CANONICAL_GENRES } from '../../services/classifier/types'
 
 // Human-readable labels for display
 const GENRE_LABELS: Record<string, string> = {
@@ -40,8 +20,12 @@ const GENRE_LABELS: Record<string, string> = {
   'electronic': 'Electronic',
   'classical': 'Classical',
   'world': 'World',
+  'celtic': 'Celtic',
+  'latin': 'Latin',
   'funk': 'Funk',
   'reggae': 'Reggae',
+  'jam': 'Jam',
+  'experimental': 'Experimental',
 }
 
 export default defineEventHandler(async () => {

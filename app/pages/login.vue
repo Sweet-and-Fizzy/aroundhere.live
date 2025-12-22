@@ -1,18 +1,14 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-900 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-      <div class="text-center">
-        <img
-          src="/around-here-logo.svg"
-          alt="AroundHere.Live"
-          class="h-8 mx-auto mb-6"
-        >
-        <p class="text-gray-400">
-          Sign in to your account
+  <div class="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Sign in or create account</h1>
+        <p class="text-sm text-gray-500 mt-2">
+          New here? We'll create your account automatically.
         </p>
       </div>
 
-      <div class="bg-white rounded-xl shadow-xl p-8">
+      <UCard>
         <form
           class="space-y-6"
           @submit.prevent="handleSubmit"
@@ -122,12 +118,15 @@
           </button>
         </form>
 
-        <div class="mt-8 pt-6 border-t border-gray-200">
+        <div class="mt-6 pt-6 border-t border-gray-200 space-y-2">
           <p class="text-xs text-gray-500 text-center">
             We'll email you a secure link that logs you in instantly. No password needed.
           </p>
+          <p class="text-xs text-gray-500 text-center">
+            By signing in, you agree to our <NuxtLink to="/privacy" class="text-primary-600 hover:underline">Privacy Policy</NuxtLink>.
+          </p>
         </div>
-      </div>
+      </UCard>
     </div>
   </div>
 </template>

@@ -1,15 +1,13 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-900 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-      <div class="text-center">
-        <img
-          src="/around-here-logo.svg"
-          alt="AroundHere.Live"
-          class="h-8 mx-auto"
-        >
+  <div class="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">
+          {{ loading ? 'Verifying...' : (success ? 'Welcome!' : 'Verification') }}
+        </h1>
       </div>
 
-      <div class="bg-white rounded-xl shadow-xl p-8">
+      <UCard>
         <!-- Loading State -->
         <div
           v-if="loading"
@@ -60,13 +58,10 @@
               />
             </svg>
           </div>
-          <h2 class="mt-4 text-2xl font-bold text-gray-900">
-            Welcome back!
+          <h2 class="mt-4 text-xl font-semibold text-gray-900">
+            You're signed in!
           </h2>
           <p class="mt-2 text-gray-600">
-            You've been successfully logged in.
-          </p>
-          <p class="mt-4 text-sm text-gray-500">
             Redirecting to homepage...
           </p>
         </div>
@@ -91,7 +86,7 @@
               />
             </svg>
           </div>
-          <h2 class="mt-4 text-2xl font-bold text-gray-900">
+          <h2 class="mt-4 text-xl font-semibold text-gray-900">
             Verification failed
           </h2>
           <p class="mt-2 text-gray-600">
@@ -106,7 +101,7 @@
             </NuxtLink>
           </div>
         </div>
-      </div>
+      </UCard>
     </div>
   </div>
 </template>

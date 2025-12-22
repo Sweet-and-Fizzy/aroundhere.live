@@ -41,6 +41,9 @@ export default defineEventHandler(async (event) => {
         lastRunStatus: true,
         isActive: true,
         config: true,
+        notificationsPaused: true,
+        notificationsPausedAt: true,
+        notificationsPausedReason: true,
         scraperVersions: {
           where: {
             isActive: true,
@@ -66,6 +69,9 @@ export default defineEventHandler(async (event) => {
         isActive: s.isActive,
         hasCode: !!(s.config as any)?.generatedCode,
         activeVersion: s.scraperVersions[0]?.versionNumber ?? null,
+        notificationsPaused: s.notificationsPaused,
+        notificationsPausedAt: s.notificationsPausedAt,
+        notificationsPausedReason: s.notificationsPausedReason,
       })),
     }
   } catch (error: any) {

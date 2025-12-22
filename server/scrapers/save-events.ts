@@ -14,6 +14,11 @@ import {
   normalizeForComparison,
 } from '../utils/html'
 import { extractAndLinkArtist } from '../utils/artist-extraction'
+import { notifyScraperAnomaly } from '../services/notifications'
+import { similarityScore } from './dedup'
+
+// Threshold for detecting suspicious duplicates
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.7
 
 /**
  * Generate a composite key for event uniqueness when sourceUrl is not unique.
@@ -351,19 +356,6 @@ export async function saveScrapedEvents(
   let updated = 0
   let filtered = 0
 
-  // Detect if sourceUrls are non-unique (e.g., scraper returns listing page URL for all events)
-  const urlCounts: Record<string, number> = {}
-  for (const event of events) {
-    if (event.sourceUrl) {
-      urlCounts[event.sourceUrl] = (urlCounts[event.sourceUrl] || 0) + 1
-    }
-  }
-  const hasNonUniqueUrls = Object.values(urlCounts).some(count => count > 1)
-
-  if (hasNonUniqueUrls) {
-    console.log(`[SaveEvent] Detected non-unique sourceUrls, will use composite keys for events without sourceEventId`)
-  }
-
   // Track sourceEventIds for cancellation detection
   const scrapedSourceEventIds: string[] = []
 
@@ -384,9 +376,10 @@ export async function saveScrapedEvents(
         eventWithCorrectedDate = { ...event, startsAt: dateCheck.correctedDate }
       }
 
-      // If sourceUrls are non-unique AND scraper doesn't provide its own sourceEventId,
-      // generate a composite key. Don't override scraper-provided IDs.
-      const eventToSave = hasNonUniqueUrls && !eventWithCorrectedDate.sourceEventId
+      // Always generate a composite key if scraper doesn't provide sourceEventId.
+      // This ensures proper deduplication even when fuzzy matching would catch it,
+      // by allowing exact ID matching which is more reliable.
+      const eventToSave = !eventWithCorrectedDate.sourceEventId
         ? { ...eventWithCorrectedDate, sourceEventId: generateCompositeKey(venue.id, eventWithCorrectedDate) }
         : eventWithCorrectedDate
 
@@ -420,5 +413,138 @@ export async function saveScrapedEvents(
 
   console.log(`[SaveEvent] Summary: saved=${saved}, updated=${updated}, skipped=${skipped}, filtered=${filtered}, canceled=${canceled}`)
   return { saved, skipped, updated, filtered, canceled }
+}
+
+/**
+ * Metadata about the source for anomaly detection/alerting
+ */
+export interface SourceMetadata {
+  sourceId: string
+  sourceName: string
+  venueName: string
+}
+
+/**
+ * Detect suspicious duplicates created by a scraper run.
+ * Looks for events just created that have similar titles to pre-existing events
+ * at the same venue on the same day.
+ *
+ * Returns list of potential duplicate pairs for alerting.
+ */
+export async function detectSuspiciousDuplicates(
+  prisma: PrismaClient,
+  sourceId: string,
+  venueId: string,
+  runStartTime: Date
+): Promise<Array<{ newEvent: { id: string; title: string; startsAt: Date }; existingEvent: { id: string; title: string; startsAt: Date }; similarity: number }>> {
+  // Find events created by this source during this run
+  const newEvents = await prisma.event.findMany({
+    where: {
+      sourceId,
+      venueId,
+      createdAt: { gte: runStartTime },
+    },
+    select: {
+      id: true,
+      title: true,
+      startsAt: true,
+    },
+  })
+
+  if (newEvents.length === 0) {
+    return []
+  }
+
+  const suspiciousPairs: Array<{
+    newEvent: { id: string; title: string; startsAt: Date }
+    existingEvent: { id: string; title: string; startsAt: Date }
+    similarity: number
+  }> = []
+
+  // For each new event, check if there's a similar pre-existing event
+  for (const newEvent of newEvents) {
+    const startOfDay = new Date(newEvent.startsAt)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(newEvent.startsAt)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    // Find pre-existing events at same venue on same day
+    const existingEvents = await prisma.event.findMany({
+      where: {
+        venueId,
+        id: { not: newEvent.id },
+        startsAt: { gte: startOfDay, lte: endOfDay },
+        createdAt: { lt: runStartTime }, // Created before this run
+      },
+      select: {
+        id: true,
+        title: true,
+        startsAt: true,
+      },
+    })
+
+    // Check title similarity
+    for (const existing of existingEvents) {
+      const similarity = similarityScore(newEvent.title, existing.title)
+      if (similarity >= DUPLICATE_SIMILARITY_THRESHOLD) {
+        suspiciousPairs.push({
+          newEvent,
+          existingEvent: existing,
+          similarity,
+        })
+      }
+    }
+  }
+
+  return suspiciousPairs
+}
+
+/**
+ * Handle detected duplicates: pause notifications for source and alert admins
+ */
+export async function handleSuspiciousDuplicates(
+  prisma: PrismaClient,
+  sourceMetadata: SourceMetadata,
+  duplicates: Array<{ newEvent: { id: string; title: string; startsAt: Date }; existingEvent: { id: string; title: string; startsAt: Date }; similarity: number }>
+): Promise<void> {
+  if (duplicates.length === 0) {
+    return
+  }
+
+  const reason = `Detected ${duplicates.length} potential duplicate event(s) that should have matched existing events`
+
+  // Pause notifications for this source
+  await prisma.source.update({
+    where: { id: sourceMetadata.sourceId },
+    data: {
+      notificationsPaused: true,
+      notificationsPausedAt: new Date(),
+      notificationsPausedReason: reason,
+    },
+  })
+
+  console.log(`[SaveEvent] Paused notifications for source ${sourceMetadata.sourceName}: ${reason}`)
+
+  // Build sample titles for alert
+  const sampleTitles = duplicates.slice(0, 5).map(d =>
+    `"${d.newEvent.title}" ≈ "${d.existingEvent.title}" (${(d.similarity * 100).toFixed(0)}%)`
+  )
+
+  // Alert admins
+  await notifyScraperAnomaly({
+    sourceId: sourceMetadata.sourceId,
+    sourceName: sourceMetadata.sourceName,
+    venueName: sourceMetadata.venueName,
+    anomalyType: 'duplicate_spike',
+    severity: duplicates.length >= 3 ? 'critical' : 'warning',
+    message: reason,
+    details: {
+      eventsCreated: duplicates.length,
+      eventsUpdated: 0,
+      eventsSkipped: 0,
+      sampleTitles,
+      timestamp: new Date(),
+    },
+  })
 }
 

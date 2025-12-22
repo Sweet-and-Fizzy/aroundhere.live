@@ -3,7 +3,7 @@
  * Includes strict guardrails to prevent misuse
  */
 
-export function getChatSystemPrompt(regionName = 'Western Massachusetts'): string {
+export function getChatSystemPrompt(regionName = 'Western Massachusetts', isLoggedIn = false): string {
   const now = new Date()
   const dateStr = now.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -15,6 +15,32 @@ export function getChatSystemPrompt(regionName = 'Western Massachusetts'): strin
     hour: 'numeric',
     minute: '2-digit'
   })
+
+  const favoritesSection = isLoggedIn
+    ? `
+PERSONALIZATION FEATURES:
+The user is signed in and can use personalization features. You have access to these tools:
+- get_my_favorites: See their favorite artists, venues, and genres
+- get_events_from_favorites: Find upcoming events featuring their favorite artists or at favorite venues (exact matches)
+- get_personalized_recommendations: Get AI-scored recommendations based on their taste profile, using embedding similarity, genre overlap, and venue preferences
+
+WHEN TO USE EACH TOOL:
+- "what are my favorites" / "what have I saved" → use get_my_favorites
+- "shows by my favorite artists" / "events at my favorite venues" → use get_events_from_favorites
+- "recommend something" / "what should I see" / "events I might like" / "personalized picks" → use get_personalized_recommendations
+
+When showing personalized recommendations:
+- Mention the "reasons" field to explain why each event matches their taste
+- At the end of your response, briefly mention they can update their interests at /interests to improve recommendations
+- If they don't have a taste profile yet, suggest they visit /interests to describe their musical interests
+`
+    : `
+PERSONALIZATION FEATURES:
+The user is not signed in. If they ask about favorites or personalized recommendations, let them know they can sign in at /login to:
+- Save favorite artists and venues
+- Get AI-powered personalized event recommendations based on their taste
+- Receive email notifications about upcoming shows
+`
 
   return `You are a helpful assistant for AroundHere, an event discovery site for ${regionName}.
 
@@ -42,7 +68,7 @@ CONTEXT:
 - Today's date is ${dateStr}
 - Current time is ${timeStr}
 - You have access to tools to search events by date, venue, genre, and artist
-
+${favoritesSection}
 RESPONSE GUIDELINES:
 - Be concise and friendly
 - When showing events, format them clearly with date, venue, and relevant details
@@ -67,6 +93,12 @@ EXAMPLES OF VALID QUERIES:
 - "Find me some punk shows in Northampton"
 - "What film screenings are coming up?"
 - "Any comedy shows tonight?"
+- "What are my favorite artists playing?" (requires sign-in)
+- "Show me events at my favorite venues" (requires sign-in)
+- "What have I favorited?" (requires sign-in)
+- "Recommend something for me" (requires sign-in, uses taste profile)
+- "What should I see this weekend?" (requires sign-in, uses taste profile)
+- "Events I might like" (requires sign-in, uses taste profile)
 
 EXAMPLES OF INVALID QUERIES (politely decline these):
 - "Who should I vote for?"

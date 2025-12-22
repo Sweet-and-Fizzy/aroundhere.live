@@ -11,7 +11,7 @@
 import prisma from '../../utils/prisma'
 import { verifyCronAuth } from '../../utils/cron-auth'
 import { executeScraperCode } from '../../services/agent/executor'
-import { saveScrapedEvents } from '../../scrapers/save-events'
+import { saveScrapedEvents, detectSuspiciousDuplicates, handleSuspiciousDuplicates } from '../../scrapers/save-events'
 import { classifyPendingEvents } from '../../scrapers/classify-events'
 import type { ScrapedEvent } from '../../scrapers/types'
 
@@ -78,12 +78,30 @@ export default defineEventHandler(async (event) => {
         })
 
         if (source && venue) {
+          const runStartTime = new Date()
           const saveResult = await saveScrapedEvents(
             prisma,
             result.events,
             { id: venue.id, regionId: venue.regionId },
             { id: source.id, priority: source.priority }
           )
+
+          // Check for suspicious duplicates and pause notifications if found
+          if (saveResult.saved > 0) {
+            const duplicates = await detectSuspiciousDuplicates(
+              prisma,
+              source.id,
+              venue.id,
+              runStartTime
+            )
+            if (duplicates.length > 0) {
+              await handleSuspiciousDuplicates(prisma, {
+                sourceId: source.id,
+                sourceName: source.name,
+                venueName: venue.name,
+              }, duplicates)
+            }
+          }
 
           results.push({
             name: scraper.config.name,
@@ -149,12 +167,30 @@ export default defineEventHandler(async (event) => {
 
       if (result.success) {
         const events: ScrapedEvent[] = result.data || []
+        const runStartTime = new Date()
         const saveResult = await saveScrapedEvents(
           prisma,
           events,
           { id: venue.id, regionId: venue.regionId },
           { id: source.id, priority: source.priority }
         )
+
+        // Check for suspicious duplicates and pause notifications if found
+        if (saveResult.saved > 0) {
+          const duplicates = await detectSuspiciousDuplicates(
+            prisma,
+            source.id,
+            venue.id,
+            runStartTime
+          )
+          if (duplicates.length > 0) {
+            await handleSuspiciousDuplicates(prisma, {
+              sourceId: source.id,
+              sourceName: source.name,
+              venueName: venue.name,
+            }, duplicates)
+          }
+        }
 
         await prisma.source.update({
           where: { id: source.id },

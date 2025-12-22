@@ -5,6 +5,11 @@ import type { DateRange } from 'reka-ui'
 
 type CalendarDateRange = DateRange | any
 
+// Format date as YYYY-MM-DD for cleaner URLs
+function formatDateParam(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
 const { updateRegion } = useCurrentRegion()
 
 const emit = defineEmits<{
@@ -415,8 +420,8 @@ function getDateRange(range: string) {
         const end = customDateRange.value.end
         if (start && end) {
           return {
-            startDate: new Date(start.year, start.month - 1, start.day).toISOString(),
-            endDate: new Date(end.year, end.month - 1, end.day, 23, 59, 59, 999).toISOString(),
+            startDate: formatDateParam(new Date(start.year, start.month - 1, start.day)),
+            endDate: formatDateParam(new Date(end.year, end.month - 1, end.day)),
           }
         }
       }
@@ -427,8 +432,8 @@ function getDateRange(range: string) {
   }
 
   return {
-    startDate: startDate.toISOString(),
-    endDate: endDate?.toISOString(),
+    startDate: formatDateParam(startDate),
+    endDate: endDate ? formatDateParam(endDate) : undefined,
   }
 }
 
@@ -619,7 +624,7 @@ onMounted(() => {
                 v-if="selectedEventTypes.length > 0"
                 icon="i-heroicons-x-mark"
                 size="xs"
-                color="gray"
+                color="neutral"
                 variant="ghost"
                 @click.stop="selectedEventTypes = []"
               />
@@ -653,7 +658,7 @@ onMounted(() => {
                 v-if="selectedGenres.length > 0"
                 icon="i-heroicons-x-mark"
                 size="xs"
-                color="gray"
+                color="neutral"
                 variant="ghost"
                 @click.stop="selectedGenres = []"
               />
@@ -684,7 +689,7 @@ onMounted(() => {
                 v-if="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0"
                 icon="i-heroicons-x-mark"
                 size="xs"
-                color="gray"
+                color="neutral"
                 variant="ghost"
                 class="ml-auto flex-shrink-0"
                 @click.stop="selectedRegions = []; selectedCities = []; selectedVenueIds = []"
@@ -856,7 +861,7 @@ onMounted(() => {
                 v-if="datePreset !== 'month'"
                 icon="i-heroicons-x-mark"
                 size="xs"
-                color="gray"
+                color="neutral"
                 variant="ghost"
                 class="ml-auto flex-shrink-0"
                 @click.stop="datePreset = 'month'; customDateRange = undefined"

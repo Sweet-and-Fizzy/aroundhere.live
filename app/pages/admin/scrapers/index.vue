@@ -94,6 +94,9 @@ const savedEventCount = ref(0)
 const existingScrapers = ref<ScraperListItem[]>([])
 const loadingScrapers = ref(false)
 
+// Paused scrapers (notifications suspended due to duplicate detection)
+const pausedScrapers = computed(() => existingScrapers.value.filter(s => s.notificationsPaused))
+
 // Fetch existing scrapers
 async function fetchScrapers() {
   loadingScrapers.value = true
@@ -104,6 +107,20 @@ async function fetchScrapers() {
     console.error('Failed to fetch scrapers:', error)
   } finally {
     loadingScrapers.value = false
+  }
+}
+
+// Unpause notifications for a scraper
+async function unpauseNotifications(scraperId: string) {
+  try {
+    await $fetch(`/api/scrapers/${scraperId}/unpause-notifications`, {
+      method: 'POST',
+    })
+    // Refresh the list
+    await fetchScrapers()
+  } catch (error) {
+    console.error('Failed to unpause notifications:', error)
+    alert('Failed to unpause notifications')
   }
 }
 
@@ -897,6 +914,73 @@ useSeoMeta({
       Venue Scraper Manager
     </h1>
 
+    <!-- Paused Scrapers Alert -->
+    <div
+      v-if="pausedScrapers.length > 0"
+      class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6"
+    >
+      <div class="flex items-start gap-3 mb-4">
+        <UIcon
+          name="i-heroicons-exclamation-triangle"
+          class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5"
+        />
+        <div>
+          <h2 class="text-xl font-semibold text-red-900">
+            Notifications Paused
+          </h2>
+          <p class="text-sm text-red-700 mt-1">
+            These scrapers have notifications paused due to detected duplicate events.
+            Review and fix the scraper before unpausing.
+          </p>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div
+          v-for="scraper in pausedScrapers"
+          :key="scraper.id"
+          class="bg-white border border-red-200 rounded-lg p-4"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-medium text-gray-900">
+                {{ scraper.name }}
+              </h3>
+              <p class="text-sm text-gray-600 truncate">
+                {{ scraper.website }}
+              </p>
+              <p class="text-sm text-red-600 mt-1">
+                {{ scraper.notificationsPausedReason }}
+              </p>
+              <p
+                v-if="scraper.notificationsPausedAt"
+                class="text-xs text-gray-500 mt-1"
+              >
+                Paused: {{ new Date(scraper.notificationsPausedAt).toLocaleString() }}
+              </p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <NuxtLink :to="`/admin/scrapers/${scraper.id}/manage`">
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="soft"
+                >
+                  Review
+                </UButton>
+              </NuxtLink>
+              <UButton
+                size="sm"
+                color="success"
+                @click="unpauseNotifications(scraper.id)"
+              >
+                Unpause
+              </UButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Existing Scrapers List -->
     <div
       v-if="existingScrapers.length > 0"
@@ -916,7 +1000,7 @@ useSeoMeta({
               {{ scraper.name }}
             </h3>
             <UBadge
-              v-if="scraper.activeVersion"
+              v-if="scraper.activeVersion && scraper.activeVersion > 1"
               size="xs"
               color="primary"
             >

@@ -2,7 +2,7 @@
 const route = useRoute()
 const slug = route.params.slug as string
 
-const { data: event, error } = await useFetch(`/api/events/by-slug/${slug}`)
+const { data: event, error, refresh: refreshEvent } = await useFetch(`/api/events/by-slug/${slug}`)
 const { getGenreLabel, getGenreBadgeClasses, genreLabels } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeBadgeClasses, eventTypeLabels } = useEventTypeLabels()
 const { user } = useUserSession()
@@ -72,13 +72,13 @@ async function saveEditing() {
     toast.add({
       title: 'Success',
       description: 'Event classification updated',
-      color: 'green',
+      color: 'success',
     })
   } catch (error: any) {
     toast.add({
       title: 'Error',
       description: error.data?.message || 'Failed to update event classification',
-      color: 'red',
+      color: 'error',
     })
   } finally {
     saving.value = false
@@ -109,13 +109,13 @@ async function toggleCancelled() {
     toast.add({
       title: 'Success',
       description: `Event ${action} successfully`,
-      color: 'green',
+      color: 'success',
     })
   } catch (error: any) {
     toast.add({
       title: 'Error',
       description: error.data?.message || `Failed to ${willCancel ? 'cancel' : 'restore'} event`,
-      color: 'red',
+      color: 'error',
     })
   } finally {
     cancelling.value = false
@@ -218,14 +218,6 @@ const truncatedHtml = computed(() => {
   if (descriptionTextContent.value.length <= DESCRIPTION_THRESHOLD) return sanitizedDescriptionHtml.value
   // Return first ~threshold characters of HTML content
   return sanitizedDescriptionHtml.value.substring(0, DESCRIPTION_THRESHOLD * DESCRIPTION_HTML_TRUNCATE_MULTIPLIER) + '...'
-})
-
-// Artists with verified Spotify matches
-const spotifyArtists = computed(() => {
-  if (!event.value?.eventArtists) return []
-  return event.value.eventArtists
-    .filter(ea => ea.artist.spotifyId && ['AUTO_MATCHED', 'VERIFIED'].includes(ea.artist.spotifyMatchStatus))
-    .map(ea => ea.artist)
 })
 
 // Collect all artist reviews from event artists
@@ -629,7 +621,7 @@ useHead({
                   <UButton
                     v-if="canEdit"
                     size="xs"
-                    color="gray"
+                    color="neutral"
                     variant="soft"
                     icon="i-heroicons-pencil-square"
                     aria-label="Edit event classification"
@@ -698,7 +690,7 @@ useHead({
                   </UButton>
                   <UButton
                     size="sm"
-                    color="gray"
+                    color="neutral"
                     variant="outline"
                     :disabled="saving"
                     @click="cancelEditing"
@@ -710,25 +702,33 @@ useHead({
 
               <!-- Venue / Address -->
               <div v-if="event.venue">
-                <NuxtLink
-                  :to="`/venues/${event.venue.slug}`"
-                  class="font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all px-2 py-1 -mx-2 -my-1 rounded inline-block"
-                >
-                  {{ event.venue.name }}
-                </NuxtLink>
-                <UButton
-                  v-if="mapUrl"
-                  :href="mapUrl"
-                  target="_blank"
-                  color="neutral"
-                  variant="soft"
-                  icon="i-heroicons-map"
-                  size="xs"
-                  class="ml-3"
-                  external
-                >
-                  Map
-                </UButton>
+                <div class="flex items-center gap-2">
+                  <NuxtLink
+                    :to="`/venues/${event.venue.slug}`"
+                    class="font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all px-2 py-1 -mx-2 -my-1 rounded inline-block"
+                  >
+                    {{ event.venue.name }}
+                  </NuxtLink>
+                  <FavoriteButton
+                    type="venue"
+                    :id="event.venue.id"
+                    :name="event.venue.name"
+                    :slug="event.venue.slug"
+                    size="sm"
+                  />
+                  <UButton
+                    v-if="mapUrl"
+                    :href="mapUrl"
+                    target="_blank"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-heroicons-map"
+                    size="xs"
+                    external
+                  >
+                    Map
+                  </UButton>
+                </div>
                 <p
                   v-if="event.venue.address"
                   class="text-gray-600 text-sm mt-0.5"
@@ -787,7 +787,7 @@ useHead({
           <!-- Description / About -->
           <UCard
             v-if="sanitizedDescriptionHtml || event.description"
-            :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }"
+            :ui="{ header: 'py-2 px-4 sm:px-6', body: 'py-2 px-4 sm:px-6' }"
           >
             <template #header>
               <div class="flex items-center gap-2">
@@ -859,33 +859,92 @@ useHead({
               </button>
             </div>
 
-            <!-- Spotify Listen Links -->
-            <div
-              v-if="spotifyArtists.length"
-              class="mt-4 pt-4 border-t border-gray-200"
-            >
-              <div class="text-sm text-gray-500 mb-2">
-                Listen on Spotify
+          </UCard>
+
+          <!-- Artist Lineup - Admin Editor or Read-only -->
+          <UCard
+            v-if="event.eventArtists?.length || canEdit"
+            :ui="{ header: 'py-2 px-4 sm:px-6', body: 'py-2 px-4 sm:px-6' }"
+          >
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-heroicons-user-group"
+                  class="w-5 h-5 text-primary-500"
+                />
+                <span class="font-semibold">Lineup</span>
               </div>
-              <div class="flex flex-wrap gap-3">
-                <a
-                  v-for="artist in spotifyArtists"
-                  :key="artist.id"
-                  :href="`https://open.spotify.com/artist/${artist.spotifyId}`"
-                  target="_blank"
-                  class="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium"
+            </template>
+
+            <template #default>
+              <!-- Admin: Show editable artist list -->
+              <EventArtistEditor
+                v-if="canEdit"
+                :event-id="event.id"
+                :initial-artists="event.eventArtists || []"
+                @updated="refreshEvent"
+              />
+
+              <!-- Non-admin: Show read-only list -->
+              <div
+                v-else
+                class="space-y-2"
+              >
+                <div
+                  v-for="(ea, index) in event.eventArtists"
+                  :key="ea.artist.id"
+                  class="flex items-center justify-between gap-2"
                 >
-                  <SpotifyIcon class="w-4 h-4" />
-                  {{ artist.name }}
-                </a>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <NuxtLink
+                      :to="`/artists/${ea.artist.slug}`"
+                      class="font-medium truncate text-gray-900 hover:text-primary-600 transition-colors"
+                    >
+                      {{ ea.artist.name }}
+                    </NuxtLink>
+                    <span
+                      v-if="index === 0 && event.eventArtists.length > 1"
+                      class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+                    >
+                      headliner
+                    </span>
+                    <a
+                      v-if="ea.artist.spotifyId && ['AUTO_MATCHED', 'VERIFIED'].includes(ea.artist.spotifyMatchStatus)"
+                      :href="`https://open.spotify.com/artist/${ea.artist.spotifyId}`"
+                      target="_blank"
+                      class="text-[#1DB954] hover:text-[#1ed760]"
+                      title="Listen on Spotify"
+                    >
+                      <SpotifyIcon class="w-4 h-4" />
+                    </a>
+                    <NuxtLink
+                      v-if="canEdit"
+                      :to="`/admin/artists?q=${encodeURIComponent(ea.artist.name)}`"
+                      class="text-gray-400 hover:text-primary-600"
+                      title="Manage artist"
+                    >
+                      <UIcon
+                        name="i-heroicons-cog-6-tooth"
+                        class="w-4 h-4"
+                      />
+                    </NuxtLink>
+                  </div>
+                  <FavoriteButton
+                    type="artist"
+                    :id="ea.artist.id"
+                    :name="ea.artist.name"
+                    :slug="ea.artist.slug"
+                    size="sm"
+                  />
+                </div>
               </div>
-            </div>
+            </template>
           </UCard>
 
           <!-- Artist Reviews -->
           <UCard
             v-if="artistReviews.length"
-            :ui="{ header: { padding: 'px-4 py-1 sm:px-6 sm:py-1' } }"
+            :ui="{ header: 'py-2 px-4 sm:px-6', body: 'py-2 px-4 sm:px-6' }"
           >
             <template #header>
               <div class="flex items-center gap-2">
@@ -1043,6 +1102,7 @@ useHead({
       </section>
     </div>
 
+    <BackToTop />
     <FloatingChatButton always-visible />
   </div>
 </template>

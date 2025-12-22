@@ -3,7 +3,10 @@ const props = defineProps<{
   playing?: boolean
   width?: number | string
   height?: number | string
+  dark?: boolean // Use dark stroke color for light backgrounds
 }>()
+
+const strokeColor = computed(() => props.dark ? '#111827' : '#f9fafb')
 
 // Define the VU meter bar stacks - each stack has bars from bottom (green) to top (red)
 // Positions calculated to center each stack in the gap between waveform lines
@@ -149,7 +152,7 @@ onUnmounted(() => {
     <!-- The waveform line -->
     <polyline
       fill="none"
-      stroke="#f9fafb"
+      :stroke="strokeColor"
       stroke-miterlimit="10"
       stroke-width="3.3"
       points="0 57 28.1 57 28.1 36.5 41.3 36.5 41.3 79.3 55 79.3 55 20.5 67 20.5 67 101.4 80.1 101.4 80.1 1.6 93.3 1.6 93.3 87.3 107.8 87.3 107.8 46.7 121.2 46.7 121.2 74.4 134.6 74.4 134.6 27.9 148.9 27.9 148.9 87.3 161.7 87.3 161.7 1.6 175.7 1.6 175.7 101.4 188.7 101.4 188.7 20.5 201.4 20.5 201.4 79.6 214.3 79.6 214.3 36.1 226.8 36.1 226.8 56.8 253.1 56.8"

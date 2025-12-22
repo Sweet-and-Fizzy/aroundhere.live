@@ -29,6 +29,7 @@ model Region {
 
   venues Venue[]
   events Event[]
+  users  User[]
 
   @@map("regions")
 }
@@ -62,6 +63,7 @@ model Venue {
 
   region Region  @relation(fields: [regionId], references: [id])
   events Event[]
+  favoritedBy UserFavoriteVenue[]
 
   @@unique([regionId, slug])
   @@index([regionId])
@@ -103,13 +105,29 @@ model Artist {
   spotifyMatchStatus     SpotifyMatchStatus   @default(PENDING)
   spotifyPopularTracks   Json?                // [{trackId, name, uri, durationMs}]
   spotifyTracksUpdatedAt DateTime?            // When popular tracks were last fetched
+  spotifyGenres          String[]             // Spotify's genre taxonomy
+  spotifyFetchedAt       DateTime?            // When Spotify data was last fetched
+
+  // MusicBrainz integration (similar pattern to Spotify)
+  musicbrainzMatchStatus     MusicBrainzMatchStatus @default(PENDING)
+  musicbrainzMatchConfidence Float?               // 0-1 confidence score from name matching
+  musicbrainzTags            String[]             // Community tags like ["melancholic", "political", "lo-fi"]
+  musicbrainzDescription     String?              // Artist bio/description
+  musicbrainzRelatedIds      String[]             // Related artist MusicBrainz IDs
+  musicbrainzFetchedAt       DateTime?            // When MusicBrainz data was last fetched
+
+  // Computed artist profile embedding (combines all sources)
+  profileEmbedding          Unsupported("vector(1536)")?
+  profileEmbeddingUpdatedAt DateTime?
 
   eventArtists          EventArtist[]
   spotifyPlaylistTracks SpotifyPlaylistTrack[]
   artistReviews         ArtistReview[]
+  favoritedBy           UserFavoriteArtist[]
 
   @@index([name])
   @@index([spotifyMatchStatus])
+  @@index([musicbrainzMatchStatus])
   @@map("artists")
 }
 
@@ -160,6 +178,7 @@ model Event {
   eventArtists EventArtist[]
   eventSources EventSource[] // All sources that found this event
   spotifyPlaylistTracks SpotifyPlaylistTrack[]
+  recommendationLogs    RecommendationLog[]
 
   @@unique([sourceId, sourceEventId])
   @@index([regionId, startsAt])
@@ -237,6 +256,12 @@ model Source {
   lastFailureAt DateTime?  // When the last failure occurred
   lastEventCount Int?       // Event count from last successful run (for failure detection)
   isActive      Boolean    @default(true)
+
+  // Notification gating - pause notifications when duplicates detected
+  notificationsPaused   Boolean   @default(false)
+  notificationsPausedAt DateTime?
+  notificationsPausedReason String?
+
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -309,9 +334,92 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  loginTokens LoginToken[]
+  // User's region (for filtering recommendations)
+  regionId      String?
+  region        Region?  @relation(fields: [regionId], references: [id])
+
+  // Notification preferences
+  emailNotifications      Boolean  @default(true)
+  notificationFrequency   String   @default("daily") // "daily", "weekly", "none"
+  notifyFavoriteArtists   Boolean  @default(true)
+  lastNotificationSent    DateTime?
+
+  // Weekly recommendations preferences
+  interestDescription       String?   // Free-form "what are you interested in?" text
+  interestEmbedding         Unsupported("vector(1536)")? // Embedding of interest description
+  tasteProfileEmbedding     Unsupported("vector(1536)")? // Computed from favorite artists
+  tasteProfileUpdatedAt     DateTime? // When taste profile was last computed
+  enableRecommendations     Boolean   @default(true) // Weekly recommendations
+  lastRecommendationSent    DateTime? // When last recommendation email was sent
+
+  loginTokens         LoginToken[]
+  favoriteArtists     UserFavoriteArtist[]
+  favoriteVenues      UserFavoriteVenue[]
+  favoriteGenres      UserFavoriteGenre[]
+  favoriteEventTypes  UserFavoriteEventType[]
+  recommendationLogs  RecommendationLog[]
 
   @@map("users")
+}
+
+// User's favorite artists
+model UserFavoriteArtist {
+  id        String   @id @default(cuid())
+  userId    String
+  artistId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@index([userId])
+  @@index([artistId])
+  @@map("user_favorite_artists")
+}
+
+// User's favorite venues
+model UserFavoriteVenue {
+  id        String   @id @default(cuid())
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([userId])
+  @@index([venueId])
+  @@map("user_favorite_venues")
+}
+
+// User's favorite genres
+model UserFavoriteGenre {
+  id        String   @id @default(cuid())
+  userId    String
+  genre     String   // canonical genre slug (e.g., "jazz", "rock")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, genre])
+  @@index([userId])
+  @@map("user_favorite_genres")
+}
+
+// User's favorite event types
+model UserFavoriteEventType {
+  id        String   @id @default(cuid())
+  userId    String
+  eventType String   // event type slug (e.g., "COMEDY", "DJ")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventType])
+  @@index([userId])
+  @@map("user_favorite_event_types")
 }
 
 enum UserRole {
@@ -326,6 +434,14 @@ enum SpotifyMatchStatus {
   NEEDS_REVIEW    // Low confidence match, needs human verification
   VERIFIED        // Manually confirmed correct match
   NO_MATCH        // Confirmed not on Spotify or should be skipped
+}
+
+enum MusicBrainzMatchStatus {
+  PENDING         // Not yet searched on MusicBrainz
+  AUTO_MATCHED    // High confidence automatic match (>0.9)
+  NEEDS_REVIEW    // Low confidence match, needs human verification
+  VERIFIED        // Manually confirmed correct match
+  NO_MATCH        // Confirmed not on MusicBrainz or should be skipped
 }
 
 // Login tokens for magic link authentication
@@ -542,6 +658,24 @@ model ArtistReview {
   @@unique([artistId, reviewId])
   @@index([reviewId])
   @@map("artist_reviews")
+}
+
+// Recommendation logs for tracking sent recommendations
+model RecommendationLog {
+  id                  String   @id @default(cuid())
+  userId              String
+  eventId             String
+  sentAt              DateTime @default(now())
+  recommendationType  String   // FAVORITE_ARTIST, AI_WEEKEND_PICK, AI_COMING_UP
+  confidenceScore     Float    // 0-1 confidence in the recommendation
+  matchReason         String   // Human-readable explanation
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+  @@index([eventId])
+  @@map("recommendation_logs")
 }
 
 // Chat logs for AI assistant interactions

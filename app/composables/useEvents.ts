@@ -13,6 +13,10 @@ export interface EventFilters {
   musicOnly?: boolean
   eventType?: string
   eventTypes?: string[]
+  // Favorites filters
+  favoriteArtistIds?: string[]
+  favoriteVenueIds?: string[]
+  favoriteGenres?: string[]
 }
 
 export type EventType =
@@ -102,6 +106,10 @@ export function useEvents() {
       if (filters.musicOnly !== undefined) params.set('musicOnly', filters.musicOnly.toString())
       if (filters.eventType) params.set('eventType', filters.eventType)
       if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
+      // Favorites filters
+      if (filters.favoriteArtistIds?.length) params.set('favoriteArtistIds', filters.favoriteArtistIds.join(','))
+      if (filters.favoriteVenueIds?.length) params.set('favoriteVenueIds', filters.favoriteVenueIds.join(','))
+      if (filters.favoriteGenres?.length) params.set('favoriteGenres', filters.favoriteGenres.join(','))
 
       const response = await $fetch<{
         events: Event[]
