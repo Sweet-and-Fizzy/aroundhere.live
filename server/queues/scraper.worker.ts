@@ -9,10 +9,11 @@ import { createRedisConnection } from './connection'
 import { SCRAPER_QUEUE_NAME } from './scraper'
 import type { ScraperJobData, ScraperJobProgress } from './scraper'
 import { AgentService } from '../services/agent'
+import type { ScraperGenerationResult } from '../services/agent/types'
 import { prisma } from '../utils/prisma'
 
 // Create worker instance
-let worker: Worker<ScraperJobData, any, string> | null = null
+let worker: Worker<ScraperJobData, ScraperGenerationResult, string> | null = null
 
 export const startScraperWorker = () => {
   if (worker) {
@@ -37,14 +38,14 @@ export const startScraperWorker = () => {
 
         await updateProgress({ stage: 'starting', message: 'Starting scraper generation...' })
 
-        let result: any
+        let result: ScraperGenerationResult
 
         switch (job.data.type) {
           case 'generate-venue': {
             const data = job.data
             result = await agentService.generateVenueScraper({
               url: data.url,
-              llmProvider: data.llmProvider as any,
+              llmProvider: data.llmProvider,
               llmModel: data.llmModel,
               maxIterations: data.maxIterations,
               userFeedback: data.userFeedback,
@@ -64,7 +65,7 @@ export const startScraperWorker = () => {
             const data = job.data
             result = await agentService.generateEventScraper({
               url: data.url,
-              llmProvider: data.llmProvider as any,
+              llmProvider: data.llmProvider,
               llmModel: data.llmModel,
               maxIterations: data.maxIterations,
               venueInfo: data.venueInfo,
@@ -88,7 +89,7 @@ export const startScraperWorker = () => {
 
             result = await agentService.generateEventScraper({
               url: data.url,
-              llmProvider: data.llmProvider as any,
+              llmProvider: data.llmProvider,
               llmModel: data.llmModel,
               maxIterations: data.maxIterations,
               venueInfo: data.venueInfo,
@@ -142,7 +143,7 @@ export const startScraperWorker = () => {
           }
 
           default:
-            throw new Error(`Unknown job type: ${(job.data as any).type}`)
+            throw new Error(`Unknown job type: ${job.data.type}`)
         }
 
         // Update final progress

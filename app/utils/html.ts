@@ -38,6 +38,7 @@ export function stripHtmlTags(text: string): string {
  * Strip HTML tags and decode entities, clean up whitespace
  */
 export function stripHtmlAndClean(text: string): string {
+  if (typeof text !== 'string') return ''
   return decodeHtmlEntities(stripHtmlTags(text))
     .replace(/\s+/g, ' ')
     .trim()

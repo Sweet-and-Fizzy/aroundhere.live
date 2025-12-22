@@ -508,8 +508,8 @@ class SpotifyService {
         throw new Error(`Failed to get playlist tracks: ${error}`)
       }
 
-      const data: any = await response.json()
-      tracks.push(...data.items.map((item: { track: SpotifyTrack }) => item.track))
+      const data = await response.json() as { items: { track: SpotifyTrack }[]; next: string | null }
+      tracks.push(...data.items.map((item) => item.track))
       url = data.next
     }
 

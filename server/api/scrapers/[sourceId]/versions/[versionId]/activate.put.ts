@@ -116,7 +116,7 @@ export default defineEventHandler(async (event) => {
       })
 
       // Update source config with the new code
-      const config = (source.config as any) || {}
+      const config = (source.config as Record<string, unknown>) || {}
       await tx.source.update({
         where: { id: sourceId },
         data: {
@@ -137,7 +137,7 @@ export default defineEventHandler(async (event) => {
         isActive: true,
       },
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }

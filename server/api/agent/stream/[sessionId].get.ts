@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
         return
       }
 
-      const thinking = (session.thinking as any[]) || []
+      const thinking = (session.thinking as unknown[]) || []
 
       // Send new thinking steps
       if (thinking.length > lastIndex) {

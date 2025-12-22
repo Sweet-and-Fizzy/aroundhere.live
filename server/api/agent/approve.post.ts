@@ -42,10 +42,10 @@ export default defineEventHandler(async (event) => {
     // Pre-process venue data and geocode BEFORE the transaction
     let geocodedLat: number | null = null
     let geocodedLng: number | null = null
-    let venueData: any = null
+    let venueData: Record<string, unknown> | null = null
 
     if (session.sessionType === 'VENUE_INFO' && session.venueData) {
-      venueData = session.venueData as any
+      venueData = session.venueData as Record<string, unknown>
 
       // Validate required fields
       if (!venueData.name) {
@@ -268,7 +268,7 @@ export default defineEventHandler(async (event) => {
 
     // Send Slack notifications
     if (result.venue) {
-      const venueData = session.venueData as any
+      const venueData = session.venueData as Record<string, unknown>
       notifyVenueApproved({
         venueName: result.venue.name,
         venueUrl: session.url,

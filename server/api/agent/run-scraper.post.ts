@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const config = source.config as any
+  const config = source.config as Record<string, unknown>
   if (!config?.generatedCode) {
     throw createError({
       statusCode: 400,
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get venue from config
-  const venueId = config.venueId
+  const venueId = config.venueId as string | undefined
   if (!venueId) {
     throw createError({
       statusCode: 400,

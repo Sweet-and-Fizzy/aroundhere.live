@@ -372,9 +372,9 @@ export class AgentService {
                 },
               },
             })
-          } catch (dbError: any) {
+          } catch (dbError) {
             // Ignore unique constraint errors - attempt already exists
-            if (!dbError.code || dbError.code !== 'P2002') {
+            if (!(dbError && typeof dbError === 'object' && 'code' in dbError && dbError.code === 'P2002')) {
               console.error('[Agent] Failed to save attempt:', dbError)
             }
           }
@@ -472,9 +472,9 @@ export class AgentService {
               },
           },
         })
-        } catch (dbError: any) {
+        } catch (dbError) {
           // Ignore unique constraint errors - attempt already exists
-          if (!dbError.code || dbError.code !== 'P2002') {
+          if (!(dbError && typeof dbError === 'object' && 'code' in dbError && dbError.code === 'P2002')) {
             console.error('[Agent] Failed to save attempt:', dbError)
           }
         }

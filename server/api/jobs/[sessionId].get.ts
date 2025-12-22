@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
       finishedOn: job.finishedOn,
       failedReason: job.failedReason,
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching job status:', error)
     throw createError({
       statusCode: 500,

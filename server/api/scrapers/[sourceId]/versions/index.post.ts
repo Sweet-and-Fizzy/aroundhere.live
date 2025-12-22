@@ -186,7 +186,7 @@ export default defineEventHandler(async (event) => {
 
       // If activated, update source config
       if (setActive) {
-        const config = (source.config as any) || {}
+        const config = (source.config as Record<string, unknown>) || {}
         await tx.source.update({
           where: { id: sourceId },
           data: {
@@ -206,7 +206,7 @@ export default defineEventHandler(async (event) => {
       version: newVersion,
       warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }

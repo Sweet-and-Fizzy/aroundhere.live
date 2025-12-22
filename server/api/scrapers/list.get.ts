@@ -67,14 +67,14 @@ export default defineEventHandler(async (event) => {
         lastRunAt: s.lastRunAt,
         lastRunStatus: s.lastRunStatus,
         isActive: s.isActive,
-        hasCode: !!(s.config as any)?.generatedCode,
+        hasCode: !!(s.config as Record<string, unknown>)?.generatedCode,
         activeVersion: s.scraperVersions[0]?.versionNumber ?? null,
         notificationsPaused: s.notificationsPaused,
         notificationsPausedAt: s.notificationsPausedAt,
         notificationsPausedReason: s.notificationsPausedReason,
       })),
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error listing scrapers:', error)
     throw createError({
       statusCode: 500,

@@ -86,8 +86,8 @@ export default defineEventHandler(async (event) => {
       feedbackMessage = `${feedback}\n\nPrevious test error: ${testResults.error}`
     } else if (testResults?.fieldsAnalysis) {
       const missing = testResults.fieldsAnalysis.coverage
-        .filter((f: any) => f.percentage < 100)
-        .map((f: any) => f.field)
+        .filter((f: { percentage: number }) => f.percentage < 100)
+        .map((f: { field: string }) => f.field)
       if (missing.length > 0) {
         feedbackMessage = `${feedback}\n\nMissing or incomplete fields: ${missing.join(', ')}`
       }
@@ -135,7 +135,7 @@ export default defineEventHandler(async (event) => {
       sessionId: agentSession.id,
       message: 'AI generation queued',
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }

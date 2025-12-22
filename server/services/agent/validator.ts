@@ -59,8 +59,9 @@ export function validateScraperCode(code: string, scraperType: 'venue' | 'event'
     // Use Function constructor to check syntax without executing
     // This catches truncated code, missing brackets, etc.
     new Function(code)
-  } catch (syntaxError: any) {
-    errors.push(`Syntax error: ${syntaxError.message}`)
+  } catch (syntaxError) {
+    const message = syntaxError instanceof Error ? syntaxError.message : String(syntaxError)
+    errors.push(`Syntax error: ${message}`)
     // Return early - no point checking other things if syntax is invalid
     return { isValid: false, errors, warnings }
   }

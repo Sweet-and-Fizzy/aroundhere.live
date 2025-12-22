@@ -437,8 +437,8 @@ async function retryWithFeedback() {
 }
 
 // Clean text for preview - strip HTML and decode entities
-function cleanText(text: string | undefined | null): string | undefined {
-  if (!text) return undefined
+function cleanText(text: unknown): string | undefined {
+  if (!text || typeof text !== 'string') return undefined
   return stripHtmlAndClean(text)
 }
 

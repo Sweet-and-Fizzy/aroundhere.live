@@ -9,7 +9,7 @@ export interface MergeResult {
   mergedData: VenueInfo
   conflicts: Array<{
     field: string
-    values: Array<{ attemptNumber: number; value: any }>
+    values: Array<{ attemptNumber: number; value: unknown }>
   }>
   sources: Record<string, number> // field -> attempt number that provided it
 }
@@ -29,7 +29,7 @@ export function mergeVenueData(attempts: Array<{
   const mergedData: VenueInfo = {}
   const conflicts: Array<{
     field: string
-    values: Array<{ attemptNumber: number; value: any }>
+    values: Array<{ attemptNumber: number; value: unknown }>
   }> = []
   const sources: Record<string, number> = {}
 
@@ -41,7 +41,7 @@ export function mergeVenueData(attempts: Array<{
 
   // Process each field
   for (const field of allFields) {
-    const values: Array<{ attemptNumber: number; value: any }> = []
+    const values: Array<{ attemptNumber: number; value: unknown }> = []
 
     // Collect all non-empty values for this field
     attempts.forEach((attempt) => {
@@ -97,8 +97,8 @@ export function mergeVenueData(attempts: Array<{
 export function compareVenueData(
   data1: VenueInfo,
   data2: VenueInfo
-): Array<{ field: string; value1: any; value2: any }> {
-  const differences: Array<{ field: string; value1: any; value2: any }> = []
+): Array<{ field: string; value1: unknown; value2: unknown }> {
+  const differences: Array<{ field: string; value1: unknown; value2: unknown }> = []
   const allFields = new Set([...Object.keys(data1), ...Object.keys(data2)])
 
   for (const field of allFields) {

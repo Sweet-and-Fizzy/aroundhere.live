@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
     }
 
     return session
-  } catch (error: any) {
+  } catch (error) {
     if (error.statusCode) {
       throw error
     }
