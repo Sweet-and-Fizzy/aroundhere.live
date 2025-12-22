@@ -23,4 +23,7 @@ logs
 .env.*
 !.env.example
 
+# Claude Code project notes
+CLAUDE.md
+
 /app/generated/prisma

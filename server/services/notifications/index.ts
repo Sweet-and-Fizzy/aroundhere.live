@@ -664,3 +664,52 @@ export async function notifyScraperAnomaly(alert: ScraperAnomalyAlert): Promise<
   await sendSlackNotification(message, blocks)
 }
 
+// ============================================================================
+// Scraper Failure Notifications
+// ============================================================================
+
+export interface ScraperFailureAlert {
+  sourceId: string
+  sourceName: string
+  venueName: string
+  error: string
+  consecutiveFailures: number
+  lastSuccessAt?: Date
+}
+
+/**
+ * Alert when a scraper fails to run successfully.
+ */
+export async function notifyScraperFailure(alert: ScraperFailureAlert): Promise<void> {
+  const emoji = alert.consecutiveFailures >= 3 ? '🚨' : '⚠️'
+  const message = `${emoji} Scraper Failed: ${alert.sourceName}`
+
+  const lastSuccess = alert.lastSuccessAt
+    ? `Last success: ${alert.lastSuccessAt.toISOString().split('T')[0]}`
+    : 'No recent successful runs'
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `${emoji} *Scraper Failed*`,
+          '',
+          `*Source:* ${alert.sourceName}`,
+          `*Venue:* ${alert.venueName}`,
+          `*Consecutive failures:* ${alert.consecutiveFailures}`,
+          `*${lastSuccess}*`,
+          '',
+          `*Error:*`,
+          '```',
+          alert.error.slice(0, 500),
+          '```',
+        ].join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+
