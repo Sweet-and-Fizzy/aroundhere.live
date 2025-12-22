@@ -404,12 +404,21 @@ export async function saveScrapedEvents(
   }
 
   // Mark events that are no longer listed as canceled
-  const canceled = await markMissingEventsAsCanceled(
-    prisma,
-    scrapedSourceEventIds,
-    source.id,
-    venue.id
-  )
+  // Safety: Only run cancellation if we found a reasonable number of events
+  // This prevents mass cancellation when a scraper fails to load the page
+  let canceled = 0
+  if (scrapedSourceEventIds.length >= 3) {
+    canceled = await markMissingEventsAsCanceled(
+      prisma,
+      scrapedSourceEventIds,
+      source.id,
+      venue.id
+    )
+  } else if (scrapedSourceEventIds.length === 0) {
+    console.log(`[SaveEvent] Skipping cancellation check - no events scraped (scraper may have failed)`)
+  } else {
+    console.log(`[SaveEvent] Skipping cancellation check - only ${scrapedSourceEventIds.length} events scraped (below threshold)`)
+  }
 
   console.log(`[SaveEvent] Summary: saved=${saved}, updated=${updated}, skipped=${skipped}, filtered=${filtered}, canceled=${canceled}`)
   return { saved, skipped, updated, filtered, canceled }

@@ -17,7 +17,7 @@ import type { ScrapedEvent } from '../../scrapers/types'
 
 // Import hardcoded scrapers
 import { scrapeFreakscene } from '../../scrapers/reviews/freakscene'
-import { notifyNewReviews, notifyUnclassifiedEvents } from '../../services/notifications'
+import { notifyNewReviews, notifyUnclassifiedEvents, notifyScraperFailure } from '../../services/notifications'
 import { IronHorseScraper } from '../../scrapers/venues/iron-horse'
 import { TheDrakeScraper } from '../../scrapers/venues/the-drake'
 import { NewCityBreweryScraper } from '../../scrapers/venues/new-city-brewery'
@@ -293,6 +293,23 @@ export default defineEventHandler(async (event) => {
   const totalSaved = results.reduce((sum, r) => sum + r.eventsSaved, 0)
 
   console.log(`[Cron] Scraper run complete: ${successful} succeeded, ${failed} failed, ${totalSaved} events saved in ${totalDuration}ms`)
+
+  // 6. Notify about failed scrapers
+  const failedResults = results.filter(r => !r.success)
+  for (const failure of failedResults) {
+    try {
+      await notifyScraperFailure({
+        sourceId: '',
+        sourceName: failure.name,
+        venueName: failure.name,
+        error: failure.error || 'Unknown error',
+        consecutiveFailures: 1, // We don't track this yet, but could add
+        lastSuccessAt: undefined,
+      })
+    } catch (notifyError) {
+      console.error(`[Cron] Failed to notify about scraper failure: ${failure.name}`, notifyError)
+    }
+  }
 
   return {
     timestamp: new Date().toISOString(),
