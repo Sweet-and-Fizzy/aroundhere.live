@@ -273,7 +273,7 @@ Parse the date/time information for the startsAt field, but remove it from the t
 
 **Calendar Views:** If the page shows a monthly calendar grid, navigate forward 2-3 months using "next month" buttons to capture upcoming events.
 
-**Google Calendar Embeds:** If you find an iframe with \`calendar.google.com\` in the src, extract the calendar ID from the \`src=\` parameter. The ID is often base64-encoded (decode with \`Buffer.from(id, 'base64').toString()\` if it doesn't contain \`@\`). Use \`fetch()\` directly (not inside page.evaluate) to get the public iCal feed at \`https://calendar.google.com/calendar/ical/{encodedCalendarId}/public/basic.ics\` and parse the VEVENT blocks.
+**Google Calendar Embeds:** If you find an iframe with \`calendar.google.com\` in the src, extract the calendar ID from the \`src=\` parameter. The ID is often base64-encoded (decode with \`Buffer.from(id, 'base64').toString()\` if it doesn't contain \`@\`). Use \`fetch()\` directly (not inside page.evaluate) to get the public iCal feed at \`https://calendar.google.com/calendar/ical/{encodedCalendarId}/public/basic.ics\` and parse the VEVENT blocks. Note: iCal uses line folding where long values continue on the next line starting with a space - unfold by replacing \`\\r?\\n \` with empty string before parsing.
 
 ## Response Format
 
