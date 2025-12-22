@@ -27,7 +27,6 @@ const GENRE_LABELS: Record<string, string> = {
   'reggae': 'Reggae',
   'jam': 'Jam',
   'experimental': 'Experimental',
-  'spoken-word': 'Spoken Word',
 }
 
 // Color mapping for genres - grouped by musical similarity
@@ -72,9 +71,6 @@ const GENRE_COLORS: Record<string, string> = {
 
   // Reggae - distinct green (island vibes)
   'reggae': 'emerald',     // Emerald - relaxed, island vibes
-
-  // Spoken word - neutral
-  'spoken-word': 'slate',  // Slate - thoughtful, literary
 }
 
 export function useGenreLabels() {

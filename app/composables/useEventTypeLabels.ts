@@ -18,7 +18,6 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   'PARTY': 'Party',
   'FITNESS': 'Fitness',
   'DRAG': 'Drag',
-  'TRIVIA': 'Trivia',
   'PRIVATE': 'Private Event',
   'FILM': 'Film',
   'SPOKEN_WORD': 'Spoken Word',
@@ -40,7 +39,6 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   // Interactive types - bright engaging colors
   'OPEN_MIC': 'orange',    // Orange - welcoming, creative
   'KARAOKE': 'rose',       // Rose - fun, social
-  'TRIVIA': 'violet',      // Violet - intellectual
   'GAMES': 'lime',         // Lime - playful, fun
 
   // Activity types - active colors

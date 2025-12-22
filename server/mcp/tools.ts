@@ -28,8 +28,8 @@ export function createChatTools(userId?: string) {
       'Search for live music events, concerts, and shows. Use this when the user asks about events, shows, concerts, what\'s happening, or wants to find specific performances.',
     inputSchema: z.object({
       q: z.string().optional().describe('Search query - artist name, venue, genre keyword, or general term'),
-      startDate: z.string().optional().describe('Start date in ISO format (YYYY-MM-DD). Defaults to today.'),
-      endDate: z.string().optional().describe('End date in ISO format (YYYY-MM-DD). Use for "this weekend" or date range queries.'),
+      startDate: z.string().optional().describe('Start date in YYYY-MM-DD format. Defaults to today. For monthly queries like "January", use the first day of that month.'),
+      endDate: z.string().optional().describe('End date in YYYY-MM-DD format. Use for date range queries. For monthly queries like "January", use the last day of that month.'),
       genres: z.array(z.string()).optional().describe('Filter by genres: jazz, rock, folk, blues, country, electronic, hip-hop, classical, etc.'),
       venueIds: z.array(z.string()).optional().describe('Filter by specific venue IDs (use list_venues to get IDs)'),
       state: z.string().optional().describe('Filter by US state abbreviation (e.g., "MA", "VT", "NH"). Use for queries like "events in Vermont"'),
@@ -432,11 +432,11 @@ export function createChatTools(userId?: string) {
 
   get_personalized_recommendations: tool({
     description:
-      'Get AI-powered personalized event recommendations based on the user\'s taste profile, favorite genres, venues, artists, and described interests. Uses embedding similarity and preference matching. Use when the user asks "recommend something", "what should I see", "events I might like", "personalized recommendations", or similar.',
+      'Get AI-powered personalized event recommendations based on the user\'s taste profile, favorite genres, venues, artists, and described interests. Uses embedding similarity and preference matching. Use when the user asks "recommend something", "what should I see", "events I might like", "personalized recommendations", or similar. IMPORTANT: This tool defaults to the next 2 weeks only. If the user asks about a specific month or time period (e.g., "January", "next month"), you MUST pass explicit startDate and endDate parameters.',
     inputSchema: z.object({
       limit: z.number().optional().describe('Maximum number of recommendations (default 10, max 15)'),
-      startDate: z.string().optional().describe('Start date in ISO format (defaults to today)'),
-      endDate: z.string().optional().describe('End date in ISO format (defaults to 2 weeks from now)'),
+      startDate: z.string().optional().describe('Start date in YYYY-MM-DD format. Defaults to today. For monthly queries like "January", use the first day of that month (e.g., "2026-01-01").'),
+      endDate: z.string().optional().describe('End date in YYYY-MM-DD format. Defaults to 2 weeks from today. For monthly queries like "January", use the last day of that month (e.g., "2026-01-31").'),
     }),
     execute: async (input) => {
       if (!userId) {
