@@ -21,9 +21,19 @@ export const ironHorseConfig: ScraperConfig = {
 // Iron Horse calendar widget ID (Elfsight)
 const IRON_HORSE_WIDGET_ID = 'b0bd4277-11aa-4ae8-9f35-fc260b996a4e'
 
+// Type for Elfsight event data from API
+interface ElfsightEvent {
+  id: string
+  name: string
+  start?: { date?: string; time?: string }
+  end?: { date?: string; time?: string }
+  description?: string
+  image?: string
+}
+
 export class IronHorseScraper extends PlaywrightScraper {
-  // Map of event name (lowercase) to Elfsight event ID for building URLs
-  private elfsightEventIds: Map<string, string> = new Map()
+  // Map of "name|date" (lowercase) to Elfsight event data for matching
+  private elfsightEvents: Map<string, ElfsightEvent> = new Map()
 
   constructor() {
     super(ironHorseConfig)
@@ -133,37 +143,55 @@ export class IronHorseScraper extends PlaywrightScraper {
     }
   }
 
-  // Extract event IDs from Elfsight API response
+  // Extract event data from Elfsight API response
   private extractElfsightEventIds(apiResponse: ApiResponse): void {
     try {
       const widgetData = apiResponse?.data?.widgets?.[IRON_HORSE_WIDGET_ID]?.data?.settings?.events
       if (Array.isArray(widgetData)) {
         for (const event of widgetData) {
           if (event.id && event.name) {
-            // Normalize name for matching (decode HTML entities, lowercase)
+            // Normalize name and include date for unique matching
             const normalizedName = this.decodeHtmlEntities(event.name).toLowerCase().trim()
-            this.elfsightEventIds.set(normalizedName, event.id)
+            const eventDate = event.start?.date || ''
+            const key = `${normalizedName}|${eventDate}`
+            this.elfsightEvents.set(key, event as ElfsightEvent)
           }
         }
-        console.log(`[Iron Horse] Captured ${this.elfsightEventIds.size} event IDs from Elfsight API`)
+        console.log(`[Iron Horse] Captured ${this.elfsightEvents.size} event IDs from Elfsight API`)
       }
     } catch (error) {
       console.error('[Iron Horse] Error extracting Elfsight event IDs:', error)
     }
   }
 
-  // Get the Elfsight event ID for a given title
-  private getElfsightEventId(title: string): string | undefined {
+  // Get the Elfsight event data for a given title and date
+  private getElfsightEvent(title: string, date?: Date): ElfsightEvent | undefined {
     const normalizedTitle = title.toLowerCase().trim()
-    return this.elfsightEventIds.get(normalizedTitle)
+
+    // Try matching with date first (most accurate)
+    if (date) {
+      const dateStr = date.toISOString().split('T')[0]
+      const keyWithDate = `${normalizedTitle}|${dateStr}`
+      const eventWithDate = this.elfsightEvents.get(keyWithDate)
+      if (eventWithDate) return eventWithDate
+    }
+
+    // Fall back to finding any event with matching name
+    for (const [key, event] of this.elfsightEvents) {
+      if (key.startsWith(`${normalizedTitle}|`)) {
+        return event
+      }
+    }
+
+    return undefined
   }
 
   // Build the direct event URL using the Elfsight event ID
-  private buildEventUrl(title: string): string {
-    const eventId = this.getElfsightEventId(title)
+  private buildEventUrl(title: string, date?: Date): string {
+    const event = this.getElfsightEvent(title, date)
 
-    if (eventId) {
-      return `${this.config.url}#calendar-${IRON_HORSE_WIDGET_ID}-event-${eventId}`
+    if (event?.id) {
+      return `${this.config.url}#calendar-${IRON_HORSE_WIDGET_ID}-event-${event.id}`
     }
 
     // Fallback to base calendar URL
@@ -314,11 +342,11 @@ export class IronHorseScraper extends PlaywrightScraper {
       // Use Elfsight's stable event ID when available - this prevents duplicates
       // when titles change (e.g., opener added). Only fall back to title-based ID
       // if Elfsight ID not available.
-      const elfsightId = this.getElfsightEventId(title)
-      const sourceEventId = elfsightId
-        ? `iron-horse-elfsight-${elfsightId}`
+      const elfsightEvent = this.getElfsightEvent(title, startsAt)
+      const sourceEventId = elfsightEvent?.id
+        ? `iron-horse-elfsight-${elfsightEvent.id}`
         : this.generateEventId(title, startsAt)
-      const sourceUrl = this.buildEventUrl(title)
+      const sourceUrl = this.buildEventUrl(title, startsAt)
 
       return {
         title,

@@ -55,7 +55,7 @@ export abstract class PlaywrightScraper implements BaseScraper {
 
       // Navigate to the page
       await this.page.goto(this.config.url, {
-        waitUntil: 'networkidle',
+        waitUntil: this.getWaitUntilStrategy(),
       })
 
       // Wait for content to load (subclasses can override)
@@ -120,6 +120,13 @@ export abstract class PlaywrightScraper implements BaseScraper {
   // Override in subclass to set up response listeners before navigation
   protected async beforeNavigate(): Promise<void> {
     // Default: no-op
+  }
+
+  // Override in subclass to change the page.goto waitUntil strategy
+  // 'networkidle' is safest but can timeout on sites with persistent connections
+  // 'domcontentloaded' is faster but may miss dynamically loaded content
+  protected getWaitUntilStrategy(): 'networkidle' | 'domcontentloaded' | 'load' | 'commit' {
+    return 'networkidle'
   }
 
   // Override in subclass to wait for specific content

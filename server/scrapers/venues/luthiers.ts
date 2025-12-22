@@ -1,13 +1,14 @@
 import { HttpScraper } from '../base'
-import type { ScrapedEvent, ScraperConfig } from '../types'
+import type { ScrapedEvent, ScraperConfig, ScraperResult } from '../types'
 import * as cheerio from 'cheerio'
 import { fromZonedTime } from 'date-fns-tz'
+import { decodeHtmlEntities } from '../../utils/html'
 
 /**
  * Scraper for Luthier's Co-op in Easthampton, MA
  *
  * The site uses The Events Calendar (Tribe Events) WordPress plugin.
- * Events are displayed on /events/ with JSON-LD structured data.
+ * We use the Tribe Events REST API for reliable event fetching.
  */
 
 export const luthiersConfig: ScraperConfig = {
@@ -23,11 +24,209 @@ export const luthiersConfig: ScraperConfig = {
   defaultAgeRestriction: 'ALL_AGES', // All ages welcome per website
 }
 
+// Tribe Events API response types
+interface TribeEvent {
+  id: number
+  title: string
+  description?: string
+  excerpt?: string
+  start_date: string
+  end_date?: string
+  url: string
+  image?: {
+    url?: string
+    sizes?: {
+      medium?: { url?: string }
+      large?: { url?: string }
+    }
+  }
+  cost?: string
+  cost_details?: {
+    values?: string[]
+  }
+}
+
+interface TribeEventsResponse {
+  events: TribeEvent[]
+  total: number
+  total_pages: number
+}
+
 export class LuthiersScraper extends HttpScraper {
   constructor() {
     super(luthiersConfig)
   }
 
+  /**
+   * Use Tribe Events REST API for reliable event fetching.
+   * The API handles pagination and returns all future events.
+   */
+  async scrape(): Promise<ScraperResult> {
+    const startTime = Date.now()
+    const errors: string[] = []
+    const allEvents: ScrapedEvent[] = []
+    const seenIds = new Set<string>()
+
+    try {
+      // Use Tribe Events REST API - it's more reliable than HTML scraping
+      const today = new Date().toISOString().split('T')[0]
+      const apiUrl = `https://www.luthiers-coop.com/wp-json/tribe/events/v1/events?start_date=${today}&per_page=100`
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          Accept: 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`API returned HTTP ${response.status}`)
+      }
+
+      const data = (await response.json()) as TribeEventsResponse
+
+      for (const item of data.events || []) {
+        const event = this.parseTribeEvent(item)
+        if (event && event.sourceEventId && !seenIds.has(event.sourceEventId)) {
+          seenIds.add(event.sourceEventId)
+          allEvents.push(event)
+        }
+      }
+
+      console.log(`[${this.config.name}] Found ${allEvents.length} events from API (total available: ${data.total})`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      errors.push(message)
+      console.error(`[${this.config.name}] API error:`, message)
+
+      // Fall back to HTML scraping if API fails
+      console.log(`[${this.config.name}] Falling back to HTML scraping`)
+      try {
+        const response = await fetch(this.config.url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          },
+        })
+
+        if (response.ok) {
+          const html = await response.text()
+          const events = await this.parseEvents(html)
+          for (const event of events) {
+            if (event.sourceEventId && !seenIds.has(event.sourceEventId)) {
+              seenIds.add(event.sourceEventId)
+              allEvents.push(event)
+            }
+          }
+        }
+      } catch (fallbackError) {
+        console.error(`[${this.config.name}] Fallback error:`, fallbackError)
+      }
+    }
+
+    return {
+      success: errors.length === 0 || allEvents.length > 0,
+      events: allEvents,
+      errors,
+      scrapedAt: new Date(),
+      duration: Date.now() - startTime,
+    }
+  }
+
+  /**
+   * Parse a Tribe Events API response item
+   */
+  private parseTribeEvent(data: TribeEvent): ScrapedEvent | null {
+    try {
+      const rawName = decodeHtmlEntities(data.title || '')
+      if (!rawName) return null
+
+      // Skip non-event entries
+      const skipPatterns = [
+        /^closed$/i,
+        /^backstage bar open/i,
+        /^bar open/i,
+        /^kitchen open/i,
+      ]
+      if (skipPatterns.some((pattern) => pattern.test(rawName.trim()))) {
+        return null
+      }
+
+      // Clean up the title - remove time suffixes
+      const name = this.cleanTitle(rawName)
+
+      // Parse start date
+      const startsAt = new Date(data.start_date)
+      if (isNaN(startsAt.getTime())) return null
+
+      // Skip past events
+      if (startsAt < new Date()) return null
+
+      // Parse end date if available
+      const endsAt = data.end_date ? new Date(data.end_date) : undefined
+
+      // Get description
+      let description = data.description || data.excerpt
+      if (description) {
+        description = description
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#039;/g, "'")
+          .replace(/&#8217;/g, "'")
+          .replace(/&#8211;/g, '-')
+          .replace(/&#038;/g, '&')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+
+        if (description.length < 10) {
+          description = undefined
+        }
+      }
+
+      // Get image URL
+      const imageUrl =
+        data.image?.sizes?.large?.url || data.image?.sizes?.medium?.url || data.image?.url
+
+      // Get price
+      let coverCharge: string | undefined
+      if (data.cost) {
+        coverCharge = data.cost
+      } else if (data.cost_details?.values?.length) {
+        coverCharge = data.cost_details.values[0]
+      }
+
+      // Generate stable event ID
+      const dateStr = startsAt.toISOString().split('T')[0]
+      const titleSlug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 50)
+      const sourceEventId = `luthiers-${dateStr}-${titleSlug}`
+
+      return {
+        title: name,
+        description,
+        startsAt,
+        endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,
+        sourceUrl: data.url || this.config.url,
+        sourceEventId,
+        imageUrl,
+        coverCharge,
+      }
+    } catch (error) {
+      console.error(`[${this.config.name}] Error parsing Tribe event:`, error)
+      return null
+    }
+  }
+
+  /**
+   * Fallback: Parse events from HTML/JSON-LD (used if API fails)
+   */
   protected async parseEvents(html: string): Promise<ScrapedEvent[]> {
     const $ = cheerio.load(html)
     const events: ScrapedEvent[] = []

@@ -552,6 +552,64 @@ export async function notifyChatQualitySample(params: {
 }
 
 /**
+ * Alert when a scraper exhibits anomalous behavior (e.g., creating too many duplicates)
+ */
+export async function notifyScraperAnomaly(params: {
+  sourceId: string
+  sourceName: string
+  venueName: string
+  anomalyType: 'duplicate_spike' | 'event_spike' | 'zero_events'
+  severity: 'warning' | 'critical'
+  message: string
+  details: {
+    eventsCreated: number
+    eventsUpdated: number
+    eventsSkipped: number
+    sampleTitles: string[]
+    timestamp: Date
+  }
+}): Promise<void> {
+  const { sourceName, venueName, anomalyType, severity, message: anomalyMessage, details } = params
+
+  const severityEmoji = severity === 'critical' ? '🚨' : '⚠️'
+  const typeLabel = {
+    duplicate_spike: 'Duplicate Spike',
+    event_spike: 'Event Spike',
+    zero_events: 'Zero Events',
+  }[anomalyType]
+
+  const message = `${severityEmoji} Scraper Anomaly: ${sourceName}`
+
+  const sampleText = details.sampleTitles.length > 0
+    ? details.sampleTitles.map(t => `• ${t}`).join('\n')
+    : 'None'
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `${severityEmoji} *Scraper Anomaly Detected*`,
+          '',
+          `*Source:* ${sourceName}`,
+          `*Venue:* ${venueName}`,
+          `*Type:* ${typeLabel}`,
+          `*Severity:* ${severity}`,
+          '',
+          `*Message:* ${anomalyMessage}`,
+          '',
+          `*Sample events:*`,
+          sampleText,
+        ].join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(message, blocks)
+}
+
+/**
  * Alert when there are unclassified events that won't be shown publicly
  */
 export async function notifyUnclassifiedEvents(params: {

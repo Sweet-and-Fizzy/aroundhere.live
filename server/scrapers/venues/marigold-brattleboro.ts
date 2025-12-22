@@ -27,6 +27,12 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
     super(marigoldBrattleboroConfig)
   }
 
+  // Use 'domcontentloaded' instead of 'networkidle' because the site has
+  // persistent connections that prevent networkidle from being reached
+  protected override getWaitUntilStrategy(): 'networkidle' | 'domcontentloaded' | 'load' | 'commit' {
+    return 'domcontentloaded'
+  }
+
   protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
