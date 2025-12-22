@@ -7,6 +7,7 @@ import { chromium } from 'playwright'
 import * as cheerio from 'cheerio'
 import { fromZonedTime } from 'date-fns-tz'
 import vm from 'vm'
+import { Buffer } from 'node:buffer'
 
 export interface ExecutionResult {
   success: boolean
