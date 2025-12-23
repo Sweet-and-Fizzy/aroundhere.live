@@ -586,7 +586,7 @@ function adaptEventForCard(event: any, index: number) {
       <div class="flex items-center gap-4">
         <!-- Scraper Mode Selector -->
         <div
-          v-if="source?.hasGeneratedCode"
+          v-if="source?.hasGeneratedCode || source?.hasHardcodedScraper"
           class="flex items-center gap-2"
         >
           <span class="text-sm text-gray-600">Mode:</span>

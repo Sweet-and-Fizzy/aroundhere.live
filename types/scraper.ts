@@ -70,6 +70,7 @@ export interface SourceInfo {
   website?: string
   scraperMode?: ScraperMode
   hasGeneratedCode?: boolean
+  hasHardcodedScraper?: boolean
 }
 
 export interface ScraperListItem {
