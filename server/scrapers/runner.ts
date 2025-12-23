@@ -61,6 +61,28 @@ export interface RunnerResult {
 }
 
 export async function runScraper(scraper: BaseScraper): Promise<RunnerResult> {
+  // Check if this source is configured to use AI-generated scraper instead
+  const existingSource = await prisma.source.findUnique({
+    where: { slug: scraper.config.id },
+  })
+  const sourceConfig = existingSource?.config as Record<string, unknown> | null
+  if (sourceConfig?.scraperMode === 'ai-generated' && sourceConfig?.generatedCode) {
+    console.log(`[Runner] Skipping hardcoded scraper for ${scraper.config.name} (scraperMode: ai-generated)`)
+    return {
+      scraperId: scraper.config.id,
+      scraperName: scraper.config.name,
+      result: {
+        success: true,
+        events: [],
+        errors: [],
+        scrapedAt: new Date(),
+        duration: 0,
+      },
+      savedEvents: 0,
+      skippedEvents: 0,
+    }
+  }
+
   console.log(`\n[Runner] Starting scraper: ${scraper.config.name}`)
 
   const result = await scraper.scrape()
@@ -178,10 +200,13 @@ export async function runAIScrapers(): Promise<RunnerResult[]> {
     },
   })
 
-  // Filter to only sources with generatedCode
+  // Filter to only sources with generatedCode that aren't set to use hardcoded scraper
   const aiSourcesWithCode = aiSources.filter(s => {
     const config = s.config as Record<string, unknown> | null
-    return config?.generatedCode && config?.venueId
+    if (!config?.generatedCode || !config?.venueId) return false
+    // Skip if explicitly set to use hardcoded scraper
+    if (config.scraperMode === 'hardcoded') return false
+    return true
   })
 
   console.log(`\n[Runner] Found ${aiSourcesWithCode.length} AI-generated scrapers`)

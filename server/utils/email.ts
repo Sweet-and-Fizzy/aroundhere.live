@@ -315,10 +315,24 @@ interface RecommendationEvent {
   explanation?: string
 }
 
+interface WeekendListingEvent {
+  time: string
+  venue: string
+  title: string
+  slug: string
+}
+
+interface WeekendDayListings {
+  date: Date
+  dayLabel: string // "Friday Dec 27"
+  events: WeekendListingEvent[]
+}
+
 interface RecommendationEmailData {
   favoriteArtistEvents: RecommendationEvent[]
   weekendPicks: RecommendationEvent[]
   comingUpPicks: RecommendationEvent[]
+  fullWeekendListings?: WeekendDayListings[]
 }
 
 /**
@@ -332,17 +346,19 @@ export async function sendRecommendationEmail(
   const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
   const logoUrl = `${baseUrl}/around-here-logo.svg`
 
-  const { favoriteArtistEvents, weekendPicks, comingUpPicks } = data
-  const totalEvents = favoriteArtistEvents.length + weekendPicks.length + comingUpPicks.length
+  const { favoriteArtistEvents, weekendPicks, comingUpPicks, fullWeekendListings } = data
+  const totalRecommendations = favoriteArtistEvents.length + weekendPicks.length + comingUpPicks.length
+  const totalListingEvents = fullWeekendListings?.reduce((sum, day) => sum + day.events.length, 0) || 0
 
   // Generate HTML for favorite artist section
   const favoriteArtistsHtml = favoriteArtistEvents.length > 0
     ? `
       <div style="margin-bottom: 32px;">
-        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
           <span style="display: inline-block; width: 24px; height: 24px; background-color: #dc2626; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#9829;</span>
           Your Favorite Artists This Week
         </h3>
+        <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px 0;">Artists you've favorited are playing soon.</p>
         ${renderEventGrid(favoriteArtistEvents, baseUrl, true)}
       </div>
     `
@@ -352,10 +368,11 @@ export async function sendRecommendationEmail(
   const weekendPicksHtml = weekendPicks.length > 0
     ? `
       <div style="margin-bottom: 32px;">
-        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
           <span style="display: inline-block; width: 24px; height: 24px; background-color: #7c3aed; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#9733;</span>
           Weekend Picks
         </h3>
+        <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px 0;">Shows we think you'll enjoy based on your taste.</p>
         ${renderEventGrid(weekendPicks, baseUrl, false)}
       </div>
     `
@@ -365,14 +382,18 @@ export async function sendRecommendationEmail(
   const comingUpHtml = comingUpPicks.length > 0
     ? `
       <div style="margin-bottom: 32px;">
-        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+        <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
           <span style="display: inline-block; width: 24px; height: 24px; background-color: #0891b2; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#10148;</span>
           Coming Up
         </h3>
+        <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px 0;">More recommendations for the weeks ahead.</p>
         ${renderEventGrid(comingUpPicks, baseUrl, false)}
       </div>
     `
     : ''
+
+  // Generate HTML for full weekend listings
+  const fullListingsHtml = renderWeekendListings(fullWeekendListings || [], baseUrl)
 
   // Generate plain text version
   const plainText = generateRecommendationPlainText(data, baseUrl)
@@ -382,30 +403,50 @@ export async function sendRecommendationEmail(
     console.log('\n========== WEEKLY RECOMMENDATIONS ==========')
     console.log(`Email: ${email}`)
     console.log(`Favorites: ${favoriteArtistEvents.length}`)
-    console.log(`Weekend: ${weekendPicks.length}`)
+    console.log(`Weekend Picks: ${weekendPicks.length}`)
     console.log(`Coming Up: ${comingUpPicks.length}`)
+    console.log(`Full Listings: ${totalListingEvents} events`)
     console.log('=============================================\n')
   }
+
+  // Build subject line
+  const subjectParts: string[] = []
+  if (totalRecommendations > 0) {
+    subjectParts.push(`${totalRecommendations} picks for you`)
+  }
+  if (totalListingEvents > 0) {
+    subjectParts.push(`${totalListingEvents} shows this week`)
+  }
+  const subject = subjectParts.length > 0
+    ? `This week: ${subjectParts.join(' + ')}`
+    : 'Your weekly event roundup'
+
+  // Build intro text
+  const hasPersonalized = totalRecommendations > 0
+  const introText = hasPersonalized
+    ? `Here are ${totalRecommendations} shows we think you'll love, plus the full week's listings for your area.`
+    : `Here's what's happening this week in your area.`
 
   try {
     await resend.emails.send({
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: email,
-      subject: `Your weekly picks: ${totalEvents} shows we think you'll love`,
+      subject,
       html: emailLayout({
         logoUrl,
         content: `
           <h2 style="color: #111827; margin-top: 0; font-size: 22px; font-weight: 600;">
-            Your Weekly Picks
+            Your Weekly Roundup
           </h2>
 
           <p style="color: #4b5563; font-size: 15px; margin-bottom: 28px;">
-            Here are ${totalEvents} shows we think you'll love, curated just for you based on your favorites and interests.
+            ${introText}
           </p>
 
           ${favoriteArtistsHtml}
           ${weekendPicksHtml}
           ${comingUpHtml}
+          ${fullListingsHtml}
 
           <div style="text-align: center; margin: 32px 0;">
             <a href="${baseUrl}/"
@@ -519,13 +560,63 @@ function renderEventGrid(
 }
 
 /**
+ * Render condensed weekend listings (all events grouped by day)
+ */
+function renderWeekendListings(
+  listings: WeekendDayListings[],
+  baseUrl: string
+): string {
+  if (!listings || listings.length === 0) return ''
+
+  const daysHtml = listings.map(day => {
+    const eventsHtml = day.events.map(event => `
+      <tr>
+        <td style="color: #6b7280; font-size: 13px; padding: 4px 0; white-space: nowrap; vertical-align: top; width: 60px;">
+          ${escapeHtml(event.time)}
+        </td>
+        <td style="color: #6b7280; font-size: 13px; padding: 4px 8px; vertical-align: top; width: 120px;">
+          ${escapeHtml(event.venue)}
+        </td>
+        <td style="font-size: 13px; padding: 4px 0; vertical-align: top;">
+          <a href="${baseUrl}/events/${event.slug}" style="color: #111827; text-decoration: none;">
+            ${escapeHtml(event.title)}
+          </a>
+        </td>
+      </tr>
+    `).join('')
+
+    return `
+      <div style="margin-bottom: 16px;">
+        <div style="font-weight: 600; color: #374151; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">
+          ${escapeHtml(day.dayLabel)}
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          ${eventsHtml}
+        </table>
+      </div>
+    `
+  }).join('')
+
+  return `
+    <div style="margin-bottom: 32px;">
+      <h3 style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+        <span style="display: inline-block; width: 24px; height: 24px; background-color: #059669; border-radius: 50%; margin-right: 10px; text-align: center; line-height: 24px; color: white; font-size: 12px;">&#9776;</span>
+        This Week's Full Listings
+      </h3>
+      <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px 0;">Everything happening in your area this week.</p>
+      ${daysHtml}
+    </div>
+  `
+}
+
+/**
  * Generate plain text version of recommendation email
  */
 function generateRecommendationPlainText(
   data: RecommendationEmailData,
   baseUrl: string
 ): string {
-  const { favoriteArtistEvents, weekendPicks, comingUpPicks } = data
+  const { favoriteArtistEvents, weekendPicks, comingUpPicks, fullWeekendListings } = data
   const sections: string[] = []
 
   if (favoriteArtistEvents.length > 0) {
@@ -582,10 +673,26 @@ function generateRecommendationPlainText(
     sections.push(`COMING UP\n${events}`)
   }
 
-  return `
-Your Weekly Picks
+  // Full weekend listings
+  if (fullWeekendListings && fullWeekendListings.length > 0) {
+    const daysText = fullWeekendListings.map(day => {
+      const eventsText = day.events
+        .map(event => `  ${event.time} ${event.venue} - ${event.title}`)
+        .join('\n')
+      return `${day.dayLabel.toUpperCase()}\n${eventsText}`
+    }).join('\n\n')
+    sections.push(`THIS WEEK'S FULL LISTINGS\n\n${daysText}`)
+  }
 
-Here are shows we think you'll love, curated just for you.
+  const hasPersonalized = favoriteArtistEvents.length > 0 || weekendPicks.length > 0 || comingUpPicks.length > 0
+  const intro = hasPersonalized
+    ? 'Here are shows we think you\'ll love, plus the full week\'s listings for your area.'
+    : 'Here\'s what\'s happening this week in your area.'
+
+  return `
+Your Weekly Roundup
+
+${intro}
 
 ${sections.join('\n\n---\n\n')}
 

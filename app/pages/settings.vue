@@ -302,8 +302,8 @@ useSeoMeta({
           <!-- Weekly recommendations -->
           <div class="flex items-center justify-between pt-2 border-t border-gray-100">
             <div>
-              <span class="text-sm font-medium">Weekly recommendations</span>
-              <p class="text-xs text-gray-500">Curated picks every Wednesday</p>
+              <span class="text-sm font-medium">Weekly digest</span>
+              <p class="text-xs text-gray-500">Curated picks plus all upcoming shows, every Wednesday</p>
             </div>
             <USwitch v-model="settings.enableRecommendations" size="sm" @update:model-value="saveSettings(false)" />
           </div>

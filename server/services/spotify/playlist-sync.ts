@@ -83,6 +83,8 @@ export async function syncPlaylist(playlistId: string): Promise<SyncResult> {
       },
       // Only include music events
       isMusic: true,
+      // Filter by region if playlist has a regionId set
+      ...(playlist.regionId ? { regionId: playlist.regionId } : {}),
     },
     include: {
       eventArtists: {

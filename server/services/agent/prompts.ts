@@ -250,18 +250,33 @@ Many venues embed dates and times in event titles. Clean these before returning:
 
 Parse the date/time information for the startsAt field, but remove it from the title.
 
+## Date/Time Parsing (CRITICAL)
+
+**ISO 8601 dates from JSON-LD/structured data** (e.g., "2025-12-23T19:00:00-04:00"):
+\`\`\`javascript
+// ISO dates include timezone - use new Date() directly
+const startsAt = new Date(event.startDate)
+\`\`\`
+
+**Human-readable dates from HTML** (e.g., "December 23, 2025 8:30 PM"):
+\`\`\`javascript
+// Text dates need timezone context - use fromZonedTime with UTC component date
+const year = 2025, month = 11, day = 23, hour = 20, minute = 30
+const wallClockDate = new Date(Date.UTC(year, month, day, hour, minute, 0))
+const startsAt = fromZonedTime(wallClockDate, timezone)
+\`\`\`
+
 ## Important Guidelines
 
 1. Extract ALL events from the page with specific dates
-2. Handle date/time parsing carefully - convert local time to UTC using fromZonedTime
-3. Use the current year dynamically when year is not in the date string: \`new Date().getFullYear()\`
-4. Handle pagination if needed (click "next" or "load more" buttons)
-5. Clean extracted text (trim whitespace, decode HTML entities)
-6. Return empty array if no events found
-7. ONLY return the code - no explanations, no markdown
-8. The function MUST be named \`scrapeEvents\` and accept \`url\` and \`timezone\` parameters
-9. Always close the browser in a try/catch block
-10. Do not use exec(), eval(), axios, fs, or other restricted functions - only Playwright and Cheerio
+2. Use the current year dynamically when year is not in the date string: \`new Date().getFullYear()\`
+3. Handle pagination if needed (click "next" or "load more" buttons)
+4. Clean extracted text (trim whitespace, decode HTML entities)
+5. Return empty array if no events found
+6. ONLY return the code - no explanations, no markdown
+7. The function MUST be named \`scrapeEvents\` and accept \`url\` and \`timezone\` parameters
+8. Always close the browser in a try/catch block
+9. Do not use exec(), eval(), axios, fs, or other restricted functions - only Playwright and Cheerio
 
 ## Handling Dynamic Content
 

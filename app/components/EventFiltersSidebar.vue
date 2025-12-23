@@ -43,7 +43,7 @@ const STORAGE_KEY = 'eventFilters'
 
 // Valid event types for URL validation
 const validEventTypes = ['ALL_MUSIC', 'ALL_EVENTS', 'MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE', 'COMEDY', 'THEATER', 'TRIVIA']
-const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'month', 'all']
+const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'all']
 
 // Load filters from URL params (takes priority over localStorage)
 function loadFiltersFromUrl() {
@@ -58,7 +58,7 @@ function loadFiltersFromUrl() {
 
   // Validate date preset
   const urlDate = query.date as string
-  const validatedDate = validDatePresets.includes(urlDate) ? urlDate : 'month'
+  const validatedDate = validDatePresets.includes(urlDate) ? urlDate : 'all'
 
   return {
     searchQuery: (query.q as string) || '',
@@ -153,7 +153,7 @@ function updateUrl() {
   }
 
   // Date preset (only if not default)
-  if (datePreset.value !== 'month') {
+  if (datePreset.value !== 'all') {
     query.date = datePreset.value
   }
 
@@ -184,8 +184,8 @@ function isSectionExpanded(section: string) {
   return expandedSection.value === section
 }
 
-// Date range state - default to 'month' for more events
-const datePreset = ref(savedFilters?.datePreset || 'month')
+// Date range state - default to 'all' since we have pagination
+const datePreset = ref(savedFilters?.datePreset || 'all')
 const customDateRange = ref<CalendarDateRange | undefined>(undefined)
 const showCustomCalendar = ref(false)
 
@@ -375,7 +375,7 @@ const hasActiveFilters = computed(() => {
     selectedVenueIds.value.length > 0 ||
     selectedGenres.value.length > 0 ||
     (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') ||
-    datePreset.value !== 'month' ||
+    datePreset.value !== 'all' ||
     mapFilteredVenueIds.value !== null ||
     selectedRegions.value.length > 0 ||
     selectedCities.value.length > 0 ||
@@ -392,7 +392,7 @@ const activeFilterCount = computed(() => {
   if (selectedVenueIds.value.length > 0) count++
   if (selectedGenres.value.length > 0) count++
   if (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') count++
-  if (datePreset.value !== 'month') count++
+  if (datePreset.value !== 'all') count++
   if (mapFilteredVenueIds.value !== null) count++
   if (selectedRegions.value.length > 0) count++
   if (selectedCities.value.length > 0) count++
@@ -407,7 +407,7 @@ function resetFilters() {
   selectedEventTypes.value = ['ALL_MUSIC']
   selectedRegions.value = []
   selectedCities.value = []
-  datePreset.value = 'month'
+  datePreset.value = 'all'
   customDateRange.value = undefined
   mapFilteredVenueIds.value = null
   mapCenter.value = null
@@ -494,14 +494,13 @@ const datePresets = [
   { label: 'Tomorrow', value: 'tomorrow' },
   { label: 'This Weekend', value: 'weekend' },
   { label: 'Next 7 Days', value: 'week' },
-  { label: 'Next 30 Days', value: 'month' },
   { label: 'All Upcoming', value: 'all' },
 ]
 
 // Section summaries for collapsed state
 const dateSummary = computed(() => {
   const preset = datePresets.find(p => p.value === datePreset.value)
-  return preset?.label || 'Next 30 Days'
+  return preset?.label || 'All Upcoming'
 })
 
 // Use locationSummary from composable (which handles regions, cities, and venues)

@@ -57,6 +57,7 @@ const userMenuItems = computed(() => {
     ],
     [
       { label: 'My Interests', icon: 'i-heroicons-heart', to: '/interests' },
+      { label: 'How It Works', icon: 'i-heroicons-question-mark-circle', to: '/how-it-works' },
       { label: 'Settings', icon: 'i-heroicons-cog-6-tooth', to: '/settings' },
     ],
   ]
@@ -242,6 +243,17 @@ const userMenuItems = computed(() => {
                       class="w-4 h-4"
                     />
                     My Interests
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/how-it-works"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-question-mark-circle"
+                      class="w-4 h-4"
+                    />
+                    How It Works
                   </NuxtLink>
                   <NuxtLink
                     to="/settings"

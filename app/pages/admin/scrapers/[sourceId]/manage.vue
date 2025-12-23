@@ -9,6 +9,7 @@ import type {
   GetVersionCodeResponse,
   CreateVersionResponse,
   ActivateVersionResponse,
+  ScraperMode,
 } from '~/types/scraper'
 
 definePageMeta({
@@ -30,6 +31,8 @@ const generatingWithAI = ref(false)
 const source = ref<SourceInfo | null>(null)
 const versions = ref<ScraperVersion[]>([])
 const activeVersionNumber = ref<number | null>(null)
+const scraperMode = ref<ScraperMode>('auto')
+const savingMode = ref(false)
 const selectedVersionId = ref<string | null>(null)
 const code = ref('')
 const hasChanges = ref(false)
@@ -61,6 +64,7 @@ async function fetchVersions() {
     source.value = data.source
     versions.value = data.versions
     activeVersionNumber.value = data.activeVersionNumber
+    scraperMode.value = data.source.scraperMode || 'auto'
 
     // Load active version by default, or first version if no active version
     if (versions.value.length > 0) {
@@ -427,6 +431,31 @@ function compareWithPrevious(versionIndex: number) {
   openDiffComparison(previousVersion.id, currentVersion.id)
 }
 
+// Update scraper mode
+async function updateScraperMode(mode: ScraperMode) {
+  try {
+    savingMode.value = true
+    await $fetch(`/api/scrapers/${sourceId}/config`, {
+      method: 'PUT',
+      body: { scraperMode: mode },
+    })
+    scraperMode.value = mode
+    toast.add({
+      title: 'Mode Updated',
+      description: `Scraper mode set to "${mode}"`,
+      color: 'success',
+    })
+  } catch (error: any) {
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || 'Failed to update scraper mode',
+      color: 'error',
+    })
+  } finally {
+    savingMode.value = false
+  }
+}
+
 // Load on mount
 onMounted(() => {
   fetchVersions()
@@ -554,14 +583,37 @@ function adaptEventForCard(event: any, index: number) {
           />
         </a>
       </div>
-      <UButton
-        to="/admin/scrapers"
-        variant="ghost"
-        size="sm"
-        icon="i-heroicons-arrow-left"
-      >
-        Back to Scrapers
-      </UButton>
+      <div class="flex items-center gap-4">
+        <!-- Scraper Mode Selector -->
+        <div
+          v-if="source?.hasGeneratedCode"
+          class="flex items-center gap-2"
+        >
+          <span class="text-sm text-gray-600">Mode:</span>
+          <USelectMenu
+            :model-value="scraperMode"
+            :options="[
+              { label: 'Auto', value: 'auto', description: 'Use AI-generated if available' },
+              { label: 'Hardcoded', value: 'hardcoded', description: 'Use hardcoded scraper' },
+              { label: 'AI Generated', value: 'ai-generated', description: 'Use AI-generated code' },
+            ]"
+            value-attribute="value"
+            option-attribute="label"
+            :loading="savingMode"
+            size="sm"
+            class="w-40"
+            @update:model-value="updateScraperMode"
+          />
+        </div>
+        <UButton
+          to="/admin/scrapers"
+          variant="ghost"
+          size="sm"
+          icon="i-heroicons-arrow-left"
+        >
+          Back to Scrapers
+        </UButton>
+      </div>
     </div>
 
     <div

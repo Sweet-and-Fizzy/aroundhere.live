@@ -30,11 +30,19 @@ interface SpotifySearchResult {
   spotifyUrl: string
 }
 
+interface Region {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Playlist {
   id: string
   playlistId: string
   name: string
   description: string | null
+  regionId: string | null
+  region: Region | null
   daysAhead: number
   syncEnabled: boolean
   lastSyncedAt: string | null
@@ -220,9 +228,14 @@ async function extractArtists() {
 const { data: playlistsData, refresh: refreshPlaylists } = await useFetch('/api/spotify/playlists')
 const playlists = computed(() => (playlistsData.value as any)?.playlists || [])
 
+// Regions for playlist assignment
+const { data: regionsData } = await useFetch('/api/regions')
+const regions = computed(() => (regionsData.value as any)?.regions || [])
+
 const showAddPlaylist = ref(false)
 const newPlaylistId = ref('')
 const newPlaylistName = ref('')
+const newPlaylistRegionId = ref<string | null>(null)
 const syncing = ref<string | null>(null)
 
 async function addPlaylist() {
@@ -234,14 +247,28 @@ async function addPlaylist() {
       body: {
         playlistId: newPlaylistId.value.trim(),
         name: newPlaylistName.value.trim(),
+        regionId: newPlaylistRegionId.value || null,
       },
     })
     showAddPlaylist.value = false
     newPlaylistId.value = ''
     newPlaylistName.value = ''
+    newPlaylistRegionId.value = null
     refreshPlaylists()
   } catch (error: any) {
     alert(error.data?.message || 'Failed to add playlist')
+  }
+}
+
+async function updatePlaylistRegion(playlist: Playlist, regionId: string | null) {
+  try {
+    await $fetch(`/api/spotify/playlists/${playlist.playlistId}`, {
+      method: 'PATCH',
+      body: { regionId },
+    })
+    refreshPlaylists()
+  } catch (error: any) {
+    alert(error.data?.message || 'Failed to update playlist region')
   }
 }
 
