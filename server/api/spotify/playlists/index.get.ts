@@ -7,6 +7,11 @@ import { prisma } from '../../../utils/prisma'
 
 export default defineEventHandler(async () => {
   const playlists = await prisma.spotifyPlaylist.findMany({
+    include: {
+      region: {
+        select: { id: true, name: true, slug: true },
+      },
+    },
     orderBy: { name: 'asc' },
   })
 
@@ -25,6 +30,7 @@ export default defineEventHandler(async () => {
       name: p.name,
       description: p.description,
       regionId: p.regionId,
+      region: p.region,
       daysAhead: p.daysAhead,
       syncEnabled: p.syncEnabled,
       lastSyncedAt: p.lastSyncedAt,

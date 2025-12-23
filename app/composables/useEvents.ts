@@ -93,6 +93,7 @@ export function useEvents() {
     try {
       const params = new URLSearchParams()
 
+      if (filters.q) params.set('q', filters.q)
       if (filters.regionId) params.set('regionId', filters.regionId)
       if (filters.regions?.length) params.set('regions', filters.regions.join(','))
       if (filters.cities?.length) params.set('cities', filters.cities.join(','))
@@ -149,6 +150,7 @@ export function useEvents() {
       if (filters.venueIds?.length) params.set('venueIds', filters.venueIds.join(','))
       if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
       if (filters.musicOnly !== undefined) params.set('musicOnly', filters.musicOnly.toString())
+      if (filters.limit) params.set('limit', filters.limit.toString())
 
       const response = await $fetch<{
         events: Event[]

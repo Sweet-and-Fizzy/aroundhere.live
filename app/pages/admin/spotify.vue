@@ -30,11 +30,19 @@ interface SpotifySearchResult {
   spotifyUrl: string
 }
 
+interface Region {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Playlist {
   id: string
   playlistId: string
   name: string
   description: string | null
+  regionId: string | null
+  region: Region | null
   daysAhead: number
   syncEnabled: boolean
   lastSyncedAt: string | null
@@ -220,9 +228,14 @@ async function extractArtists() {
 const { data: playlistsData, refresh: refreshPlaylists } = await useFetch('/api/spotify/playlists')
 const playlists = computed(() => (playlistsData.value as any)?.playlists || [])
 
+// Regions for playlist assignment
+const { data: regionsData } = await useFetch('/api/regions')
+const regions = computed(() => (regionsData.value as any)?.regions || [])
+
 const showAddPlaylist = ref(false)
 const newPlaylistId = ref('')
 const newPlaylistName = ref('')
+const newPlaylistRegionId = ref<string | null>(null)
 const syncing = ref<string | null>(null)
 
 async function addPlaylist() {
@@ -234,14 +247,28 @@ async function addPlaylist() {
       body: {
         playlistId: newPlaylistId.value.trim(),
         name: newPlaylistName.value.trim(),
+        regionId: newPlaylistRegionId.value || null,
       },
     })
     showAddPlaylist.value = false
     newPlaylistId.value = ''
     newPlaylistName.value = ''
+    newPlaylistRegionId.value = null
     refreshPlaylists()
   } catch (error: any) {
     alert(error.data?.message || 'Failed to add playlist')
+  }
+}
+
+async function updatePlaylistRegion(playlist: Playlist, regionId: string | null) {
+  try {
+    await $fetch(`/api/spotify/playlists/${playlist.playlistId}`, {
+      method: 'PATCH',
+      body: { regionId },
+    })
+    refreshPlaylists()
+  } catch (error: any) {
+    alert(error.data?.message || 'Failed to update playlist region')
   }
 }
 
@@ -493,7 +520,7 @@ useSeoMeta({
         v-if="showAddPlaylist"
         class="mb-4 p-4 bg-gray-50 rounded-lg"
       >
-        <div class="grid grid-cols-2 gap-4 mb-3">
+        <div class="grid grid-cols-3 gap-4 mb-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Spotify Playlist ID</label>
             <input
@@ -514,6 +541,24 @@ useSeoMeta({
               placeholder="e.g. Raleigh Live Music"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+            <select
+              v-model="newPlaylistRegionId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option :value="null">
+                All Regions (Global)
+              </option>
+              <option
+                v-for="region in regions"
+                :key="region.id"
+                :value="region.id"
+              >
+                {{ region.name }}
+              </option>
+            </select>
           </div>
         </div>
         <button
@@ -564,7 +609,24 @@ useSeoMeta({
                 Paused
               </span>
             </div>
-            <div class="text-sm text-gray-500">
+            <div class="text-sm text-gray-500 flex items-center gap-2">
+              <select
+                :value="playlist.regionId || ''"
+                class="text-xs border border-gray-200 rounded px-1 py-0.5"
+                @change="updatePlaylistRegion(playlist, ($event.target as HTMLSelectElement).value || null)"
+              >
+                <option value="">
+                  All Regions
+                </option>
+                <option
+                  v-for="region in regions"
+                  :key="region.id"
+                  :value="region.id"
+                >
+                  {{ region.name }}
+                </option>
+              </select>
+              <span>·</span>
               {{ playlist.trackCount }} tracks
               <span v-if="playlist.lastSyncedAt">
                 · Last sync: {{ new Date(playlist.lastSyncedAt).toLocaleString() }}

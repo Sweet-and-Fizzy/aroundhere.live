@@ -44,12 +44,16 @@ export async function saveEvent(
   source: { id: string; priority: number },
   defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
 ): Promise<SaveEventResult> {
+  // Auto-generate sourceEventId from sourceUrl if not provided
+  // This is critical for the cancellation logic to work properly
+  const sourceEventId = scrapedEvent.sourceEventId || scrapedEvent.sourceUrl || null
+
   // First, check if this exact source already has this event (by source + sourceEventId)
-  if (scrapedEvent.sourceEventId) {
+  if (sourceEventId) {
     const existingFromSameSource = await prisma.event.findFirst({
       where: {
         sourceId: source.id,
-        sourceEventId: scrapedEvent.sourceEventId,
+        sourceEventId: sourceEventId,
       },
     })
 
@@ -103,7 +107,7 @@ export async function saveEvent(
       },
       update: {
         sourceUrl: scrapedEvent.sourceUrl,
-        sourceEventId: scrapedEvent.sourceEventId,
+        sourceEventId: sourceEventId,
         scrapedAt: new Date(),
         rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
       },
@@ -111,7 +115,7 @@ export async function saveEvent(
         eventId: dedupResult.existingEventId,
         sourceId: source.id,
         sourceUrl: scrapedEvent.sourceUrl,
-        sourceEventId: scrapedEvent.sourceEventId,
+        sourceEventId: sourceEventId,
         rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
       },
     })
@@ -126,7 +130,7 @@ export async function saveEvent(
         where: { id: dedupResult.existingEventId },
         data: {
           sourceId: source.id,
-          sourceEventId: scrapedEvent.sourceEventId,
+          sourceEventId: sourceEventId,
           sourceUrl: scrapedEvent.sourceUrl,
           title: cleanedTitle,
           description: canonicalDescriptions.description,
@@ -191,7 +195,7 @@ export async function saveEvent(
       genres: scrapedEvent.genres || [],
       sourceId: source.id,
       sourceUrl: scrapedEvent.sourceUrl,
-      sourceEventId: scrapedEvent.sourceEventId,
+      sourceEventId: sourceEventId,
       confidenceScore: 0.8,
       reviewStatus: 'PENDING', // New events need review
     },
@@ -203,7 +207,7 @@ export async function saveEvent(
       eventId: event.id,
       sourceId: source.id,
       sourceUrl: scrapedEvent.sourceUrl,
-      sourceEventId: scrapedEvent.sourceEventId,
+      sourceEventId: sourceEventId,
       rawData: scrapedEvent as unknown as Prisma.InputJsonValue,
     },
   })
@@ -384,8 +388,10 @@ export async function saveScrapedEvents(
         : eventWithCorrectedDate
 
       // Track the sourceEventId for cancellation detection
-      if (eventToSave.sourceEventId) {
-        scrapedSourceEventIds.push(eventToSave.sourceEventId)
+      // Use sourceUrl as fallback since some scrapers don't provide explicit IDs
+      const trackingId = eventToSave.sourceEventId || eventToSave.sourceUrl
+      if (trackingId) {
+        scrapedSourceEventIds.push(trackingId)
       }
 
       const result = await saveEvent(prisma, eventToSave, venue, source, defaultAgeRestriction)

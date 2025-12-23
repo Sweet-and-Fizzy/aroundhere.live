@@ -10,10 +10,9 @@ const { loggedIn, ready } = useUserSession()
 <template>
   <div class="max-w-2xl mx-auto px-4 py-8">
     <div class="text-center mb-12">
-      <div class="w-32 h-32 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+      <div class="w-32 h-32 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
         <AnimatedLogo
           :playing="true"
-          dark
           height="56"
         />
       </div>
@@ -63,6 +62,21 @@ const { loggedIn, ready } = useUserSession()
             <h2 class="text-xl font-semibold text-gray-900 mb-2">Discover New Music</h2>
             <p class="text-gray-600">
               Opt in to weekly recommendations curated for your taste. Tell us what you're into and we'll surface shows you might have missed.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <UIcon name="i-heroicons-musical-note" class="w-5 h-5 text-green-500" />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">Preview on Spotify</h2>
+            <p class="text-gray-600">
+              Check out our <NuxtLink to="/playlist" class="text-primary-600 hover:text-primary-700 font-medium underline">Spotify playlist</NuxtLink>
+              to preview music from artists playing local shows. It updates daily with tracks from upcoming performances, so you can discover what you might like before the show.
             </p>
           </div>
         </div>

@@ -291,9 +291,9 @@ useSeoMeta({
         class="bg-primary-50 border border-primary-200 rounded-lg p-4"
       >
         <p class="text-sm text-primary-800">
-          Your interests personalize your experience. Use the filter on the home page to show matching events.
-          You'll also get updates by email when your favorites have upcoming shows.
-          <NuxtLink to="/settings" class="font-medium underline">Manage notifications</NuxtLink>
+          Your interests personalize your experience and power our recommendations.
+          Get alerts when your favorite artists have shows, plus weekly picks tailored to your taste.
+          <NuxtLink to="/how-it-works" class="font-medium underline">Learn more</NuxtLink> · <NuxtLink to="/settings" class="font-medium underline">Manage notifications</NuxtLink>
         </p>
       </div>
 
@@ -311,7 +311,7 @@ useSeoMeta({
 
         <div class="space-y-2">
           <p class="text-sm text-gray-600">
-            Tell us what you're into to help us find shows you might like.
+            Tell us what you're into to help us curate your weekly recommendations.
           </p>
           <div @focusout="saveInterestDescription">
             <textarea

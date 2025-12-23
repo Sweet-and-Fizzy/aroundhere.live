@@ -31,6 +31,19 @@ import {
 } from '../../services/recommendations'
 import { curateMultipleSections, type CuratedEvent } from '../../services/recommendations/ai-curator'
 
+interface WeekendListingEvent {
+  time: string
+  venue: string
+  title: string
+  slug: string
+}
+
+interface WeekendDayListings {
+  date: Date
+  dayLabel: string
+  events: WeekendListingEvent[]
+}
+
 export default defineEventHandler(async (event) => {
   // Verify cron authentication
   verifyCronAuth(event)
@@ -97,6 +110,7 @@ export default defineEventHandler(async (event) => {
         id: true,
         email: true,
         interestDescription: true,
+        regionId: true,
       },
       take: limit,
     })
@@ -180,16 +194,93 @@ export default defineEventHandler(async (event) => {
           }
         }
 
-        // Check if we have any recommendations to send
+        // Section 4: Full week listings for user's region
+        // Shows all events from today through next 7 days
+        let fullWeekendListings: WeekendDayListings[] = []
+        if (user.regionId) {
+          const weekListingEnd = new Date(todayStart)
+          weekListingEnd.setDate(weekListingEnd.getDate() + 7)
+          weekListingEnd.setHours(23, 59, 59, 999)
+
+          // Fetch all events for the user's region for the next week
+          const allWeekendEvents = await prisma.event.findMany({
+            where: {
+              regionId: user.regionId,
+              startsAt: {
+                gte: todayStart,
+                lte: weekListingEnd,
+              },
+              isCancelled: false,
+              reviewStatus: { in: ['APPROVED', 'PENDING'] },
+              // Only include music events
+              OR: [
+                { isMusic: true },
+                { isMusic: null, eventType: null }, // Unclassified, might be music
+              ],
+            },
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              startsAt: true,
+              venue: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+            orderBy: {
+              startsAt: 'asc',
+            },
+          })
+
+          // Group events by day
+          const eventsByDay = new Map<string, typeof allWeekendEvents>()
+          for (const event of allWeekendEvents) {
+            const dateKey = event.startsAt.toISOString().split('T')[0]
+            if (!eventsByDay.has(dateKey)) {
+              eventsByDay.set(dateKey, [])
+            }
+            eventsByDay.get(dateKey)!.push(event)
+          }
+
+          // Convert to listing format
+          fullWeekendListings = Array.from(eventsByDay.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([dateKey, events]) => {
+              const date = new Date(dateKey + 'T12:00:00') // Noon to avoid timezone issues
+              const dayLabel = date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+              })
+              return {
+                date,
+                dayLabel,
+                events: events.map(e => ({
+                  time: e.startsAt.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  }),
+                  venue: e.venue?.name || 'TBA',
+                  title: e.title,
+                  slug: e.slug,
+                })),
+              }
+            })
+        }
+
+        // Check if we have any content to send
         const totalRecs = favoriteArtistEvents.length + weekendPicks.length + comingUpPicks.length
-        if (totalRecs === 0) {
-          console.log(`[Weekly Recommendations] User ${user.email}: No recommendations, skipping`)
+        const totalListings = fullWeekendListings.reduce((sum, day) => sum + day.events.length, 0)
+        if (totalRecs === 0 && totalListings === 0) {
+          console.log(`[Weekly Recommendations] User ${user.email}: No content, skipping`)
           results.usersSkipped++
           continue
         }
 
         console.log(
-          `[Weekly Recommendations] User ${user.email}: ${favoriteArtistEvents.length} favorites, ${weekendPicks.length} weekend, ${comingUpPicks.length} coming up`
+          `[Weekly Recommendations] User ${user.email}: ${favoriteArtistEvents.length} favorites, ${weekendPicks.length} weekend, ${comingUpPicks.length} coming up, ${totalListings} listings`
         )
 
         if (dryRun) {
@@ -201,6 +292,7 @@ export default defineEventHandler(async (event) => {
             favoriteArtistEvents,
             weekendPicks,
             comingUpPicks,
+            fullWeekendListings,
           })
 
           if (emailResult.success) {

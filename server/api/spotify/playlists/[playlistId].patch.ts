@@ -2,7 +2,7 @@
  * Update a playlist configuration
  * PATCH /api/spotify/playlists/:playlistId
  *
- * Body: { name?, description?, daysAhead?, syncEnabled? }
+ * Body: { name?, description?, daysAhead?, syncEnabled?, regionId? }
  */
 
 import { prisma } from '../../../utils/prisma'
@@ -36,6 +36,13 @@ export default defineEventHandler(async (event) => {
       ...(body.description !== undefined && { description: body.description }),
       ...(body.daysAhead !== undefined && { daysAhead: body.daysAhead }),
       ...(body.syncEnabled !== undefined && { syncEnabled: body.syncEnabled }),
+      // Allow setting regionId to null (global) or a valid region ID
+      ...(body.regionId !== undefined && { regionId: body.regionId || null }),
+    },
+    include: {
+      region: {
+        select: { id: true, name: true, slug: true },
+      },
     },
   })
 
@@ -46,6 +53,8 @@ export default defineEventHandler(async (event) => {
       playlistId: updated.playlistId,
       name: updated.name,
       description: updated.description,
+      regionId: updated.regionId,
+      region: updated.region,
       daysAhead: updated.daysAhead,
       syncEnabled: updated.syncEnabled,
     },

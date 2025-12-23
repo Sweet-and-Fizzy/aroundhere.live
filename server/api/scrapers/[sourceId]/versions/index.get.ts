@@ -47,6 +47,7 @@ export default defineEventHandler(async (event) => {
         name: true,
         website: true,
         type: true,
+        config: true,
       },
     })
 
@@ -89,11 +90,15 @@ export default defineEventHandler(async (event) => {
     // Find active version
     const activeVersion = versions.find(v => v.isActive)
 
+    const config = source.config as Record<string, unknown> | null
+
     return {
       source: {
         id: source.id,
         name: source.name,
         website: source.website,
+        scraperMode: (config?.scraperMode as string) || 'auto',
+        hasGeneratedCode: !!config?.generatedCode,
       },
       versions: versions.map(v => ({
         id: v.id,

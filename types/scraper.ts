@@ -62,9 +62,14 @@ export interface TestResults {
   warnings?: string[]
 }
 
+export type ScraperMode = 'auto' | 'hardcoded' | 'ai-generated'
+
 export interface SourceInfo {
   id: string
   name: string
+  website?: string
+  scraperMode?: ScraperMode
+  hasGeneratedCode?: boolean
 }
 
 export interface ScraperListItem {
