@@ -6,6 +6,7 @@
  */
 
 import { prisma } from '../../../../utils/prisma'
+import { hasHardcodedScraper } from '../../../../scrapers/registry'
 
 export default defineEventHandler(async (event) => {
   // Check authentication
@@ -45,6 +46,7 @@ export default defineEventHandler(async (event) => {
       select: {
         id: true,
         name: true,
+        slug: true,
         website: true,
         type: true,
         config: true,
@@ -99,6 +101,7 @@ export default defineEventHandler(async (event) => {
         website: source.website,
         scraperMode: (config?.scraperMode as string) || 'auto',
         hasGeneratedCode: !!config?.generatedCode,
+        hasHardcodedScraper: hasHardcodedScraper(source.slug),
       },
       versions: versions.map(v => ({
         id: v.id,
