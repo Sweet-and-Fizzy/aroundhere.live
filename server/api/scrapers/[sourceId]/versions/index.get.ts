@@ -91,7 +91,6 @@ export default defineEventHandler(async (event) => {
     const activeVersion = versions.find(v => v.isActive)
 
     const config = source.config as Record<string, unknown> | null
-    const hasHardcodedScraper = !!(config?.generatedCode) // If it has generatedCode, there might be a hardcoded alternative
 
     return {
       source: {

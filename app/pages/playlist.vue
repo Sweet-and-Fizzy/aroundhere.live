@@ -1,10 +1,104 @@
 <script setup lang="ts">
-// Get first enabled playlist
+interface Region {
+  id: string
+  name: string
+  slug: string
+}
+
+interface Playlist {
+  id: string
+  playlistId: string
+  name: string
+  regionId: string | null
+  region: Region | null
+  syncEnabled: boolean
+  lastSyncedAt: string | null
+  trackCount: number
+}
+
+// Get all playlists
 const { data: playlistData } = await useFetch('/api/spotify/playlists')
 
+const allPlaylists = computed(() => {
+  return ((playlistData.value as any)?.playlists || []) as Playlist[]
+})
+
+// Get enabled playlists only
+const enabledPlaylists = computed(() => {
+  return allPlaylists.value.filter(p => p.syncEnabled)
+})
+
+// Get user's current region from composable
+const { region: currentRegion, loaded: regionLoaded } = useCurrentRegion()
+
+// Selected region (null = All Regions/Global)
+const selectedRegionId = ref<string | null>(null)
+
+// Initialize selection based on user's region
+onMounted(() => {
+  // Check localStorage first for previous selection
+  const savedSelection = localStorage.getItem('playlistRegion')
+  if (savedSelection !== null) {
+    // Empty string means "all regions", otherwise it's a region ID
+    selectedRegionId.value = savedSelection === '' ? null : savedSelection
+  } else if (currentRegion.value?.id) {
+    // Default to user's current region if they have one
+    selectedRegionId.value = currentRegion.value.id
+  }
+})
+
+// Also watch for when region loads (may happen after mount)
+watch([regionLoaded, currentRegion], ([loaded, region]) => {
+  // Only set if no previous selection was saved and we haven't already set it
+  if (loaded && region?.id && localStorage.getItem('playlistRegion') === null) {
+    selectedRegionId.value = region.id
+  }
+}, { immediate: true })
+
+// Save selection to localStorage when it changes
+watch(selectedRegionId, (newVal) => {
+  localStorage.setItem('playlistRegion', newVal ?? '')
+})
+
+// Current playlist based on selection
 const playlist = computed(() => {
-  const playlists = (playlistData.value as any)?.playlists || []
-  return playlists.find((p: any) => p.syncEnabled) || playlists[0] || null
+  if (enabledPlaylists.value.length === 0) return null
+
+  // If a specific region is selected, find matching playlist
+  if (selectedRegionId.value) {
+    const regionPlaylist = enabledPlaylists.value.find(p => p.regionId === selectedRegionId.value)
+    if (regionPlaylist) return regionPlaylist
+  }
+
+  // Fall back to global playlist (regionId: null) or first available
+  const globalPlaylist = enabledPlaylists.value.find(p => p.regionId === null)
+  return globalPlaylist || enabledPlaylists.value[0]
+})
+
+// Available regions for the dropdown (from playlists that have regions)
+const availableRegions = computed(() => {
+  const regions: Region[] = []
+  const seen = new Set<string>()
+
+  for (const p of enabledPlaylists.value) {
+    if (p.region && !seen.has(p.region.id)) {
+      seen.add(p.region.id)
+      regions.push(p.region)
+    }
+  }
+
+  return regions.sort((a, b) => a.name.localeCompare(b.name))
+})
+
+// Check if we have a global playlist
+const hasGlobalPlaylist = computed(() => {
+  return enabledPlaylists.value.some(p => p.regionId === null)
+})
+
+// Show region selector only if there are multiple options
+const showRegionSelector = computed(() => {
+  const options = availableRegions.value.length + (hasGlobalPlaylist.value ? 1 : 0)
+  return options > 1
 })
 
 const embedUrl = computed(() => {
@@ -57,6 +151,31 @@ useHead({
     </header>
 
     <div v-if="playlist">
+      <!-- Region Selector -->
+      <div
+        v-if="showRegionSelector"
+        class="mb-4 flex justify-center"
+      >
+        <select
+          v-model="selectedRegionId"
+          class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+          <option
+            v-if="hasGlobalPlaylist"
+            :value="null"
+          >
+            All Regions
+          </option>
+          <option
+            v-for="region in availableRegions"
+            :key="region.id"
+            :value="region.id"
+          >
+            {{ region.name }}
+          </option>
+        </select>
+      </div>
+
       <!-- Spotify Embed -->
       <div class="bg-gray-900 rounded-xl overflow-hidden shadow-xl">
         <iframe
@@ -126,6 +245,12 @@ useHead({
         class="mt-4 text-center text-sm text-gray-500"
       >
         Last updated: {{ new Date(playlist.lastSyncedAt).toLocaleString() }}
+        <span v-if="playlist.region">
+          · {{ playlist.region.name }}
+        </span>
+        <span v-else-if="!selectedRegionId">
+          · All Regions
+        </span>
       </div>
     </div>
 

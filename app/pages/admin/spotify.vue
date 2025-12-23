@@ -520,7 +520,7 @@ useSeoMeta({
         v-if="showAddPlaylist"
         class="mb-4 p-4 bg-gray-50 rounded-lg"
       >
-        <div class="grid grid-cols-2 gap-4 mb-3">
+        <div class="grid grid-cols-3 gap-4 mb-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Spotify Playlist ID</label>
             <input
@@ -541,6 +541,24 @@ useSeoMeta({
               placeholder="e.g. Raleigh Live Music"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+            <select
+              v-model="newPlaylistRegionId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option :value="null">
+                All Regions (Global)
+              </option>
+              <option
+                v-for="region in regions"
+                :key="region.id"
+                :value="region.id"
+              >
+                {{ region.name }}
+              </option>
+            </select>
           </div>
         </div>
         <button
@@ -591,7 +609,24 @@ useSeoMeta({
                 Paused
               </span>
             </div>
-            <div class="text-sm text-gray-500">
+            <div class="text-sm text-gray-500 flex items-center gap-2">
+              <select
+                :value="playlist.regionId || ''"
+                class="text-xs border border-gray-200 rounded px-1 py-0.5"
+                @change="updatePlaylistRegion(playlist, ($event.target as HTMLSelectElement).value || null)"
+              >
+                <option value="">
+                  All Regions
+                </option>
+                <option
+                  v-for="region in regions"
+                  :key="region.id"
+                  :value="region.id"
+                >
+                  {{ region.name }}
+                </option>
+              </select>
+              <span>·</span>
               {{ playlist.trackCount }} tracks
               <span v-if="playlist.lastSyncedAt">
                 · Last sync: {{ new Date(playlist.lastSyncedAt).toLocaleString() }}
