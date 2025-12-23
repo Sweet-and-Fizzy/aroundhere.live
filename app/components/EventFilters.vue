@@ -518,7 +518,12 @@ function updateUrlFromFilters(filters: Record<string, any>) {
     Object.keys(currentQuery).some(key => query[key] !== currentQuery[key])
 
   if (queryChanged) {
-    router.replace({ query })
+    // Use history.replaceState directly to avoid scroll behavior from Vue Router
+    if (import.meta.client && window.history) {
+      const url = new URL(window.location.href)
+      url.search = new URLSearchParams(query).toString()
+      window.history.replaceState(window.history.state, '', url.toString())
+    }
   }
 }
 
