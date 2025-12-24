@@ -87,6 +87,11 @@ export class IronHorseScraper extends PlaywrightScraper {
     })
   }
 
+  // Use domcontentloaded - networkidle can timeout before Elfsight initializes
+  protected override getWaitUntilStrategy(): 'networkidle' | 'domcontentloaded' | 'load' | 'commit' {
+    return 'domcontentloaded'
+  }
+
   protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
@@ -94,13 +99,13 @@ export class IronHorseScraper extends PlaywrightScraper {
     // The Elfsight widget takes time to render into the DOM
     try {
       await this.page.waitForSelector('.eapp-events-calendar-masonry-item', {
-        timeout: 15000,
+        timeout: 20000,
       })
       // Give it extra time to ensure all events are rendered
-      await this.page.waitForTimeout(2000)
+      await this.page.waitForTimeout(3000)
     } catch {
-      // If specific selectors don't appear, wait longer
-      await this.page.waitForTimeout(8000)
+      // If specific selectors don't appear, wait longer for Elfsight to initialize
+      await this.page.waitForTimeout(10000)
     }
 
     // Dismiss promotional popup that blocks pagination clicks

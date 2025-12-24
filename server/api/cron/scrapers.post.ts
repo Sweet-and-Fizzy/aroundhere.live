@@ -105,6 +105,18 @@ export default defineEventHandler(async (event) => {
             }
           }
 
+          // Update source status on success
+          await prisma.source.update({
+            where: { id: source.id },
+            data: {
+              lastRunAt: new Date(),
+              lastRunStatus: 'success',
+              lastEventCount: result.events.length,
+              consecutiveFailures: 0,
+              lastFailureAt: null,
+            },
+          })
+
           results.push({
             name: scraper.config.name,
             success: true,
@@ -116,6 +128,22 @@ export default defineEventHandler(async (event) => {
           })
         }
       } else {
+        // Update source status on failure
+        const source = await prisma.source.findUnique({
+          where: { slug: scraper.config.id },
+        })
+        if (source) {
+          await prisma.source.update({
+            where: { id: source.id },
+            data: {
+              lastRunAt: new Date(),
+              lastRunStatus: 'failed',
+              consecutiveFailures: (source.consecutiveFailures || 0) + 1,
+              lastFailureAt: new Date(),
+            },
+          })
+        }
+
         results.push({
           name: scraper.config.name,
           success: false,
@@ -128,6 +156,22 @@ export default defineEventHandler(async (event) => {
         })
       }
     } catch (error) {
+      // Update source status on exception
+      const source = await prisma.source.findUnique({
+        where: { slug: scraper.config.id },
+      })
+      if (source) {
+        await prisma.source.update({
+          where: { id: source.id },
+          data: {
+            lastRunAt: new Date(),
+            lastRunStatus: 'failed',
+            consecutiveFailures: (source.consecutiveFailures || 0) + 1,
+            lastFailureAt: new Date(),
+          },
+        })
+      }
+
       results.push({
         name: scraper.config.name,
         success: false,

@@ -187,6 +187,9 @@ export class FailureDetectionService {
 
     const previousStats = await this.getHistoricalStats(scraper.config.id)
 
+    // Calculate the NEW consecutive failure count (including this failure)
+    const newConsecutiveFailures = (previousStats.consecutiveFailures || 0) + 1
+
     const notification: ParserFailureNotification = {
       sourceId: scraper.config.id,
       sourceName: scraper.config.name,
@@ -199,7 +202,7 @@ export class FailureDetectionService {
         eventsExpected: previousStats.averageEvents > 0 ? previousStats.averageEvents : undefined,
         errors: result.errors,
         lastSuccessfulRun: previousStats.lastSuccessfulRun || undefined,
-        consecutiveFailures: previousStats.consecutiveFailures,
+        consecutiveFailures: newConsecutiveFailures,
         htmlSnapshot: htmlSnapshot ? htmlSnapshot.slice(0, 10000) : undefined, // First 10KB
       },
       timestamp: new Date(),

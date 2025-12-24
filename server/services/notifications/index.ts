@@ -700,3 +700,94 @@ export async function notifyScraperFailure(alert: ScraperFailureAlert): Promise<
   await sendSlackNotification(message, blocks)
 }
 
+// ============================================================================
+// Scraper Health Digest
+// ============================================================================
+
+export interface StaleScraperInfo {
+  slug: string
+  name: string
+  lastRunAt: Date | null
+  lastRunStatus: string | null
+  consecutiveFailures: number
+  daysSinceLastRun: number | null
+  isHardcoded: boolean
+}
+
+export interface ScraperHealthDigest {
+  staleScrapers: StaleScraperInfo[] // Haven't run successfully in 3+ days
+  failingScrapers: StaleScraperInfo[] // 3+ consecutive failures
+  disabledScrapers: StaleScraperInfo[] // isActive = false
+  adminUrl?: string
+}
+
+/**
+ * Send a daily digest of scraper health issues
+ */
+export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Promise<void> {
+  const { staleScrapers, failingScrapers, disabledScrapers, adminUrl } = digest
+
+  const totalIssues = staleScrapers.length + failingScrapers.length + disabledScrapers.length
+
+  // Don't send if everything is healthy
+  if (totalIssues === 0) {
+    console.log('[Notifications] All scrapers healthy, skipping health digest')
+    return
+  }
+
+  const emoji = totalIssues >= 5 ? '🚨' : '⚠️'
+  const message = `${emoji} Scraper Health: ${totalIssues} issue${totalIssues === 1 ? '' : 's'}`
+
+  const sections: string[] = []
+
+  if (staleScrapers.length > 0) {
+    const staleList = staleScrapers
+      .slice(0, 5)
+      .map(s => `• ${s.name} (${s.daysSinceLastRun}d ago)${s.isHardcoded ? ' [hardcoded]' : ''}`)
+      .join('\n')
+    sections.push(`*🕐 Stale (no run in 3+ days):*\n${staleList}${staleScrapers.length > 5 ? `\n_...and ${staleScrapers.length - 5} more_` : ''}`)
+  }
+
+  if (failingScrapers.length > 0) {
+    const failingList = failingScrapers
+      .slice(0, 5)
+      .map(s => `• ${s.name} (${s.consecutiveFailures} failures)${s.isHardcoded ? ' [hardcoded]' : ''}`)
+      .join('\n')
+    sections.push(`*❌ Failing (3+ consecutive):*\n${failingList}${failingScrapers.length > 5 ? `\n_...and ${failingScrapers.length - 5} more_` : ''}`)
+  }
+
+  if (disabledScrapers.length > 0) {
+    const disabledList = disabledScrapers
+      .slice(0, 5)
+      .map(s => `• ${s.name}${s.isHardcoded ? ' [hardcoded]' : ''}`)
+      .join('\n')
+    sections.push(`*⏸️ Disabled:*\n${disabledList}${disabledScrapers.length > 5 ? `\n_...and ${disabledScrapers.length - 5} more_` : ''}`)
+  }
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `${emoji} *Daily Scraper Health Digest*`,
+          '',
+          ...sections,
+        ].join('\n\n'),
+      },
+    },
+  ]
+
+  if (adminUrl) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `<${adminUrl}|View in Admin>`,
+      },
+    })
+  }
+
+  await sendSlackNotification(message, blocks)
+}
+

@@ -17,4 +17,7 @@
 # Send daily chat observability summary at 8am EST
 0 8 * * * curl -sX POST "http://app:3000/api/cron/chat-summary?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
+# Send daily scraper health digest at 7am EST (after scrapers finish)
+0 7 * * * curl -sX POST "http://app:3000/api/cron/scraper-health?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+
 # Empty line required at end
