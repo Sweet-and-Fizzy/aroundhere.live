@@ -8,6 +8,9 @@
 # Match new artists to Spotify daily at 5am EST (after scrapers finish)
 0 5 * * * curl -sX POST "http://app:3000/api/cron/spotify?task=match&token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
+# Match new artists to MusicBrainz daily at 5:30am EST (after Spotify matching)
+30 5 * * * curl -sX POST "http://app:3000/api/cron/musicbrainz?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+
 # Sync Spotify playlists daily at 6am EST
 0 6 * * * curl -sX POST "http://app:3000/api/cron/spotify?task=sync&token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 

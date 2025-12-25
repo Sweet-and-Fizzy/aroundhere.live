@@ -29,6 +29,7 @@ import { ProgressionBrewingScraper } from '../../scrapers/venues/progression-bre
 import { StoneChurchScraper } from '../../scrapers/venues/stone-church'
 import { MarigoldBrattleboroScraper } from '../../scrapers/venues/marigold-brattleboro'
 import { LuthiersScraper } from '../../scrapers/venues/luthiers'
+import { FameScraper } from '../../scrapers/venues/fame'
 
 interface ScraperResult {
   name: string
@@ -63,6 +64,7 @@ export default defineEventHandler(async (event) => {
     new StoneChurchScraper(),
     new MarigoldBrattleboroScraper(),
     new LuthiersScraper(),
+    new FameScraper(),
   ]
 
   for (const scraper of hardcodedScrapers) {

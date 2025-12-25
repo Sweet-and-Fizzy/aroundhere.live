@@ -479,7 +479,13 @@ function getSpotifyStatusColor(status?: string): string {
             v-else
             class="flex items-center gap-2"
           >
-            <span class="font-medium text-sm truncate">{{ ea.artist.name }}</span>
+            <NuxtLink
+              :to="`/artists/${ea.artist.slug}`"
+              class="font-medium text-sm truncate text-gray-900 hover:text-primary-600 transition-colors"
+              @click.stop
+            >
+              {{ ea.artist.name }}
+            </NuxtLink>
             <span
               v-if="index === 0 && artists.length > 1"
               class="text-[10px] text-gray-500 bg-gray-100 px-1 py-0.5 rounded"
@@ -538,6 +544,16 @@ function getSpotifyStatusColor(status?: string): string {
             title="Edit name"
             @click="startEditingName(ea)"
           />
+          <NuxtLink
+            :to="{ path: '/admin/artists', query: { q: ea.artist.name } }"
+            class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+            title="Manage artist"
+          >
+            <UIcon
+              name="i-heroicons-cog-6-tooth"
+              class="w-4 h-4"
+            />
+          </NuxtLink>
           <UButton
             size="xs"
             color="error"

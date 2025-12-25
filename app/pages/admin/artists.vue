@@ -5,13 +5,17 @@ definePageMeta({
   middleware: 'admin',
 })
 
+const route = useRoute()
 const toast = useToast()
 const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
 
-// Search and pagination state
-const searchQuery = ref('')
+// Search and pagination state - initialize from URL query
+const searchQuery = ref((route.query.q as string) || '')
 const currentPage = ref(1)
 const limit = 50
+
+// Filter state
+const musicbrainzStatusFilter = ref<string | undefined>(undefined)
 
 // Debounced search
 const debouncedSearch = refDebounced(searchQuery, 300)
@@ -24,8 +28,9 @@ const { data: response, refresh, status } = await useFetch('/api/admin/artists',
     limit,
     sort: 'eventCount',
     order: 'desc',
+    musicbrainzStatus: musicbrainzStatusFilter,
   },
-  watch: [debouncedSearch, currentPage],
+  watch: [debouncedSearch, currentPage, musicbrainzStatusFilter],
 })
 
 const artists = computed(() => response.value?.artists || [])
@@ -311,6 +316,137 @@ async function mergeIntoArtist(targetArtist: any) {
   }
 }
 
+// MusicBrainz modal state
+interface MusicBrainzSearchResult {
+  id: string
+  name: string
+  disambiguation: string | null
+  country: string | null
+  type: string | null
+  score: number
+  tags: string[]
+}
+
+const showMusicBrainzModal = ref(false)
+const musicBrainzSearchArtist = ref<any>(null)
+const musicBrainzSearchQuery = ref('')
+const musicBrainzSearchResults = ref<MusicBrainzSearchResult[]>([])
+const musicBrainzSearching = ref(false)
+const musicBrainzSaving = ref(false)
+
+function openMusicBrainzModal(artist: any) {
+  musicBrainzSearchArtist.value = artist
+  musicBrainzSearchQuery.value = artist.name
+  musicBrainzSearchResults.value = []
+  showMusicBrainzModal.value = true
+  searchMusicBrainz()
+}
+
+function closeMusicBrainzModal() {
+  showMusicBrainzModal.value = false
+  musicBrainzSearchArtist.value = null
+}
+
+async function searchMusicBrainz() {
+  if (!musicBrainzSearchQuery.value.trim()) return
+
+  musicBrainzSearching.value = true
+  try {
+    const result = await $fetch('/api/musicbrainz/search', {
+      query: { q: musicBrainzSearchQuery.value, limit: 10 },
+    })
+    musicBrainzSearchResults.value = (result as any).artists || []
+  } catch (error) {
+    console.error('MusicBrainz search failed:', error)
+  } finally {
+    musicBrainzSearching.value = false
+  }
+}
+
+async function selectMusicBrainzMatch(musicbrainzId: string) {
+  if (!musicBrainzSearchArtist.value) return
+
+  musicBrainzSaving.value = true
+  try {
+    await $fetch(`/api/musicbrainz/artists/${musicBrainzSearchArtist.value.id}`, {
+      method: 'PATCH',
+      body: { musicbrainzId },
+    })
+    toast.add({
+      title: 'MusicBrainz match updated',
+      color: 'success',
+    })
+    closeMusicBrainzModal()
+    refresh()
+  } catch (error: any) {
+    toast.add({
+      title: 'Error updating MusicBrainz match',
+      description: error.data?.message || error.message,
+      color: 'error',
+    })
+  } finally {
+    musicBrainzSaving.value = false
+  }
+}
+
+async function clearMusicBrainzMatch() {
+  if (!musicBrainzSearchArtist.value) return
+
+  musicBrainzSaving.value = true
+  try {
+    await $fetch(`/api/musicbrainz/artists/${musicBrainzSearchArtist.value.id}`, {
+      method: 'PATCH',
+      body: { status: 'NO_MATCH' },
+    })
+    toast.add({
+      title: 'Marked as not on MusicBrainz',
+      color: 'success',
+    })
+    closeMusicBrainzModal()
+    refresh()
+  } catch (error: any) {
+    toast.add({
+      title: 'Error updating artist',
+      description: error.data?.message || error.message,
+      color: 'error',
+    })
+  } finally {
+    musicBrainzSaving.value = false
+  }
+}
+
+function getMusicBrainzStatusIcon(status: string) {
+  switch (status) {
+    case 'VERIFIED':
+      return 'i-heroicons-check-badge'
+    case 'AUTO_MATCHED':
+      return 'i-heroicons-check-circle'
+    case 'NEEDS_REVIEW':
+      return 'i-heroicons-exclamation-triangle'
+    case 'NO_MATCH':
+      return 'i-heroicons-x-circle'
+    case 'PENDING':
+    default:
+      return 'i-heroicons-clock'
+  }
+}
+
+function getMusicBrainzStatusIconClass(status: string) {
+  switch (status) {
+    case 'VERIFIED':
+      return 'text-green-600'
+    case 'AUTO_MATCHED':
+      return 'text-blue-500'
+    case 'NEEDS_REVIEW':
+      return 'text-amber-500'
+    case 'NO_MATCH':
+      return 'text-gray-400'
+    case 'PENDING':
+    default:
+      return 'text-yellow-500'
+  }
+}
+
 // Duplicates detection
 const showDuplicatesModal = ref(false)
 const duplicates = ref<any[]>([])
@@ -383,8 +519,8 @@ useSeoMeta({
       </div>
     </div>
 
-    <!-- Search -->
-    <div class="mb-6">
+    <!-- Search and Filters -->
+    <div class="mb-6 flex flex-wrap gap-4 items-center">
       <UInput
         v-model="searchQuery"
         placeholder="Search artists..."
@@ -392,6 +528,37 @@ useSeoMeta({
         size="lg"
         class="max-w-md"
       />
+      <USelectMenu
+        v-model="musicbrainzStatusFilter"
+        :items="[
+          { label: 'Needs Review', value: 'NEEDS_REVIEW' },
+          { label: 'Pending', value: 'PENDING' },
+          { label: 'Auto Matched', value: 'AUTO_MATCHED' },
+          { label: 'No Match', value: 'NO_MATCH' },
+          { label: 'Verified', value: 'VERIFIED' },
+        ]"
+        placeholder="All MusicBrainz"
+        value-key="value"
+        class="w-48"
+        :ui="{ trigger: 'cursor-pointer' }"
+      >
+        <template #trailing>
+          <UButton
+            v-if="musicbrainzStatusFilter"
+            color="neutral"
+            variant="link"
+            icon="i-heroicons-x-mark"
+            size="xs"
+            aria-label="Clear filter"
+            @click.stop="musicbrainzStatusFilter = undefined"
+          />
+          <UIcon
+            v-else
+            name="i-heroicons-chevron-down"
+            class="w-4 h-4 text-gray-400"
+          />
+        </template>
+      </USelectMenu>
     </div>
 
     <!-- Loading state -->
@@ -428,6 +595,9 @@ useSeoMeta({
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Spotify
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                MusicBrainz
               </th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -530,6 +700,32 @@ useSeoMeta({
                   </span>
                 </button>
               </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <button
+                  class="flex items-center gap-2 hover:bg-gray-100 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                  title="Click to edit MusicBrainz match"
+                  @click="openMusicBrainzModal(artist)"
+                >
+                  <UIcon
+                    :name="getMusicBrainzStatusIcon(artist.musicbrainzMatchStatus)"
+                    class="w-4 h-4 flex-shrink-0"
+                    :class="getMusicBrainzStatusIconClass(artist.musicbrainzMatchStatus)"
+                  />
+                  <span
+                    v-if="artist.musicbrainzId"
+                    class="text-xs text-gray-400 truncate max-w-20"
+                    :title="`MBID: ${artist.musicbrainzId}`"
+                  >
+                    {{ artist.musicbrainzMatchConfidence ? `${Math.round(artist.musicbrainzMatchConfidence * 100)}%` : 'Matched' }}
+                  </span>
+                  <span
+                    v-else
+                    class="text-xs text-gray-400"
+                  >
+                    {{ artist.musicbrainzMatchStatus === 'NO_MATCH' ? 'No match' : 'Click to match' }}
+                  </span>
+                </button>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex justify-end gap-2">
                   <button
@@ -579,7 +775,7 @@ useSeoMeta({
             </tr>
             <tr v-if="artists.length === 0">
               <td
-                colspan="6"
+                colspan="7"
                 class="px-6 py-8 text-center text-gray-500"
               >
                 {{ searchQuery ? 'No artists found matching your search.' : 'No artists found.' }}
@@ -989,6 +1185,153 @@ useSeoMeta({
               </div>
             </div>
           </div>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- MusicBrainz Search Modal -->
+    <UModal
+      :open="showMusicBrainzModal"
+      @close="closeMusicBrainzModal"
+    >
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold">
+                  Match to MusicBrainz
+                </h3>
+                <p class="text-sm text-gray-500">
+                  {{ musicBrainzSearchArtist?.name }}
+                </p>
+              </div>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-heroicons-x-mark"
+                @click="closeMusicBrainzModal"
+              />
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <!-- Search Input -->
+            <div class="flex gap-2">
+              <UInput
+                v-model="musicBrainzSearchQuery"
+                placeholder="Search MusicBrainz..."
+                class="flex-1"
+                @keyup.enter="searchMusicBrainz"
+              />
+              <UButton
+                :loading="musicBrainzSearching"
+                @click="searchMusicBrainz"
+              >
+                Search
+              </UButton>
+            </div>
+
+            <!-- Current Match -->
+            <div
+              v-if="musicBrainzSearchArtist?.musicbrainzId"
+              class="p-3 bg-orange-50 rounded-lg"
+            >
+              <div class="text-xs text-orange-700 font-medium mb-1">
+                Current match ({{ Math.round((musicBrainzSearchArtist.musicbrainzMatchConfidence || 0) * 100) }}% confidence)
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-orange-800 truncate">
+                  {{ musicBrainzSearchArtist.musicbrainzId }}
+                </span>
+                <a
+                  :href="`https://musicbrainz.org/artist/${musicBrainzSearchArtist.musicbrainzId}`"
+                  target="_blank"
+                  class="text-orange-600 hover:text-orange-800"
+                >
+                  <UIcon
+                    name="i-heroicons-arrow-top-right-on-square"
+                    class="w-4 h-4"
+                  />
+                </a>
+              </div>
+              <div
+                v-if="musicBrainzSearchArtist.musicbrainzTags?.length"
+                class="mt-2 flex flex-wrap gap-1"
+              >
+                <span
+                  v-for="tag in musicBrainzSearchArtist.musicbrainzTags.slice(0, 5)"
+                  :key="tag"
+                  class="px-1.5 py-0.5 text-xs bg-orange-100 text-orange-700 rounded"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Search Results -->
+            <div class="max-h-80 overflow-y-auto space-y-2">
+              <div
+                v-if="musicBrainzSearchResults.length === 0 && !musicBrainzSearching"
+                class="text-center text-gray-500 py-6"
+              >
+                No results. Try a different search.
+              </div>
+
+              <button
+                v-for="result in musicBrainzSearchResults"
+                :key="result.id"
+                :disabled="musicBrainzSaving"
+                class="w-full text-left p-3 border rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                :class="{ 'border-orange-500 bg-orange-50': musicBrainzSearchArtist?.musicbrainzId === result.id }"
+                @click="selectMusicBrainzMatch(result.id)"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="font-medium text-gray-900 text-sm">
+                    {{ result.name }}
+                    <span
+                      v-if="result.disambiguation"
+                      class="text-gray-500 font-normal"
+                    >
+                      ({{ result.disambiguation }})
+                    </span>
+                  </div>
+                  <span class="text-xs text-gray-400">
+                    {{ result.score }}%
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                  <span v-if="result.type">{{ result.type }}</span>
+                  <span v-if="result.type && result.country"> · </span>
+                  <span v-if="result.country">{{ result.country }}</span>
+                </div>
+                <div
+                  v-if="result.tags.length"
+                  class="mt-1 flex flex-wrap gap-1"
+                >
+                  <span
+                    v-for="tag in result.tags"
+                    :key="tag"
+                    class="px-1 py-0.5 text-xs bg-gray-100 text-gray-600 rounded"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <template #footer>
+            <UButton
+              color="neutral"
+              variant="outline"
+              block
+              :loading="musicBrainzSaving"
+              @click="clearMusicBrainzMatch"
+            >
+              Not on MusicBrainz
+            </UButton>
+          </template>
         </UCard>
       </template>
     </UModal>

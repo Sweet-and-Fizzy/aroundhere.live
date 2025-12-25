@@ -86,11 +86,13 @@ class MusicBrainzService {
    * Search for an artist by name
    */
   async searchArtist(name: string, limit = 5): Promise<MusicBrainzArtist[]> {
-    // Escape special Lucene query characters
+    // Escape special Lucene query characters but allow fuzzy matching
     const escapedName = name.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, '\\$&')
 
+    // Use unquoted query for fuzzy matching - MusicBrainz will match partial names
+    // Also search aliases which catches alternate names/spellings
     const result = await this.request<MusicBrainzSearchResult>('/artist', {
-      query: `artist:"${escapedName}"`,
+      query: `artist:${escapedName}* OR alias:${escapedName}*`,
       limit: String(limit),
     })
 

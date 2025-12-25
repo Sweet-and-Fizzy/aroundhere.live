@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
   const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 50))
   const sort = (query.sort as string) || 'eventCount'
   const order = (query.order as string) === 'asc' ? 'asc' : 'desc'
+  const musicbrainzStatus = query.musicbrainzStatus as string | undefined
   const skip = (page - 1) * limit
 
   // Build where clause
@@ -21,6 +22,9 @@ export default defineEventHandler(async (event) => {
       contains: q,
       mode: 'insensitive',
     }
+  }
+  if (musicbrainzStatus) {
+    where.musicbrainzMatchStatus = musicbrainzStatus
   }
 
   // Get total count
@@ -49,6 +53,11 @@ export default defineEventHandler(async (event) => {
       spotifyId: true,
       spotifyName: true,
       spotifyMatchStatus: true,
+      musicbrainzId: true,
+      musicbrainzMatchStatus: true,
+      musicbrainzMatchConfidence: true,
+      musicbrainzTags: true,
+      musicbrainzDescription: true,
       createdAt: true,
       _count: {
         select: {
@@ -104,6 +113,11 @@ export default defineEventHandler(async (event) => {
       spotifyId: a.spotifyId,
       spotifyName: a.spotifyName,
       spotifyMatchStatus: a.spotifyMatchStatus,
+      musicbrainzId: a.musicbrainzId,
+      musicbrainzMatchStatus: a.musicbrainzMatchStatus,
+      musicbrainzMatchConfidence: a.musicbrainzMatchConfidence,
+      musicbrainzTags: a.musicbrainzTags,
+      musicbrainzDescription: a.musicbrainzDescription,
       createdAt: a.createdAt,
       eventCount: a._count.eventArtists,
       favoriteCount: a._count.favoritedBy,
