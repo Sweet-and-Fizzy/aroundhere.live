@@ -9,42 +9,26 @@ const expanded = ref(false)
 const imageLoaded = ref(false)
 const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeBadgeClasses } = useEventTypeLabels()
+const { formatTime, getDateParts } = useEventTime()
 
 function onImageLoad() {
   imageLoaded.value = true
 }
 
-const formattedDate = computed(() => {
-  const date = new Date(props.event.startsAt)
-  return {
-    weekday: date.toLocaleDateString('en-US', { weekday: 'short' }),
-    month: date.toLocaleDateString('en-US', { month: 'short' }),
-    day: date.getDate(),
-  }
-})
+// Get timezone from event's venue region, fallback to default
+const eventTimezone = computed(() => props.event.venue?.region?.timezone || 'America/New_York')
 
-// Check if time is midnight (indicating no time was specified)
-const hasSpecificTime = computed(() => {
-  const date = new Date(props.event.startsAt)
-  return date.getHours() !== 0 || date.getMinutes() !== 0
+const formattedDate = computed(() => {
+  return getDateParts(props.event.startsAt, eventTimezone.value)
 })
 
 const formattedTime = computed(() => {
-  if (!hasSpecificTime.value) return null
-  const date = new Date(props.event.startsAt)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatTime(props.event.startsAt, eventTimezone.value)
 })
 
 const doorsTime = computed(() => {
   if (!props.event.doorsAt) return null
-  const date = new Date(props.event.doorsAt)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatTime(props.event.doorsAt, eventTimezone.value)
 })
 
 // Get genres - prefer canonical genres from classifier, then raw genres, then artist genres

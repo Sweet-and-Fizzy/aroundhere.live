@@ -18,17 +18,22 @@ export default defineEventHandler(async (event) => {
   const favoriteArtistIds = query.favoriteArtistIds ? (query.favoriteArtistIds as string).split(',') : undefined
   const favoriteVenueIds = query.favoriteVenueIds ? (query.favoriteVenueIds as string).split(',') : undefined
   const favoriteGenres = query.favoriteGenres ? (query.favoriteGenres as string).split(',') : undefined
-  const startDate = query.startDate ? new Date(query.startDate as string) : (() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return today
-  })()
-  // Set endDate to end of day (23:59:59.999 UTC) to include all events on that date
-  const endDate = query.endDate ? (() => {
-    const d = new Date(query.endDate as string)
-    d.setUTCHours(23, 59, 59, 999)
-    return d
-  })() : undefined
+  // Parse date strings as local dates (YYYY-MM-DD format)
+  // Appending T00:00:00 ensures the date is parsed as local time, not UTC
+  const startDate = query.startDate
+    ? new Date(`${query.startDate}T00:00:00`)
+    : (() => {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        return today
+      })()
+  // Set endDate to end of day to include all events on that date
+  const endDate = query.endDate
+    ? (() => {
+        const d = new Date(`${query.endDate}T23:59:59.999`)
+        return d
+      })()
+    : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
   const offset = parseInt(query.offset as string) || 0
@@ -157,6 +162,11 @@ export default defineEventHandler(async (event) => {
           latitude: true,
           longitude: true,
           logoUrl: true,
+          region: {
+            select: {
+              timezone: true,
+            },
+          },
         },
       },
       eventArtists: {
@@ -217,6 +227,11 @@ export default defineEventHandler(async (event) => {
             latitude: true,
             longitude: true,
             logoUrl: true,
+            region: {
+              select: {
+                timezone: true,
+              },
+            },
           },
         },
         eventArtists: {

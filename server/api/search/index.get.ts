@@ -8,13 +8,15 @@ export default defineEventHandler(async (event) => {
   const regionId = query.regionId as string | undefined
   const regions = query.regions ? (query.regions as string).split(',') : undefined
   const cities = query.cities ? (query.cities as string).split(',') : undefined
-  const startDate = query.startDate ? new Date(query.startDate as string) : new Date()
-  // Set endDate to end of day (23:59:59.999 UTC) to include all events on that date
-  const endDate = query.endDate ? (() => {
-    const d = new Date(query.endDate as string)
-    d.setUTCHours(23, 59, 59, 999)
-    return d
-  })() : undefined
+  // Parse date strings as local dates (YYYY-MM-DD format)
+  // Appending T00:00:00 ensures the date is parsed as local time, not UTC
+  const startDate = query.startDate
+    ? new Date(`${query.startDate}T00:00:00`)
+    : new Date()
+  // Set endDate to end of day to include all events on that date
+  const endDate = query.endDate
+    ? new Date(`${query.endDate}T23:59:59.999`)
+    : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const venueId = query.venueId as string | undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined

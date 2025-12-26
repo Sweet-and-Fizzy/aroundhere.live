@@ -13,7 +13,15 @@ export default defineEventHandler(async (event) => {
   const eventData = await prisma.event.findFirst({
     where: { slug },
     include: {
-      venue: true,
+      venue: {
+        include: {
+          region: {
+            select: {
+              timezone: true,
+            },
+          },
+        },
+      },
       region: {
         select: {
           id: true,

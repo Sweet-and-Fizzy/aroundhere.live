@@ -91,6 +91,7 @@ const nuxtGlobals = {
   useEventTypeLabels: 'readonly',
   useLocationFilter: 'readonly',
   useFavorites: 'readonly',
+  useEventTime: 'readonly',
   // Browser/DOM globals
   KeyboardEvent: 'readonly',
   Event: 'readonly',

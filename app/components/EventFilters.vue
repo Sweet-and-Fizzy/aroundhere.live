@@ -5,12 +5,15 @@ import type { DateRange } from 'reka-ui'
 
 type CalendarDateRange = DateRange | any
 
-// Format date as YYYY-MM-DD for cleaner URLs
+// Format date as YYYY-MM-DD for cleaner URLs (using local date components)
 function formatDateParam(date: Date): string {
-  return date.toISOString().split('T')[0]
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-const { updateRegion } = useCurrentRegion()
+const { updateRegion, region: currentRegion, loaded: regionLoaded } = useCurrentRegion()
 
 const emit = defineEmits<{
   filter: [filters: Record<string, any>]
@@ -260,7 +263,8 @@ const hasActiveFilters = computed(() => {
 // Reset all filters to defaults
 function resetFilters() {
   searchQuery.value = ''
-  selectedRegions.value = []
+  // Reset to current region as the default
+  selectedRegions.value = currentRegion.value?.name ? [currentRegion.value.name] : []
   selectedCities.value = []
   selectedVenueIds.value = []
   selectedGenres.value = []
@@ -587,6 +591,15 @@ onMounted(() => {
     }
   }
 })
+
+// Auto-select current region when it's loaded and no region is explicitly selected
+// This ensures first-time users see events from their detected region
+watch(regionLoaded, (loaded) => {
+  if (loaded && currentRegion.value?.name && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
+    selectedRegions.value = [currentRegion.value.name]
+    applyFilters()
+  }
+}, { immediate: true })
 </script>
 
 <template>

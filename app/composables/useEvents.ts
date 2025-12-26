@@ -60,6 +60,9 @@ export interface Event {
     latitude?: number
     longitude?: number
     logoUrl?: string
+    region?: {
+      timezone: string
+    }
   }
   eventArtists: {
     artist: {

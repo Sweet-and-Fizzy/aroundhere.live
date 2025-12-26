@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const { getGenreLabel, getGenreColor } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeColor } = useEventTypeLabels()
+const { formatTime } = useEventTime()
 
 // Get full badge classes with colors
 const eventTypeBadgeClass = computed(() => {
@@ -75,19 +76,12 @@ const genreBadgeClass = computed(() => {
 //   }
 // })
 
-// Check if time is midnight (indicating no time was specified)
-const hasSpecificTime = computed(() => {
-  const date = new Date(props.event.startsAt)
-  return date.getHours() !== 0 || date.getMinutes() !== 0
-})
+// Get timezone from event's venue region, fallback to default
+const eventTimezone = computed(() => props.event.venue?.region?.timezone || 'America/New_York')
 
 const formattedTime = computed(() => {
-  if (!hasSpecificTime.value) return null
-  const date = new Date(props.event.startsAt)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  // Don't show timezone in compact view to save space
+  return formatTime(props.event.startsAt, eventTimezone.value, { includeTimezone: 'never' })
 })
 
 // Get first genre for display

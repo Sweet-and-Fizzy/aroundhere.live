@@ -5,6 +5,7 @@ const slug = route.params.slug as string
 const { data: event, error, refresh: refreshEvent } = await useFetch(`/api/events/by-slug/${slug}`)
 const { getGenreLabel, getGenreBadgeClasses, genreLabels } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeBadgeClasses, eventTypeLabels } = useEventTypeLabels()
+const { formatTime, formatDate } = useEventTime()
 const { user } = useUserSession()
 
 // Constants
@@ -141,10 +142,16 @@ if (error.value) {
   })
 }
 
+// Get timezone from event's venue region, or event's region, fallback to default
+const eventTimezone = computed(() =>
+  event.value?.venue?.region?.timezone ||
+  event.value?.region?.timezone ||
+  'America/New_York'
+)
+
 const formattedDate = computed(() => {
   if (!event.value?.startsAt) return ''
-  const date = new Date(event.value.startsAt)
-  return date.toLocaleDateString('en-US', {
+  return formatDate(event.value.startsAt, eventTimezone.value, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -152,29 +159,14 @@ const formattedDate = computed(() => {
   })
 })
 
-// Check if time is midnight (indicating no time was specified)
-const hasSpecificTime = computed(() => {
-  if (!event.value?.startsAt) return false
-  const date = new Date(event.value.startsAt)
-  return date.getHours() !== 0 || date.getMinutes() !== 0
-})
-
 const formattedTime = computed(() => {
-  if (!event.value?.startsAt || !hasSpecificTime.value) return null
-  const date = new Date(event.value.startsAt)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  if (!event.value?.startsAt) return null
+  return formatTime(event.value.startsAt, eventTimezone.value)
 })
 
 const doorsTime = computed(() => {
   if (!event.value?.doorsAt) return null
-  const date = new Date(event.value.doorsAt)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatTime(event.value.doorsAt, eventTimezone.value)
 })
 
 // Format age restriction for display

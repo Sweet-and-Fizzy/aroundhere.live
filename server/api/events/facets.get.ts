@@ -13,8 +13,14 @@ export default defineEventHandler(async (event) => {
 
   // Parse current filter parameters
   const q = (query.q as string)?.trim()
-  const startDate = query.startDate ? new Date(query.startDate as string) : new Date()
-  const endDate = query.endDate ? new Date(query.endDate as string) : undefined
+  // Parse date strings as local dates (YYYY-MM-DD format)
+  // Appending T00:00:00 ensures the date is parsed as local time, not UTC
+  const startDate = query.startDate
+    ? new Date(`${query.startDate}T00:00:00`)
+    : new Date()
+  const endDate = query.endDate
+    ? new Date(`${query.endDate}T23:59:59.999`)
+    : undefined
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
