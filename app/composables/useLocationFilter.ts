@@ -12,7 +12,8 @@ export interface Venue {
 export interface Facets {
   venueCounts?: Record<string, number>
   cityCounts?: Record<string, number>
-  cityRegions?: Record<string, string>
+  cityRegions?: Record<string, string>  // city -> region slug
+  regionNames?: Record<string, string>  // region slug -> region name
 }
 
 export interface CityVenues {
@@ -22,7 +23,8 @@ export interface CityVenues {
 }
 
 export interface RegionGroup {
-  region: string
+  region: string      // slug for selection
+  regionName: string  // display name
   cities: CityVenues[]
   totalEvents: number
 }
@@ -57,6 +59,7 @@ export function useLocationFilter(
   // Group venues by region → city → venues for hierarchical display
   const venuesByRegion = computed((): RegionGroup[] => {
     const cityRegions = facets.value?.cityRegions ?? {}
+    const regionNamesMap = facets.value?.regionNames ?? {}
     const venueCounts = facets.value?.venueCounts ?? {}
 
     // Group venues by city
@@ -69,16 +72,16 @@ export function useLocationFilter(
       citiesMap.get(venue.city)!.push(venue)
     })
 
-    // Group cities by region
+    // Group cities by region (using slug as key)
     const regionsMap = new Map<string, CityVenues[]>()
     citiesMap.forEach((cityVenues, city) => {
-      const region = cityRegions[city] || 'Other'
-      if (!regionsMap.has(region)) {
-        regionsMap.set(region, [])
+      const regionSlug = cityRegions[city] || 'other'
+      if (!regionsMap.has(regionSlug)) {
+        regionsMap.set(regionSlug, [])
       }
 
       const totalEvents = cityVenues.reduce((sum, v) => sum + (venueCounts[v.id] || 0), 0)
-      regionsMap.get(region)!.push({
+      regionsMap.get(regionSlug)!.push({
         city,
         venues: cityVenues.sort((a, b) => a.name.localeCompare(b.name)),
         totalEvents
@@ -87,10 +90,11 @@ export function useLocationFilter(
 
     // Convert to array and calculate region totals
     const regions: RegionGroup[] = []
-    regionsMap.forEach((cities, region) => {
+    regionsMap.forEach((cities, regionSlug) => {
       const totalEvents = cities.reduce((sum, c) => sum + c.totalEvents, 0)
       regions.push({
-        region,
+        region: regionSlug,
+        regionName: regionNamesMap[regionSlug] || regionSlug,
         cities: cities.sort((a, b) => a.city.localeCompare(b.city)),
         totalEvents
       })
@@ -99,14 +103,14 @@ export function useLocationFilter(
     // Sort: current region first, then by event count
     const currentRegion = currentRegionName.value?.toLowerCase() || ''
     return regions.sort((a, b) => {
-      // Check if either is the current region
+      // Check if either is the current region (compare against display name)
       const aIsCurrent = currentRegion && currentRegion !== 'the area' && (
-        a.region.toLowerCase().includes(currentRegion) ||
-        currentRegion.includes(a.region.toLowerCase())
+        a.regionName.toLowerCase().includes(currentRegion) ||
+        currentRegion.includes(a.regionName.toLowerCase())
       )
       const bIsCurrent = currentRegion && currentRegion !== 'the area' && (
-        b.region.toLowerCase().includes(currentRegion) ||
-        currentRegion.includes(b.region.toLowerCase())
+        b.regionName.toLowerCase().includes(currentRegion) ||
+        currentRegion.includes(b.regionName.toLowerCase())
       )
 
       if (aIsCurrent && !bIsCurrent) return -1

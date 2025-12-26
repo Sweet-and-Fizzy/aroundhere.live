@@ -85,6 +85,11 @@ const nuxtGlobals = {
   // Auto-imported utilities
   stripHtmlAndClean: 'readonly',
   sendMagicLinkEmail: 'readonly',
+  sendPasswordResetEmail: 'readonly',
+  // nuxt-auth-utils OAuth handlers
+  defineOAuthGoogleEventHandler: 'readonly',
+  // h3 utilities
+  sendRedirect: 'readonly',
   // Custom composables
   useCurrentRegion: 'readonly',
   useGenreLabels: 'readonly',

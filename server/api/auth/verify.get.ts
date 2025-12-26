@@ -73,12 +73,21 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
     const isSuperAdmin = config.superAdminEmail && user.email.toLowerCase() === config.superAdminEmail.toLowerCase()
 
-    // Mark email as verified and upgrade super admin to ADMIN role
-    if (!user.emailVerified || (isSuperAdmin && user.role !== 'ADMIN')) {
+    // Mark email as verified, track magic_link auth method, and upgrade super admin to ADMIN role
+    const needsUpdate = !user.emailVerified ||
+      !user.authMethods.includes('magic_link') ||
+      (isSuperAdmin && user.role !== 'ADMIN')
+
+    if (needsUpdate) {
+      const authMethods = user.authMethods.includes('magic_link')
+        ? user.authMethods
+        : [...user.authMethods, 'magic_link']
+
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
           emailVerified: true,
+          authMethods,
           ...(isSuperAdmin && { role: 'ADMIN' }),
         },
       })

@@ -264,7 +264,7 @@ const hasActiveFilters = computed(() => {
 function resetFilters() {
   searchQuery.value = ''
   // Reset to current region as the default
-  selectedRegions.value = currentRegion.value?.name ? [currentRegion.value.name] : []
+  selectedRegions.value = currentRegion.value?.slug ? [currentRegion.value.slug] : []
   selectedCities.value = []
   selectedVenueIds.value = []
   selectedGenres.value = []
@@ -595,8 +595,8 @@ onMounted(() => {
 // Auto-select current region when it's loaded and no region is explicitly selected
 // This ensures first-time users see events from their detected region
 watch(regionLoaded, (loaded) => {
-  if (loaded && currentRegion.value?.name && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
-    selectedRegions.value = [currentRegion.value.name]
+  if (loaded && currentRegion.value?.slug && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
+    selectedRegions.value = [currentRegion.value.slug]
     applyFilters()
   }
 }, { immediate: true })

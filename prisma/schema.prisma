@@ -335,6 +335,15 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Password authentication (optional - null if using OAuth/magic link only)
+  passwordHash  String?
+
+  // OAuth providers (store provider user IDs for account linking)
+  googleId      String?   @unique
+
+  // Track auth methods used: ["password", "google", "magic_link"]
+  authMethods   String[]  @default([])
+
   // User's region (for filtering recommendations)
   regionId      String?
   region        Region?  @relation(fields: [regionId], references: [id])
@@ -353,12 +362,13 @@ model User {
   enableRecommendations     Boolean   @default(true) // Weekly recommendations
   lastRecommendationSent    DateTime? // When last recommendation email was sent
 
-  loginTokens         LoginToken[]
-  favoriteArtists     UserFavoriteArtist[]
-  favoriteVenues      UserFavoriteVenue[]
-  favoriteGenres      UserFavoriteGenre[]
-  favoriteEventTypes  UserFavoriteEventType[]
-  recommendationLogs  RecommendationLog[]
+  loginTokens           LoginToken[]
+  passwordResetTokens   PasswordResetToken[]
+  favoriteArtists       UserFavoriteArtist[]
+  favoriteVenues        UserFavoriteVenue[]
+  favoriteGenres        UserFavoriteGenre[]
+  favoriteEventTypes    UserFavoriteEventType[]
+  recommendationLogs    RecommendationLog[]
 
   @@map("users")
 }
@@ -458,6 +468,21 @@ model LoginToken {
   @@index([email])
   @@index([token])
   @@map("login_tokens")
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+  @@map("password_reset_tokens")
 }
 
 // AI Agent Sessions for scraper generation

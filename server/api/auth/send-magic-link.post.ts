@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
         data: {
           email,
           emailVerified: false,
+          authMethods: ['magic_link'],
         },
       })
     }

@@ -122,6 +122,80 @@ If you didn't request this email, you can safely ignore it.
 }
 
 /**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(email: string, resetLink: string) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo.svg`
+
+  // Log reset link for local development
+  if (process.dev) {
+    console.log('\n========== PASSWORD RESET LINK ==========')
+    console.log(`Email: ${email}`)
+    console.log(`Link: ${resetLink}`)
+    console.log('==========================================\n')
+  }
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: email,
+      subject: 'Reset your password',
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">Reset your password</h2>
+
+          <p style="color: #4b5563; font-size: 15px; margin-bottom: 28px;">
+            Click the button below to reset your password. This link will expire in 1 hour.
+          </p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${resetLink}"
+               style="background-color: #111827;
+                      color: #ffffff;
+                      text-decoration: none;
+                      padding: 14px 32px;
+                      border-radius: 8px;
+                      font-weight: 600;
+                      font-size: 15px;
+                      display: inline-block;">
+              Reset Password
+            </a>
+          </div>
+
+          <p style="color: #6b7280; font-size: 13px; margin-top: 32px;">
+            If you didn't request a password reset, you can safely ignore this email.
+          </p>
+        `,
+        footerContent: `
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            This link expires in 1 hour for security.
+          </p>
+        `,
+      }),
+      text: `
+Reset your password
+
+Click the link below to reset your password:
+
+${resetLink}
+
+This link will expire in 1 hour.
+
+If you didn't request a password reset, you can safely ignore this email.
+      `.trim(),
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send password reset email:', error)
+    return { success: false, error }
+  }
+}
+
+/**
  * Send artist alert email when favorite artists have new shows
  */
 export async function sendFavoriteNotificationEmail(

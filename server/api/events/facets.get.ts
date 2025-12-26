@@ -182,6 +182,7 @@ export default defineEventHandler(async (event) => {
           region: {
             select: {
               name: true,
+              slug: true,
             },
           },
         },
@@ -190,14 +191,19 @@ export default defineEventHandler(async (event) => {
   })
 
   const cityCounts: Record<string, number> = {}
-  const cityRegions: Record<string, string> = {} // Map city -> region name
+  const cityRegions: Record<string, string> = {} // Map city -> region slug
+  const regionNames: Record<string, string> = {} // Map region slug -> region name
   for (const e of eventsWithCities) {
     const city = e.venue?.city
+    const regionSlug = e.venue?.region?.slug
     const regionName = e.venue?.region?.name
     if (city) {
       cityCounts[city] = (cityCounts[city] || 0) + 1
-      if (regionName && !cityRegions[city]) {
-        cityRegions[city] = regionName
+      if (regionSlug && !cityRegions[city]) {
+        cityRegions[city] = regionSlug
+      }
+      if (regionSlug && regionName && !regionNames[regionSlug]) {
+        regionNames[regionSlug] = regionName
       }
     }
   }
@@ -208,6 +214,7 @@ export default defineEventHandler(async (event) => {
     typeCounts,
     cityCounts,
     cityRegions,
+    regionNames,
     musicCount,
     nonMusicCount,
   }

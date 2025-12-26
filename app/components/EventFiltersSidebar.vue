@@ -409,7 +409,7 @@ function resetFilters() {
   selectedGenres.value = []
   selectedEventTypes.value = ['ALL_MUSIC']
   // Reset to current region as the default
-  selectedRegions.value = currentRegion.value?.name ? [currentRegion.value.name] : []
+  selectedRegions.value = currentRegion.value?.slug ? [currentRegion.value.slug] : []
   selectedCities.value = []
   datePreset.value = 'all'
   customDateRange.value = undefined
@@ -923,8 +923,8 @@ onMounted(() => {
 // Auto-select current region when it's loaded and no region is explicitly selected
 // This ensures first-time users see events from their detected region
 watch(regionLoaded, (loaded) => {
-  if (loaded && currentRegion.value?.name && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
-    selectedRegions.value = [currentRegion.value.name]
+  if (loaded && currentRegion.value?.slug && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
+    selectedRegions.value = [currentRegion.value.slug]
     applyFilters()
   }
 }, { immediate: true })
@@ -1242,7 +1242,7 @@ defineExpose({
           <!-- Show region grouping only when there are multiple regions -->
           <template v-if="venuesByRegion.length > 1">
             <div
-              v-for="{ region, cities, totalEvents } in venuesByRegion"
+              v-for="{ region, regionName, cities, totalEvents } in venuesByRegion"
               :key="region"
               class="region-group"
             >
@@ -1256,7 +1256,7 @@ defineExpose({
                     :name="expandedRegions.has(region) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
                     class="w-4 h-4 text-gray-600"
                   />
-                  <span class="region-name">{{ region }}</span>
+                  <span class="region-name">{{ regionName }}</span>
                   <span class="option-count">{{ totalEvents }}</span>
                 </button>
                 <button
