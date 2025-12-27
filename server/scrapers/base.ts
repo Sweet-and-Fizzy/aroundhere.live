@@ -16,15 +16,17 @@ export abstract class PlaywrightScraper implements BaseScraper {
     this.browser = await chromium.launch({
       headless: true,
       // Required for Docker environments - container provides isolation
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     })
 
-    // Create context with identifiable user agent
-    // We identify ourselves so site owners can contact us if needed
+    // Identify ourselves so site owners can contact us if needed
     const context = await this.browser.newContext({
       userAgent: 'AroundHereBot/1.0 (+https://aroundhere.live; whatsup@aroundhere.live) Chrome/120.0.0.0',
       viewport: { width: 1920, height: 1080 },
-      locale: 'en-US',
     })
 
     this.page = await context.newPage()
