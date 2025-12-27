@@ -190,8 +190,8 @@ useHead({
               {{ venue.name }}
             </h1>
             <FavoriteButton
-              type="venue"
               :id="venue.id"
+              type="venue"
               :name="venue.name"
               :slug="venue.slug"
               size="lg"

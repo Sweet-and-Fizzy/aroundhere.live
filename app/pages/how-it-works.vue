@@ -28,10 +28,15 @@ const { loggedIn, ready } = useUserSession()
       <section>
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-heart" class="w-5 h-5 text-red-500" />
+            <UIcon
+              name="i-heroicons-heart"
+              class="w-5 h-5 text-red-500"
+            />
           </div>
           <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Follow What You Love</h2>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Follow What You Love
+            </h2>
             <p class="text-gray-600">
               Favorite artists, venues, and genres with one click from any event page. Build a profile of what you're into.
             </p>
@@ -42,10 +47,15 @@ const { loggedIn, ready } = useUserSession()
       <section>
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-bell" class="w-5 h-5 text-blue-500" />
+            <UIcon
+              name="i-heroicons-bell"
+              class="w-5 h-5 text-blue-500"
+            />
           </div>
           <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Get Notified</h2>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Get Notified
+            </h2>
             <p class="text-gray-600">
               Get daily or weekly emails when your favorite artists or venues have upcoming shows. Enabled by default when you sign up.
             </p>
@@ -56,10 +66,15 @@ const { loggedIn, ready } = useUserSession()
       <section>
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-sparkles" class="w-5 h-5 text-purple-500" />
+            <UIcon
+              name="i-heroicons-sparkles"
+              class="w-5 h-5 text-purple-500"
+            />
           </div>
           <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Discover New Music</h2>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Discover New Music
+            </h2>
             <p class="text-gray-600">
               Opt in to weekly recommendations curated for your taste. Tell us what you're into and we'll surface shows you might have missed.
             </p>
@@ -70,12 +85,22 @@ const { loggedIn, ready } = useUserSession()
       <section>
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-musical-note" class="w-5 h-5 text-green-500" />
+            <UIcon
+              name="i-heroicons-musical-note"
+              class="w-5 h-5 text-green-500"
+            />
           </div>
           <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Preview on Spotify</h2>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Preview on Spotify
+            </h2>
             <p class="text-gray-600">
-              Check out our <NuxtLink to="/playlist" class="text-primary-600 hover:text-primary-700 font-medium underline">Spotify playlist</NuxtLink>
+              Check out our <NuxtLink
+                to="/playlist"
+                class="text-primary-600 hover:text-primary-700 font-medium underline"
+              >
+                Spotify playlist
+              </NuxtLink>
               to preview music from artists playing local shows. It updates daily with tracks from upcoming performances, so you can discover what you might like before the show.
             </p>
           </div>
@@ -95,7 +120,10 @@ const { loggedIn, ready } = useUserSession()
         class="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
       >
         Get Started
-        <UIcon name="i-heroicons-arrow-right" class="w-4 h-4" />
+        <UIcon
+          name="i-heroicons-arrow-right"
+          class="w-4 h-4"
+        />
       </NuxtLink>
       <NuxtLink
         v-else
@@ -103,7 +131,10 @@ const { loggedIn, ready } = useUserSession()
         class="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
       >
         View Your Interests
-        <UIcon name="i-heroicons-arrow-right" class="w-4 h-4" />
+        <UIcon
+          name="i-heroicons-arrow-right"
+          class="w-4 h-4"
+        />
       </NuxtLink>
     </div>
   </div>

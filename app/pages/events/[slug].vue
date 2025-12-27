@@ -724,8 +724,8 @@ useHead({
                     {{ event.venue.name }}
                   </NuxtLink>
                   <FavoriteButton
-                    type="venue"
                     :id="event.venue.id"
+                    type="venue"
                     :name="event.venue.name"
                     :slug="event.venue.slug"
                     size="sm"
@@ -758,9 +758,15 @@ useHead({
                   v-if="interestedCount > 0 || goingCount > 0"
                   class="text-gray-500 text-sm mt-1"
                 >
-                  <template v-if="interestedCount > 0">{{ interestedCount }} interested</template>
-                  <template v-if="interestedCount > 0 && goingCount > 0">, </template>
-                  <template v-if="goingCount > 0">{{ goingCount }} going</template>
+                  <template v-if="interestedCount > 0">
+                    {{ interestedCount }} interested
+                  </template>
+                  <template v-if="interestedCount > 0 && goingCount > 0">
+                    ,
+                  </template>
+                  <template v-if="goingCount > 0">
+                    {{ goingCount }} going
+                  </template>
                 </p>
               </div>
 
@@ -887,7 +893,6 @@ useHead({
                 {{ descriptionExpanded ? 'Show less' : 'Show more' }}
               </button>
             </div>
-
           </UCard>
 
           <!-- Artist Lineup - Admin Editor or Read-only -->
@@ -959,8 +964,8 @@ useHead({
                     </NuxtLink>
                   </div>
                   <FavoriteButton
-                    type="artist"
                     :id="ea.artist.id"
+                    type="artist"
                     :name="ea.artist.name"
                     :slug="ea.artist.slug"
                     size="sm"

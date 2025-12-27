@@ -31,7 +31,7 @@ async function main() {
   let skipped = 0
 
   for (const source of sources) {
-    const config = source.config as any
+    const config = source.config as Record<string, unknown>
 
     // Skip if no generated code
     if (!config?.generatedCode) {

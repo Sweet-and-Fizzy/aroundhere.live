@@ -9,6 +9,7 @@
  */
 
 import 'dotenv/config'
+import { Prisma } from '@prisma/client'
 import prisma from '../server/utils/prisma'
 import { classifier } from '../server/services/classifier'
 import type { ClassificationInput } from '../server/services/classifier/types'
@@ -22,7 +23,7 @@ async function main() {
   console.log(`Scope: ${all ? 'ALL music events' : 'Events with "world" genre only'}\n`)
 
   // Build query based on scope
-  const where: any = {
+  const where: Prisma.EventWhereInput = {
     isMusic: true,
     startsAt: { gte: new Date() }, // Only future events
   }

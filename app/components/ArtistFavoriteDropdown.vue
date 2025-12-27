@@ -68,7 +68,10 @@ const tooltipText = computed(() => {
 
 <template>
   <UTooltip :text="tooltipText">
-    <UPopover v-model:open="isOpen" :popper="{ placement: 'bottom-end' }">
+    <UPopover
+      v-model:open="isOpen"
+      :popper="{ placement: 'bottom-end' }"
+    >
       <button
         type="button"
         :class="[
@@ -87,45 +90,45 @@ const tooltipText = computed(() => {
       </button>
 
       <template #content>
-      <div class="p-2 min-w-[200px]">
-        <template v-if="loggedIn">
-          <div
-            v-for="ea in sortedArtists"
-            :key="ea.artist.id"
-            class="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <span class="text-sm truncate">{{ ea.artist.name }}</span>
-            <button
-              type="button"
-              class="flex-shrink-0 p-1 rounded-full transition-colors"
-              :class="[
-                isArtistFavorited(ea.artist.id)
-                  ? 'text-red-500 hover:text-red-600'
-                  : 'text-gray-400 hover:text-red-400',
-              ]"
-              @click.prevent.stop="handleToggle(ea.artist)"
+        <div class="p-2 min-w-[200px]">
+          <template v-if="loggedIn">
+            <div
+              v-for="ea in sortedArtists"
+              :key="ea.artist.id"
+              class="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              <UIcon
-                :name="isArtistFavorited(ea.artist.id) ? 'i-heroicons-heart-solid' : 'i-heroicons-heart'"
-                class="w-4 h-4"
-              />
-            </button>
-          </div>
-        </template>
+              <span class="text-sm truncate">{{ ea.artist.name }}</span>
+              <button
+                type="button"
+                class="flex-shrink-0 p-1 rounded-full transition-colors"
+                :class="[
+                  isArtistFavorited(ea.artist.id)
+                    ? 'text-red-500 hover:text-red-600'
+                    : 'text-gray-400 hover:text-red-400',
+                ]"
+                @click.prevent.stop="handleToggle(ea.artist)"
+              >
+                <UIcon
+                  :name="isArtistFavorited(ea.artist.id) ? 'i-heroicons-heart-solid' : 'i-heroicons-heart'"
+                  class="w-4 h-4"
+                />
+              </button>
+            </div>
+          </template>
 
-        <template v-else>
-          <div class="px-2 py-3 text-sm text-gray-500 dark:text-gray-400">
-            <NuxtLink
-              to="/login"
-              class="text-primary-500 hover:text-primary-600 font-medium"
-              @click="isOpen = false"
-            >
-              Sign in
-            </NuxtLink>
-            to favorite artists and get notified about their shows.
-          </div>
-        </template>
-      </div>
+          <template v-else>
+            <div class="px-2 py-3 text-sm text-gray-500 dark:text-gray-400">
+              <NuxtLink
+                to="/login"
+                class="text-primary-500 hover:text-primary-600 font-medium"
+                @click="isOpen = false"
+              >
+                Sign in
+              </NuxtLink>
+              to favorite artists and get notified about their shows.
+            </div>
+          </template>
+        </div>
       </template>
     </UPopover>
   </UTooltip>

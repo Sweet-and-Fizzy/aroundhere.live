@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { format, addDays } from 'date-fns'
+import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
 import {
   getUserProfile,
@@ -356,7 +357,7 @@ export function createChatTools(userId?: string) {
       }
 
       // Build query conditions
-      const conditions: any[] = []
+      const conditions: Prisma.EventWhereInput[] = []
       if (artistIds.length > 0) {
         conditions.push({
           eventArtists: {

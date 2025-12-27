@@ -3,6 +3,7 @@
  * GET /api/admin/artists?q=search&page=1&limit=50&sort=name&order=asc
  */
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event) => {
   const skip = (page - 1) * limit
 
   // Build where clause
-  const where: any = {}
+  const where: Prisma.ArtistWhereInput = {}
   if (q) {
     where.name = {
       contains: q,
@@ -31,7 +32,7 @@ export default defineEventHandler(async (event) => {
   const total = await prisma.artist.count({ where })
 
   // Build orderBy
-  let orderBy: any = { name: 'asc' }
+  let orderBy: Prisma.ArtistOrderByWithRelationInput = { name: 'asc' }
   if (sort === 'name') {
     orderBy = { name: order }
   } else if (sort === 'createdAt') {

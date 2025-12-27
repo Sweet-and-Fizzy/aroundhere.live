@@ -9,6 +9,7 @@
  *   offset: number (default 0)
  */
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../utils/prisma'
 import type { SpotifyMatchStatus } from '@prisma/client'
 
@@ -36,7 +37,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const where: any = {}
+  const where: Prisma.ArtistWhereInput = {}
   if (status) {
     where.spotifyMatchStatus = status
   }

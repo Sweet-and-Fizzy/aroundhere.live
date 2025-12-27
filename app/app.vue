@@ -383,9 +383,19 @@ const userMenuItems = computed(() => {
               <span v-if="regionLoaded"> - {{ regionName }}</span>
             </Transition>
             <span class="mx-2">·</span>
-            <NuxtLink to="/how-it-works" class="hover:text-gray-700">How It Works</NuxtLink>
+            <NuxtLink
+              to="/how-it-works"
+              class="hover:text-gray-700"
+            >
+              How It Works
+            </NuxtLink>
             <span class="mx-2">·</span>
-            <NuxtLink to="/privacy" class="hover:text-gray-700">Privacy</NuxtLink>
+            <NuxtLink
+              to="/privacy"
+              class="hover:text-gray-700"
+            >
+              Privacy
+            </NuxtLink>
           </p>
         </div>
       </footer>

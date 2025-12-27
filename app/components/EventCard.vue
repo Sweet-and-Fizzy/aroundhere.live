@@ -294,6 +294,7 @@ const eventTypeLabel = computed(() => {
           v-if="displaySummary || fullDescription"
           class="mt-2"
         >
+          <!-- eslint-disable vue/no-v-html -- Sanitized HTML from server -->
           <div class="text-sm text-gray-700 prose prose-sm prose-gray max-w-none">
             <div
               v-if="!expanded"
@@ -304,6 +305,7 @@ const eventTypeLabel = computed(() => {
               v-html="fullDescription"
             />
           </div>
+          <!-- eslint-enable vue/no-v-html -->
           <button
             v-if="hasMoreContent"
             class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1"

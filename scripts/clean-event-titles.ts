@@ -13,7 +13,7 @@
  *   npx tsx scripts/clean-event-titles.ts [--dry-run] [--venue "Venue Name"]
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -58,7 +58,7 @@ async function main() {
   console.log('🔍 Finding events with titles that need cleaning...\n')
 
   // Build where clause
-  const where: any = {
+  const where: Prisma.EventWhereInput = {
     startsAt: { gte: new Date() }, // Only future events
   }
 

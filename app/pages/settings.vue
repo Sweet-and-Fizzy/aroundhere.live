@@ -218,7 +218,10 @@ useSeoMeta({
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div v-if="!showEmailChange" class="flex items-center gap-2">
+              <div
+                v-if="!showEmailChange"
+                class="flex items-center gap-2"
+              >
                 <UInput
                   :model-value="settings.email"
                   disabled
@@ -233,7 +236,10 @@ useSeoMeta({
                   Change
                 </UButton>
               </div>
-              <div v-else class="space-y-2">
+              <div
+                v-else
+                class="space-y-2"
+              >
                 <UInput
                   v-model="newEmail"
                   type="email"
@@ -294,18 +300,30 @@ useSeoMeta({
           <div class="flex items-center justify-between">
             <div>
               <span class="text-sm font-medium">Artist alerts</span>
-              <p class="text-xs text-gray-500">Get notified when your favorite artists announce shows</p>
+              <p class="text-xs text-gray-500">
+                Get notified when your favorite artists announce shows
+              </p>
             </div>
-            <USwitch v-model="settings.notifyFavoriteArtists" size="sm" @update:model-value="saveSettings(false)" />
+            <USwitch
+              v-model="settings.notifyFavoriteArtists"
+              size="sm"
+              @update:model-value="saveSettings(false)"
+            />
           </div>
 
           <!-- Weekly recommendations -->
           <div class="flex items-center justify-between pt-2 border-t border-gray-100">
             <div>
               <span class="text-sm font-medium">Weekly digest</span>
-              <p class="text-xs text-gray-500">Curated picks plus all upcoming shows, every Wednesday</p>
+              <p class="text-xs text-gray-500">
+                Curated picks plus all upcoming shows, every Wednesday
+              </p>
             </div>
-            <USwitch v-model="settings.enableRecommendations" size="sm" @update:model-value="saveSettings(false)" />
+            <USwitch
+              v-model="settings.enableRecommendations"
+              size="sm"
+              @update:model-value="saveSettings(false)"
+            />
           </div>
         </div>
       </UCard>

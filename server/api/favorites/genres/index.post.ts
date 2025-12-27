@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   const genreSlug = body.genre.toLowerCase().trim()
 
   // Validate that the genre is a recognized canonical genre
-  if (!CANONICAL_GENRES.includes(genreSlug as any)) {
+  if (!CANONICAL_GENRES.includes(genreSlug as typeof CANONICAL_GENRES[number])) {
     throw createError({
       statusCode: 400,
       message: `Invalid genre: ${genreSlug}`,

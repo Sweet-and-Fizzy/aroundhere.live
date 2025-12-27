@@ -40,7 +40,7 @@ async function main() {
 
     // Show thinking steps if available
     if (session.thinking) {
-      const thinking = session.thinking as any[]
+      const thinking = session.thinking as Array<{ type: string; message: string }>
       console.log(`\nThinking steps (${thinking.length}):`)
       thinking.slice(-3).forEach((step, i) => {
         console.log(`  ${thinking.length - 3 + i + 1}. [${step.type}] ${step.message}`)

@@ -30,7 +30,7 @@ export default defineOAuthGoogleEventHandler({
 
       if (user) {
         // Update existing user with Google ID if not set, and ensure 'google' is in authMethods
-        const updates: any = {}
+        const updates: Record<string, unknown> = {}
 
         if (!user.googleId) {
           updates.googleId = googleUser.sub

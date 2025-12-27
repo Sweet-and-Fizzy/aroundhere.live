@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       source,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error unpausing notifications:', error)
     throw createError({
       statusCode: 500,

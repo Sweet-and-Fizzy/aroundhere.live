@@ -6,6 +6,7 @@
  *   upcoming: 'true' (optional, only show future events)
  */
 
+import { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import type { EventAttendanceStatus } from '@prisma/client'
 
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
   const upcoming = query.upcoming === 'true'
 
   // Build where clause
-  const where: any = { userId }
+  const where: Prisma.EventAttendanceWhereInput = { userId }
 
   if (status && ['INTERESTED', 'GOING'].includes(status)) {
     where.status = status

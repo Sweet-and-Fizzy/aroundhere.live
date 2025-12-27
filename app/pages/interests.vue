@@ -218,7 +218,11 @@ useSeoMeta({
           </div>
         </template>
         <div class="flex flex-wrap gap-2">
-          <USkeleton v-for="i in 6" :key="i" class="h-8 w-20 rounded-full" />
+          <USkeleton
+            v-for="i in 6"
+            :key="i"
+            class="h-8 w-20 rounded-full"
+          />
         </div>
       </UCard>
 
@@ -231,7 +235,11 @@ useSeoMeta({
           </div>
         </template>
         <div class="flex flex-wrap gap-2">
-          <USkeleton v-for="i in 12" :key="i" class="h-8 w-16 rounded-full" />
+          <USkeleton
+            v-for="i in 12"
+            :key="i"
+            class="h-8 w-16 rounded-full"
+          />
         </div>
       </UCard>
 
@@ -247,7 +255,11 @@ useSeoMeta({
           </div>
         </template>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <USkeleton v-for="i in 4" :key="i" class="h-10 rounded-lg" />
+          <USkeleton
+            v-for="i in 4"
+            :key="i"
+            class="h-10 rounded-lg"
+          />
         </div>
       </UCard>
 
@@ -263,7 +275,11 @@ useSeoMeta({
           </div>
         </template>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <USkeleton v-for="i in 4" :key="i" class="h-10 rounded-lg" />
+          <USkeleton
+            v-for="i in 4"
+            :key="i"
+            class="h-10 rounded-lg"
+          />
         </div>
       </UCard>
     </div>
@@ -293,7 +309,17 @@ useSeoMeta({
         <p class="text-sm text-primary-800">
           Your interests personalize your experience and power our recommendations.
           Get alerts when your favorite artists have shows, plus weekly picks tailored to your taste.
-          <NuxtLink to="/how-it-works" class="font-medium underline">Learn more</NuxtLink> · <NuxtLink to="/settings" class="font-medium underline">Manage notifications</NuxtLink>
+          <NuxtLink
+            to="/how-it-works"
+            class="font-medium underline"
+          >
+            Learn more
+          </NuxtLink> · <NuxtLink
+            to="/settings"
+            class="font-medium underline"
+          >
+            Manage notifications
+          </NuxtLink>
         </p>
       </div>
 
@@ -462,7 +488,9 @@ useSeoMeta({
                   @mousedown.prevent="addArtist(artist)"
                 >
                   <div class="min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ artist.name }}</div>
+                    <div class="font-medium text-gray-900 truncate">
+                      {{ artist.name }}
+                    </div>
                     <div class="text-xs text-gray-500 truncate">
                       {{ artist.genres?.slice(0, 2).join(', ') || 'No genres' }}
                       <span v-if="artist.eventCount"> · {{ artist.eventCount }} events</span>
@@ -486,11 +514,17 @@ useSeoMeta({
           </div>
         </template>
 
-        <div v-if="favorites.artists.length === 0" class="text-gray-500 text-sm">
+        <div
+          v-if="favorites.artists.length === 0"
+          class="text-gray-500 text-sm"
+        >
           Search above or browse events and click the heart icon next to artists you like.
         </div>
 
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div
+          v-else
+          class="grid grid-cols-1 sm:grid-cols-2 gap-2"
+        >
           <div
             v-for="artist in favorites.artists"
             :key="artist.id"
@@ -563,7 +597,9 @@ useSeoMeta({
                   @mousedown.prevent="addVenue(venue)"
                 >
                   <div class="min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ venue.name }}</div>
+                    <div class="font-medium text-gray-900 truncate">
+                      {{ venue.name }}
+                    </div>
                     <div class="text-xs text-gray-500 truncate">
                       {{ venue.city || 'Unknown location' }}
                       <span v-if="venue.upcomingEventCount"> · {{ venue.upcomingEventCount }} upcoming</span>
@@ -587,11 +623,17 @@ useSeoMeta({
           </div>
         </template>
 
-        <div v-if="favorites.venues.length === 0" class="text-gray-500 text-sm">
+        <div
+          v-if="favorites.venues.length === 0"
+          class="text-gray-500 text-sm"
+        >
           Search above or visit a venue page and click the heart icon to add it here.
         </div>
 
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div
+          v-else
+          class="grid grid-cols-1 sm:grid-cols-2 gap-2"
+        >
           <div
             v-for="venue in favorites.venues"
             :key="venue.id"

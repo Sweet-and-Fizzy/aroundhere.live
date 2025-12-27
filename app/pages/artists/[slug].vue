@@ -175,8 +175,8 @@ useHead({
             {{ artist.name }}
           </h1>
           <FavoriteButton
-            type="artist"
             :id="artist.id"
+            type="artist"
             :name="artist.name"
             :slug="artist.slug"
             size="lg"

@@ -17,7 +17,9 @@ useSeoMeta({
       </p>
 
       <section>
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">What we collect</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">
+          What we collect
+        </h2>
         <ul class="list-disc list-inside space-y-2 text-gray-700">
           <li><strong>Email address</strong> — to log you in and send notifications you've requested</li>
           <li><strong>Your favorites</strong> — artists, venues, and genres you choose to follow</li>
@@ -29,7 +31,9 @@ useSeoMeta({
       </section>
 
       <section>
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">How we use it</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">
+          How we use it
+        </h2>
         <ul class="list-disc list-inside space-y-2 text-gray-700">
           <li>Sending you magic link emails to log in</li>
           <li>Notifying you about events matching your favorites (if you opt in)</li>
@@ -40,7 +44,9 @@ useSeoMeta({
       </section>
 
       <section>
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">What we don't do</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">
+          What we don't do
+        </h2>
         <ul class="list-disc list-inside space-y-2 text-gray-700">
           <li>We don't sell your data to anyone</li>
           <li>We don't share your information with advertisers</li>
@@ -49,8 +55,12 @@ useSeoMeta({
       </section>
 
       <section>
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">Third-party services</h2>
-        <p class="text-gray-700 mb-3">We use a few services to make the app work:</p>
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">
+          Third-party services
+        </h2>
+        <p class="text-gray-700 mb-3">
+          We use a few services to make the app work:
+        </p>
         <ul class="list-disc list-inside space-y-2 text-gray-700">
           <li><strong>Google Analytics</strong> — helps us understand how people use the site (via Google Tag Manager)</li>
           <li><strong>Resend</strong> — delivers our emails</li>
@@ -60,19 +70,42 @@ useSeoMeta({
       </section>
 
       <section>
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">Your choices</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">
+          Your choices
+        </h2>
         <ul class="list-disc list-inside space-y-2 text-gray-700">
-          <li>You can update your notification preferences anytime in <NuxtLink to="/settings" class="text-primary-600 hover:underline">Settings</NuxtLink></li>
+          <li>
+            You can update your notification preferences anytime in <NuxtLink
+              to="/settings"
+              class="text-primary-600 hover:underline"
+            >
+              Settings
+            </NuxtLink>
+          </li>
           <li>You can turn off weekly recommendations</li>
           <li>You can remove favorites whenever you want</li>
-          <li>If you want your account deleted, <NuxtLink to="/contact" class="text-primary-600 hover:underline">contact us</NuxtLink></li>
+          <li>
+            If you want your account deleted, <NuxtLink
+              to="/contact"
+              class="text-primary-600 hover:underline"
+            >
+              contact us
+            </NuxtLink>
+          </li>
         </ul>
       </section>
 
       <section>
-        <h2 class="text-xl font-semibold text-gray-900 mb-3">Questions or suggestions?</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-3">
+          Questions or suggestions?
+        </h2>
         <p class="text-gray-700">
-          We're committed to respecting your privacy and are always open to feedback. If you have questions about how we handle your data or suggestions for how we can do better, <NuxtLink to="/contact" class="text-primary-600 hover:underline">get in touch</NuxtLink>.
+          We're committed to respecting your privacy and are always open to feedback. If you have questions about how we handle your data or suggestions for how we can do better, <NuxtLink
+            to="/contact"
+            class="text-primary-600 hover:underline"
+          >
+            get in touch
+          </NuxtLink>.
         </p>
       </section>
 

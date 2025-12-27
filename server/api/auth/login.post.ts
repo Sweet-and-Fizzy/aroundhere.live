@@ -78,9 +78,9 @@ export default defineEventHandler(async (event) => {
         role: user.role,
       },
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Re-throw if it's already a createError
-    if (error.statusCode) {
+    if (error && typeof error === 'object' && 'statusCode' in error) {
       throw error
     }
 

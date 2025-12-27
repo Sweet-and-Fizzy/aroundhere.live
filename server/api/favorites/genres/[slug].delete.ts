@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Validate that the genre is a recognized canonical genre
-  if (!CANONICAL_GENRES.includes(genre as any)) {
+  if (!CANONICAL_GENRES.includes(genre as typeof CANONICAL_GENRES[number])) {
     throw createError({
       statusCode: 400,
       message: `Invalid genre: ${genre}`,

@@ -1073,7 +1073,10 @@ useSeoMeta({
                   </div>
                   <div class="text-xs text-gray-500">
                     {{ target.eventCount }} events · {{ target.favoriteCount }} favorites
-                    <span v-if="target.spotifyName" class="text-green-600">· Spotify: {{ target.spotifyName }}</span>
+                    <span
+                      v-if="target.spotifyName"
+                      class="text-green-600"
+                    >· Spotify: {{ target.spotifyName }}</span>
                   </div>
                 </div>
                 <UIcon
@@ -1148,7 +1151,10 @@ useSeoMeta({
                   </div>
                   <div class="text-xs text-gray-500">
                     {{ pair.artist1.eventCount }} events
-                    <span v-if="pair.artist1.spotifyId" class="text-green-600">· Spotify</span>
+                    <span
+                      v-if="pair.artist1.spotifyId"
+                      class="text-green-600"
+                    >· Spotify</span>
                   </div>
                 </div>
                 <div class="flex gap-1">
@@ -1179,7 +1185,10 @@ useSeoMeta({
                   </div>
                   <div class="text-xs text-gray-500">
                     {{ pair.artist2.eventCount }} events
-                    <span v-if="pair.artist2.spotifyId" class="text-green-600">· Spotify</span>
+                    <span
+                      v-if="pair.artist2.spotifyId"
+                      class="text-green-600"
+                    >· Spotify</span>
                   </div>
                 </div>
               </div>

@@ -21,7 +21,8 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "prepare": "husky"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.54",
@@ -74,6 +75,8 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-vue": "^10.6.0",
     "happy-dom": "^15.11.7",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "playwright": "^1.57.0",
     "prettier": "^3.6.2",
     "prisma": "^7.0.0",
@@ -81,5 +84,8 @@
     "typescript": "^5.9.3",
     "vitest": "^2.1.9",
     "vue-eslint-parser": "^10.2.0"
+  },
+  "lint-staged": {
+    "*.{js,ts,vue}": "eslint --fix"
   }
 }

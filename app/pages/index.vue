@@ -287,7 +287,10 @@ useHead({
                 class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
               >
                 Get Started
-                <UIcon name="i-heroicons-arrow-right" class="w-4 h-4" />
+                <UIcon
+                  name="i-heroicons-arrow-right"
+                  class="w-4 h-4"
+                />
               </NuxtLink>
               <NuxtLink
                 to="/how-it-works"
@@ -311,7 +314,10 @@ useHead({
                 to="/interests"
                 class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <UIcon name="i-heroicons-heart-solid" class="w-4 h-4 text-red-500" />
+                <UIcon
+                  name="i-heroicons-heart-solid"
+                  class="w-4 h-4 text-red-500"
+                />
                 Add Interests
               </NuxtLink>
               <span class="text-gray-400 text-sm self-center">
@@ -451,7 +457,10 @@ useHead({
               name="i-heroicons-chat-bubble-left-right"
               class="w-4 h-4 flex-shrink-0 text-blue-600"
             />
-            <span>See something that doesn't look right or have an idea to make it better? Send us a note at <a href="mailto:whatsup@aroundhere.live" class="font-medium underline hover:text-gray-700">whatsup@aroundhere.live</a></span>
+            <span>See something that doesn't look right or have an idea to make it better? Send us a note at <a
+              href="mailto:whatsup@aroundhere.live"
+              class="font-medium underline hover:text-gray-700"
+            >whatsup@aroundhere.live</a></span>
           </div>
           <button
             class="text-gray-500 hover:text-gray-700 p-1"

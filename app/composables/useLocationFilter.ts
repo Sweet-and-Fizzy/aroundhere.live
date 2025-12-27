@@ -243,6 +243,13 @@ export function useLocationFilter(
     }
   }
 
+  // Helper to get friendly region name from slug, stripping leading "the "
+  const getRegionDisplayName = (slug: string): string => {
+    const regionNamesMap = facets.value?.regionNames ?? {}
+    const name = regionNamesMap[slug] || slug
+    return name.replace(/^the /i, '')
+  }
+
   // Generate an intelligent summary label showing regions, cities, or venues
   const locationSummary = computed(() => {
     const regionCount = selectedRegions.value.length
@@ -254,14 +261,16 @@ export function useLocationFilter(
 
     // Priority: Show the highest level selections first (regions > cities > venues)
     if (regionCount > 0) {
+      const firstName = getRegionDisplayName(selectedRegions.value[0])
       if (regionCount === 1 && cityCount === 0 && venueCount === 0) {
-        return selectedRegions.value[0]
+        return firstName
       }
       if (regionCount === 2 && cityCount === 0 && venueCount === 0) {
-        return selectedRegions.value.join(' and ')
+        const secondName = getRegionDisplayName(selectedRegions.value[1])
+        return `${firstName} and ${secondName}`
       }
       if (regionCount >= 1) {
-        return `${selectedRegions.value[0]} and ${totalCount - 1} more`
+        return `${firstName} and ${totalCount - 1} more`
       }
     }
 
