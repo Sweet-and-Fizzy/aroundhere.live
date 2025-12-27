@@ -1,6 +1,9 @@
 import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { setCacheHeaders } from '../../utils/cache'
+import { fromZonedTime } from 'date-fns-tz'
+
+const DEFAULT_TIMEZONE = 'America/New_York'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -28,21 +31,19 @@ export default defineEventHandler(async (event) => {
   const favoriteArtistIds = query.favoriteArtistIds ? (query.favoriteArtistIds as string).split(',') : undefined
   const favoriteVenueIds = query.favoriteVenueIds ? (query.favoriteVenueIds as string).split(',') : undefined
   const favoriteGenres = query.favoriteGenres ? (query.favoriteGenres as string).split(',') : undefined
-  // Parse date strings as local dates (YYYY-MM-DD format)
-  // Appending T00:00:00 ensures the date is parsed as local time, not UTC
+  // Parse date strings as local dates in the default timezone (Eastern)
+  // This ensures "today" means today in Eastern time, not UTC
   const startDate = query.startDate
-    ? new Date(`${query.startDate}T00:00:00`)
+    ? fromZonedTime(`${query.startDate}T00:00:00`, DEFAULT_TIMEZONE)
     : (() => {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        return today
+        // Get current date in Eastern timezone
+        const now = new Date()
+        const easternDate = now.toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE }) // YYYY-MM-DD format
+        return fromZonedTime(`${easternDate}T00:00:00`, DEFAULT_TIMEZONE)
       })()
-  // Set endDate to end of day to include all events on that date
+  // Set endDate to end of day in Eastern timezone to include all events on that date
   const endDate = query.endDate
-    ? (() => {
-        const d = new Date(`${query.endDate}T23:59:59.999`)
-        return d
-      })()
+    ? fromZonedTime(`${query.endDate}T23:59:59.999`, DEFAULT_TIMEZONE)
     : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
