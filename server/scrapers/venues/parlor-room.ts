@@ -106,7 +106,8 @@ export class ParlorRoomScraper extends PlaywrightScraper {
     // Wait for the calendar widget to render (they use a third-party widget)
     // The Elfsight widget takes time to render into the DOM
     try {
-      await this.page.waitForSelector('.eapp-events-calendar-masonry-item', {
+      // Elfsight uses list layout - wait for list items to render
+      await this.page.waitForSelector('.eapp-events-calendar-list-item-component', {
         timeout: 20000,
       })
       // Give it extra time to ensure all events are rendered
@@ -218,8 +219,8 @@ export class ParlorRoomScraper extends PlaywrightScraper {
     // First, extract rich event data from LD+JSON script tags (has descriptions)
     const ldJsonData = this.extractLdJsonEvents($)
 
-    // Parlor Room uses a third-party calendar widget (eapp-events-calendar)
-    const eventElements = $('.eapp-events-calendar-masonry-item')
+    // Parlor Room uses Elfsight calendar widget (list layout)
+    const eventElements = $('.eapp-events-calendar-list-item-component')
 
     if (eventElements.length > 0) {
       eventElements.each((_, el) => {
@@ -274,7 +275,7 @@ export class ParlorRoomScraper extends PlaywrightScraper {
   ): ScrapedEvent | null {
     try {
       const title = this.cleanText(
-        $el.find('.eapp-events-calendar-masonry-item-name').text()
+        $el.find('.eapp-events-calendar-list-item-name, .eapp-events-calendar-name-component').text()
       )
       if (!title) return null
 
