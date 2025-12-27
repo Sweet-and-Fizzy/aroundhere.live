@@ -78,6 +78,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e  # Exit on any error
+
             cd /opt/local-music
 
             # Pull latest image
@@ -89,7 +91,17 @@ jobs:
             # Clean up old images
             docker image prune -f
 
-            # Run database migrations
-            docker compose -f docker-compose.prod.yml exec -T app tsx node_modules/prisma/build/index.js migrate deploy --config prisma/prisma.config.ts
+            # Run database migrations (fail deploy if migrations fail)
+            echo "Running database migrations..."
+            docker compose -f docker-compose.prod.yml exec -T app npx prisma migrate deploy --config prisma/prisma.config.ts
+
+            # Restart app to ensure Prisma client is updated after migrations
+            echo "Restarting app to apply schema changes..."
+            docker compose -f docker-compose.prod.yml restart app
+
+            # Wait for app to be healthy
+            echo "Waiting for app to be healthy..."
+            sleep 10
+            docker compose -f docker-compose.prod.yml exec -T app wget -qO- http://localhost:3000/api/health || exit 1
 
             echo "Deployment complete!"
