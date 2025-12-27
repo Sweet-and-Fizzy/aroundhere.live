@@ -23,4 +23,7 @@
 # Send daily scraper health digest at 7am EST (after scrapers finish)
 0 7 * * * curl -sX POST "http://app:3000/api/cron/scraper-health?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
+# Send weekly recommendations on Wednesday at 8am EST
+0 8 * * 3 curl -sX POST "http://app:3000/api/cron/weekly-recommendations?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+
 # Empty line required at end
