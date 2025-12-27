@@ -277,6 +277,17 @@ const venueLocationParts = computed(() => {
 
 const venueLocationString = computed(() => venueLocationParts.value.join(', '))
 
+// Address string without venue name (for display under venue link)
+const venueAddressString = computed(() => {
+  if (!event.value?.venue?.address) return ''
+  const parts: string[] = [event.value.venue.address]
+  if (event.value.venue.city) parts.push(event.value.venue.city)
+  if (event.value.venue.state || event.value.venue.postalCode) {
+    parts.push([event.value.venue.state, event.value.venue.postalCode].filter(Boolean).join(' '))
+  }
+  return parts.join(', ')
+})
+
 // Google Maps URL for venue
 const mapUrl = computed(() => {
   if (!event.value?.venue) return ''
@@ -740,14 +751,10 @@ useHead({
                   </UButton>
                 </div>
                 <p
-                  v-if="event.venue.address"
+                  v-if="venueAddressString"
                   class="text-gray-600 text-sm mt-0.5"
                 >
-                  {{ event.venue.address }}<template v-if="event.venue.city">
-                    , {{ event.venue.city }}
-                  </template><template v-if="event.venue.state || event.venue.postalCode">
-                    , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
-                  </template>
+                  {{ venueAddressString }}
                 </p>
                 <!-- Attendance counts -->
                 <p
