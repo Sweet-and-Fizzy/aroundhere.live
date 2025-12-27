@@ -235,10 +235,12 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       let minutes = 0
       let startsAt = this.createDateInTimezone(year, month, day, hours, minutes)
 
-      // Skip past events
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const eventDate = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate())
-      if (eventDate < today) {
+      // Skip past events - compare the event date (year/month/day we parsed) with today
+      // Don't use startsAt directly since it's UTC-adjusted
+      const todayInTz = new Date(now.toLocaleString('en-US', { timeZone: this.config.timezone }))
+      const todayDate = new Date(todayInTz.getFullYear(), todayInTz.getMonth(), todayInTz.getDate())
+      const eventDate = new Date(year, month, day)
+      if (eventDate < todayDate) {
         console.log(`[${this.config.name}] Skipping past event: ${cleanDateTitle}`)
         return null
       }
@@ -304,6 +306,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       // Always fetch from event page to get proper title and description
       // The gallery data often has poor/missing information
       let finalDescription = description
+      let coverCharge: string | undefined
       try {
         const response = await fetch(galleryEvent.href, {
           headers: {
@@ -487,6 +490,13 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
             }
           }
 
+          // Extract coverCharge from structuredData
+          if (structuredData.price) {
+            coverCharge = structuredData.price.startsWith('$')
+              ? structuredData.price
+              : `$${structuredData.price}`
+          }
+
           console.log(`[${this.config.name}] Extracted from page: "${title}"`)
         }
 
@@ -520,6 +530,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
         startsAt,
         sourceUrl,
         sourceEventId,
+        coverCharge,
       }
     } catch (error) {
       console.error(`[${this.config.name}] Error parsing gallery event:`, error)

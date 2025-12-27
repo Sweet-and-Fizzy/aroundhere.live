@@ -292,10 +292,12 @@ export class MarigoldScraper extends PlaywrightScraper {
       let minutes = 0
       let startsAt = this.createDateInTimezone(year, month, day, hours, minutes)
 
-      // Skip past events (but allow today's events)
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const eventDate = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate())
-      if (eventDate < today) {
+      // Skip past events - compare the event date (year/month/day we parsed) with today
+      // Don't use startsAt directly since it's UTC-adjusted
+      const todayInTz = new Date(now.toLocaleString('en-US', { timeZone: this.config.timezone }))
+      const todayDate = new Date(todayInTz.getFullYear(), todayInTz.getMonth(), todayInTz.getDate())
+      const eventDate = new Date(year, month, day)
+      if (eventDate < todayDate) {
         console.log(`[${this.config.name}] Skipping past event: ${cleanDateTitle} (calculated as ${eventDate.toISOString().split('T')[0]}, ${monthsAway.toFixed(1)} months away)`)
         return null
       }
@@ -348,6 +350,7 @@ export class MarigoldScraper extends PlaywrightScraper {
       // Fetch from event page to get description, check for cancellation, and extract time
       let finalDescription = description
       let isCancelled = false
+      let coverCharge: string | undefined
       try {
         // Use fetch instead of Playwright navigation to avoid closing the page
         const response = await fetch(galleryEvent.href, {
@@ -379,6 +382,36 @@ export class MarigoldScraper extends PlaywrightScraper {
               title = h2Title
             }
           }
+
+          // Extract ticket price from page content
+          // Look for patterns like "🎟️$10" or "🎟️$20 Sliding Scale" or "Tickets: $15"
+          $('p').each((_, el) => {
+            if (coverCharge) return
+            const text = $(el).text()
+
+            // Match 🎟️$XX or 🎟️ $XX patterns (with optional description like "Sliding Scale")
+            const ticketMatch = text.match(/🎟️\s*\$(\d+)(?:\s+[A-Za-z\s]+)?/i)
+            if (ticketMatch) {
+              // Extract the full price text including any suffix like "Sliding Scale"
+              const fullMatch = text.match(/🎟️\s*(\$\d+(?:\s+[A-Za-z\s]+)?)/i)
+              if (fullMatch) {
+                coverCharge = fullMatch[1].trim()
+              }
+            }
+
+            // Also try "Tickets: $XX" or "Admission: $XX" patterns
+            if (!coverCharge) {
+              const altMatch = text.match(/(?:tickets?|admission|cover|entry):?\s*\$(\d+)/i)
+              if (altMatch) {
+                coverCharge = '$' + altMatch[1]
+              }
+            }
+
+            // Check for free events
+            if (!coverCharge && text.match(/(?:free|no cover|donation)/i)) {
+              coverCharge = 'Free'
+            }
+          })
 
           // Parse time from page content
           // Look for patterns like "Doors: 7pm | Music: 8pm" or "Show: 9pm"
@@ -493,6 +526,7 @@ export class MarigoldScraper extends PlaywrightScraper {
         startsAt,
         sourceUrl,
         sourceEventId,
+        coverCharge,
       }
       } catch (error) {
       console.error(`[${this.config.name}] Error parsing gallery event:`, error)
