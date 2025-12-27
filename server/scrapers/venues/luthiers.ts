@@ -17,7 +17,7 @@ export const luthiersConfig: ScraperConfig = {
   venueSlug: 'luthiers-coop',
   url: 'https://www.luthiers-coop.com/events/',
   enabled: true,
-  schedule: '0 6 * * *', // 6 AM daily
+  schedule: '0 6,14 * * *', // 6 AM and 2 PM daily
   category: 'VENUE',
   priority: 10,
   timezone: 'America/New_York',

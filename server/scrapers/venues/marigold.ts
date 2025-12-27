@@ -37,7 +37,7 @@ export const marigoldConfig: ScraperConfig = {
   venueSlug: 'marigold-theater',
   url: 'https://marigold.org/',
   enabled: true,
-  schedule: '0 6 * * *',
+  schedule: '0 6,14 * * *', // 6 AM and 2 PM daily
   category: 'VENUE',
   priority: 10,
   timezone: 'America/New_York',
@@ -329,8 +329,10 @@ export class MarigoldScraper extends PlaywrightScraper {
         year = currentYear
       }
 
-      // Default to 8 PM for evening events
-      const startsAt = this.createDateInTimezone(year, month, day, 20, 0)
+      // Default to 8 PM for evening events - will be updated if we find actual time
+      let hours = 20
+      let minutes = 0
+      let startsAt = this.createDateInTimezone(year, month, day, hours, minutes)
 
       // Skip past events (but allow today's events)
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -389,28 +391,74 @@ export class MarigoldScraper extends PlaywrightScraper {
         ? galleryEvent.href 
         : `https://marigold.org${galleryEvent.href}`
 
-      // If description is missing, try to fetch it from the event page using HTTP
+      // Fetch from event page to get description, check for cancellation, and extract time
       let finalDescription = description
-      if (!finalDescription) {
-        try {
-          // Use fetch instead of Playwright navigation to avoid closing the page
-          const response = await fetch(galleryEvent.href, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-            },
-          })
-          
-          if (response.ok) {
-            const html = await response.text()
-            const $ = cheerio.load(html)
-            
-            // Try to find title in h2 (often the event title)
-            const h2Title = $('h2').first().text().trim()
-            if (h2Title && h2Title.length > 5 && (!title || title.length < 5)) {
-              title = h2Title
+      let isCancelled = false
+      try {
+        // Use fetch instead of Playwright navigation to avoid closing the page
+        const response = await fetch(galleryEvent.href, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          },
+        })
+
+        if (response.ok) {
+          const html = await response.text()
+          const $ = cheerio.load(html)
+
+          // Check if event is cancelled/postponed
+          const pageText = $('body').text().toLowerCase()
+          if (pageText.includes('cancelled') || pageText.includes('canceled') || pageText.includes('postponed')) {
+            isCancelled = true
+          }
+
+          // Try to find title in h2 (often the event title)
+          const h2Title = $('h2').first().text().trim()
+          if (h2Title && h2Title.length > 5 && (!title || title.length < 5)) {
+            title = h2Title
+          }
+
+          // Parse time from page content
+          // Look for patterns like "Doors: 7pm | Music: 8pm" or "Show: 9pm"
+          let foundTime = false
+          $('p').each((_, el) => {
+            if (foundTime) return
+            const text = $(el).text()
+
+            // Match show/music time first (preferred)
+            const showMatch = text.match(/(?:music|show):?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+            if (showMatch) {
+              let parsedHours = parseInt(showMatch[1], 10)
+              const parsedMinutes = showMatch[2] ? parseInt(showMatch[2], 10) : 0
+              const ampm = (showMatch[3] || 'pm').toLowerCase()
+
+              if (ampm === 'pm' && parsedHours < 12) parsedHours += 12
+              if (ampm === 'am' && parsedHours === 12) parsedHours = 0
+
+              startsAt = this.createDateInTimezone(year, month, day, parsedHours, parsedMinutes)
+              console.log(`[${this.config.name}] Updated time for "${title}": ${parsedHours}:${parsedMinutes.toString().padStart(2, '0')}`)
+              foundTime = true
+              return
             }
-            
-            // Try to find description in common locations
+
+            // Fall back to door time
+            const doorMatch = text.match(/doors?:?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+            if (doorMatch) {
+              let parsedHours = parseInt(doorMatch[1], 10)
+              const parsedMinutes = doorMatch[2] ? parseInt(doorMatch[2], 10) : 0
+              const ampm = (doorMatch[3] || 'pm').toLowerCase()
+
+              if (ampm === 'pm' && parsedHours < 12) parsedHours += 12
+              if (ampm === 'am' && parsedHours === 12) parsedHours = 0
+
+              startsAt = this.createDateInTimezone(year, month, day, parsedHours, parsedMinutes)
+              console.log(`[${this.config.name}] Updated time for "${title}" (doors): ${parsedHours}:${parsedMinutes.toString().padStart(2, '0')}`)
+              foundTime = true
+            }
+          })
+
+          // Try to find description in common locations
+          if (!finalDescription) {
             const selectors = [
               '.entry-content p',
               '.event-description',
@@ -418,9 +466,9 @@ export class MarigoldScraper extends PlaywrightScraper {
               'article p',
               'main p'
             ]
-            
+
             const descriptionParts: string[] = []
-            
+
             for (const selector of selectors) {
               const elements = $(selector)
               for (let i = 0; i < elements.length; i++) {
@@ -432,7 +480,7 @@ export class MarigoldScraper extends PlaywrightScraper {
               }
               if (descriptionParts.length > 0) break
             }
-            
+
             // If still no description, try to get all paragraph text
             if (descriptionParts.length === 0) {
               $('p').each((_, el) => {
@@ -442,18 +490,24 @@ export class MarigoldScraper extends PlaywrightScraper {
                 }
               })
             }
-            
+
             if (descriptionParts.length > 0) {
               finalDescription = descriptionParts.join(' ').substring(0, 1000) // Limit to 1000 chars
             }
           }
-          
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        } catch (error) {
-          console.log(`[${this.config.name}] Could not fetch description from ${galleryEvent.href}:`, error)
-          // Continue without description
         }
+
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } catch (error) {
+        console.log(`[${this.config.name}] Could not fetch from ${galleryEvent.href}:`, error)
+        // Continue without extra info
+      }
+
+      // Skip cancelled/postponed events
+      if (isCancelled) {
+        console.log(`[${this.config.name}] Skipping cancelled/postponed event: "${title}"`)
+        return null
       }
 
       // Ensure title is not undefined or empty
