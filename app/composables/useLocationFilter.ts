@@ -123,7 +123,7 @@ export function useLocationFilter(
 
   // Flatten to city level (for single-region display)
   const venuesByCity = computed((): CityVenues[] => {
-    if (venuesByRegion.value.length === 1) {
+    if (venuesByRegion.value.length === 1 && venuesByRegion.value[0]) {
       return venuesByRegion.value[0].cities
     }
     return venuesByRegion.value.flatMap(r => r.cities)
@@ -261,12 +261,16 @@ export function useLocationFilter(
 
     // Priority: Show the highest level selections first (regions > cities > venues)
     if (regionCount > 0) {
-      const firstName = getRegionDisplayName(selectedRegions.value[0])
+      const firstRegion = selectedRegions.value[0]
+      if (!firstRegion) return null
+      const firstName = getRegionDisplayName(firstRegion)
       if (regionCount === 1 && cityCount === 0 && venueCount === 0) {
         return firstName
       }
       if (regionCount === 2 && cityCount === 0 && venueCount === 0) {
-        const secondName = getRegionDisplayName(selectedRegions.value[1])
+        const secondRegion = selectedRegions.value[1]
+        if (!secondRegion) return firstName
+        const secondName = getRegionDisplayName(secondRegion)
         return `${firstName} and ${secondName}`
       }
       if (regionCount >= 1) {

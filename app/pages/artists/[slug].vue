@@ -113,7 +113,7 @@ useSeoMeta({
   ogTitle: () => `${artist.value?.name} - Artist`,
   ogDescription: () => seoDescription.value,
   ogUrl: () => canonicalUrl.value,
-  ogType: 'music.musician',
+  ogType: 'profile',
   twitterCard: 'summary',
   twitterTitle: () => `${artist.value?.name} - Artist`,
   twitterDescription: () => seoDescription.value,

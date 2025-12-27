@@ -90,11 +90,11 @@ const venuesByRegion = computed(() => {
       cities: Array.from(citiesMap.entries())
         .map(([city, venuesInCity]) => ({
           city,
-          venues: venuesInCity,
-          totalVenues: venuesInCity.length
+          venues: venuesInCity || [],
+          totalVenues: venuesInCity?.length || 0
         }))
         .sort((a, b) => a.city.localeCompare(b.city)),
-      totalVenues: Array.from(citiesMap.values()).reduce((sum, venuesInCity) => sum + venuesInCity.length, 0)
+      totalVenues: Array.from(citiesMap.values()).reduce((sum, venuesInCity) => sum + (venuesInCity?.length || 0), 0)
     }))
 
   // Sort: current region first, then alphabetically
@@ -133,8 +133,8 @@ const venuesByCity = computed(() => {
   return Array.from(cityMap.entries())
     .map(([city, venuesInCity]) => ({
       city,
-      venues: venuesInCity,
-      totalVenues: venuesInCity.length
+      venues: venuesInCity || [],
+      totalVenues: venuesInCity?.length || 0
     }))
     .sort((a, b) => a.city.localeCompare(b.city))
 })

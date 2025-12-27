@@ -12,7 +12,7 @@ const settings = ref({
   // Profile
   email: '',
   displayName: '',
-  regionId: null as string | null,
+  regionId: undefined as string | undefined,
   // Notifications
   notifyFavoriteArtists: true,
   enableRecommendations: false,
@@ -49,7 +49,7 @@ onMounted(async () => {
     settings.value = {
       email: data.email,
       displayName: data.displayName || '',
-      regionId: data.regionId,
+      regionId: data.regionId ?? undefined,
       notifyFavoriteArtists: data.notifyFavoriteArtists,
       enableRecommendations: data.enableRecommendations,
     }

@@ -388,28 +388,34 @@ const genreLabel = computed(() => {
   if (selectedGenres.value.length === 0) return 'Genre'
 
   // Filter out any undefined values
-  const validGenres = selectedGenres.value.filter(g => g?.label)
+  const validGenres = selectedGenres.value.filter((g): g is { label: string; value: string } => g?.label !== undefined)
 
   if (validGenres.length === 0) return 'Genre'
-  if (validGenres.length === 1) return validGenres[0].label
+  const first = validGenres[0]
+  if (!first) return 'Genre'
+  if (validGenres.length === 1) return first.label
   if (validGenres.length === 2) {
-    return `${validGenres[0].label}, ${validGenres[1].label}`
+    const second = validGenres[1]
+    return second ? `${first.label}, ${second.label}` : first.label
   }
-  return `${validGenres[0].label} and ${validGenres.length - 1} more`
+  return `${first.label} and ${validGenres.length - 1} more`
 })
 
 const eventTypeLabel = computed(() => {
   if (selectedEventTypes.value.length === 0) return 'Type'
 
   // Filter out any undefined values
-  const validTypes = selectedEventTypes.value.filter(t => t?.label)
+  const validTypes = selectedEventTypes.value.filter((t): t is { label: string; value: string } => t?.label !== undefined)
 
   if (validTypes.length === 0) return 'Type'
-  if (validTypes.length === 1) return validTypes[0].label
+  const first = validTypes[0]
+  if (!first) return 'Type'
+  if (validTypes.length === 1) return first.label
   if (validTypes.length === 2) {
-    return `${validTypes[0].label}, ${validTypes[1].label}`
+    const second = validTypes[1]
+    return second ? `${first.label}, ${second.label}` : first.label
   }
-  return `${validTypes[0].label} and ${validTypes.length - 1} more`
+  return `${first.label} and ${validTypes.length - 1} more`
 })
 
 // Get today's CalendarDate
@@ -537,7 +543,7 @@ function applyFilters() {
     ? favorites.value.venues.map(v => v.id)
     : undefined
   const favoriteGenreSlugs = filterByFavoriteGenres.value && favorites.value.genres.length > 0
-    ? favorites.value.genres.map(g => g.slug)
+    ? favorites.value.genres
     : undefined
 
   const filters = {

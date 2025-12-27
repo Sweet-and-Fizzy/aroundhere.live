@@ -2,13 +2,16 @@
 import { nextTick } from 'vue'
 
 defineProps<{
-  venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null }[]
+  venues?: { id: string; name: string; slug: string; city?: string | null; latitude?: number | null; longitude?: number | null }[]
   genres?: string[]
   genreLabels?: Record<string, string>
   facets?: {
     venueCounts: Record<string, number>
     genreCounts: Record<string, number>
     typeCounts: Record<string, number>
+    cityCounts: Record<string, number>
+    cityRegions: Record<string, string>
+    regionNames?: Record<string, string>
     musicCount: number
     nonMusicCount: number
   }

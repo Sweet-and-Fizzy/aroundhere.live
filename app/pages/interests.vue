@@ -100,6 +100,14 @@ function debouncedVenueSearch() {
   venueSearchTimeout = setTimeout(searchVenues, 300)
 }
 
+// Helper functions for blur handlers
+function hideArtistResultsDelayed() {
+  setTimeout(() => { showArtistResults.value = false }, 200)
+}
+function hideVenueResultsDelayed() {
+  setTimeout(() => { showVenueResults.value = false }, 200)
+}
+
 // All available genres for selection, sorted alphabetically
 const allGenres = computed(() => {
   return Object.entries(genreLabels)
@@ -467,7 +475,7 @@ useSeoMeta({
                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 @input="debouncedArtistSearch"
                 @focus="showArtistResults = true"
-                @blur="setTimeout(() => showArtistResults = false, 200)"
+                @blur="hideArtistResultsDelayed"
               >
               <UIcon
                 v-if="artistSearchLoading"
@@ -576,7 +584,7 @@ useSeoMeta({
                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 @input="debouncedVenueSearch"
                 @focus="showVenueResults = true"
-                @blur="setTimeout(() => showVenueResults = false, 200)"
+                @blur="hideVenueResultsDelayed"
               >
               <UIcon
                 v-if="venueSearchLoading"

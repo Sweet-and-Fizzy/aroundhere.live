@@ -453,12 +453,8 @@ useHead({
           eventStatus: 'https://schema.org/EventScheduled',
         }
 
-        // Add event attendance mode if available
-        if (e.eventType) {
-          jsonLd.eventAttendanceMode = e.eventType === 'ONLINE'
-            ? 'https://schema.org/OnlineEventAttendanceMode'
-            : 'https://schema.org/OfflineEventAttendanceMode'
-        }
+        // Add event attendance mode - all events are in-person
+        jsonLd.eventAttendanceMode = 'https://schema.org/OfflineEventAttendanceMode'
 
         // Add venue/location
         if (e.venue) {
@@ -560,7 +556,7 @@ useHead({
             >
               <UButton
                 :icon="event.isCancelled ? 'i-heroicons-arrow-uturn-left' : 'i-heroicons-x-circle'"
-                :color="event.isCancelled ? 'green' : 'red'"
+                :color="event.isCancelled ? 'success' : 'error'"
                 variant="ghost"
                 size="sm"
                 :loading="cancelling"

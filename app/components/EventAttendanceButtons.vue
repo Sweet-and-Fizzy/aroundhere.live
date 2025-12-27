@@ -24,7 +24,7 @@ function promptLogin() {
     description: 'Create an account to mark events and get personalized recommendations.',
     icon: 'i-heroicons-user-circle',
     color: 'info',
-    timeout: 8000,
+    duration: 8000,
     actions: [{
       label: 'Sign in',
       color: 'primary',

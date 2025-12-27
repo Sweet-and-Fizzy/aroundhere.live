@@ -220,6 +220,7 @@ export default defineEventHandler(async (event) => {
   // If we have events and haven't hit the max, extend to include all events from the last day
   if (events.length > 0 && events.length < 100) {
     const lastEvent = events[events.length - 1]
+    if (!lastEvent) throw createError({ statusCode: 500, message: 'No last event found' })
     const lastEventDate = new Date(lastEvent.startsAt)
     // Get the start of the next day
     const nextDay = new Date(lastEventDate)

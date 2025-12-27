@@ -247,7 +247,7 @@ const mappableVenues = computed(() =>
 )
 
 // Calculate center of all venues
-const mapCenter = computed(() => {
+const mapCenter = computed((): [number, number] => {
   const venues = mappableVenues.value
   if (venues.length === 0) return [42.32, -72.63] // Default: Northampton area
 

@@ -288,7 +288,7 @@ function getSpotifyStatusColor(status?: string): string {
             icon="i-heroicons-magnifying-glass"
             size="sm"
             @input="onSearchInput"
-            @keyup.enter="searchResults.length ? addExistingArtist(searchResults[0]) : createAndAddArtist()"
+            @keyup.enter="searchResults.length && searchResults[0] ? addExistingArtist(searchResults[0]) : createAndAddArtist()"
           />
         </div>
         <UButton

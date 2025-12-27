@@ -539,8 +539,7 @@ useSeoMeta({
         ]"
         placeholder="All MusicBrainz"
         value-key="value"
-        class="w-48"
-        :ui="{ trigger: 'cursor-pointer' }"
+        class="w-48 cursor-pointer"
       >
         <template #trailing>
           <UButton
