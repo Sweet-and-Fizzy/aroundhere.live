@@ -7,6 +7,28 @@ const { getGenreLabel, getGenreBadgeClasses, genreLabels } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeBadgeClasses, eventTypeLabels } = useEventTypeLabels()
 const { formatTime, formatDate } = useEventTime()
 const { user } = useUserSession()
+const { attendance } = useEventAttendance()
+
+// Local attendance counts from API response
+const interestedCount = ref(0)
+const goingCount = ref(0)
+
+// Initialize attendance state from API response
+watch(event, (e) => {
+  if (e) {
+    interestedCount.value = e.interestedCount ?? 0
+    goingCount.value = e.goingCount ?? 0
+    // Set user's attendance status in composable state
+    if (e.userAttendanceStatus && e.id) {
+      attendance.value = { ...attendance.value, [e.id]: e.userAttendanceStatus }
+    }
+  }
+}, { immediate: true })
+
+function onAttendanceUpdate(counts: { interestedCount: number; goingCount: number }) {
+  interestedCount.value = counts.interestedCount
+  goingCount.value = counts.goingCount
+}
 
 // Constants
 const DESCRIPTION_THRESHOLD = 400
@@ -731,6 +753,15 @@ useHead({
                     , {{ [event.venue.state, event.venue.postalCode].filter(Boolean).join(' ') }}
                   </template>
                 </p>
+                <!-- Attendance counts -->
+                <p
+                  v-if="interestedCount > 0 || goingCount > 0"
+                  class="text-gray-500 text-sm mt-1"
+                >
+                  <template v-if="interestedCount > 0">{{ interestedCount }} interested</template>
+                  <template v-if="interestedCount > 0 && goingCount > 0">, </template>
+                  <template v-if="goingCount > 0">{{ goingCount }} going</template>
+                </p>
               </div>
 
               <!-- Cover and Age -->
@@ -743,35 +774,41 @@ useHead({
                 </div>
               </div>
 
-              <!-- Tickets and Event Links -->
-              <div
-                v-if="event.ticketUrl || event.sourceUrl"
-                class="flex flex-wrap items-center gap-2"
-              >
-                <UButton
-                  v-if="event.ticketUrl"
-                  :href="event.ticketUrl"
-                  target="_blank"
-                  color="neutral"
-                  variant="soft"
-                  icon="i-heroicons-ticket"
-                  size="xs"
-                  external
-                >
-                  Get Tickets
-                </UButton>
-                <UButton
-                  v-if="event.sourceUrl"
-                  :href="event.sourceUrl"
-                  target="_blank"
-                  color="neutral"
-                  variant="soft"
-                  icon="i-heroicons-arrow-top-right-on-square"
-                  size="xs"
-                  external
-                >
-                  Official Page
-                </UButton>
+              <!-- Tickets, Event Links, and Attendance Buttons -->
+              <div class="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-gray-100">
+                <div class="flex flex-wrap items-center gap-2">
+                  <UButton
+                    v-if="event.ticketUrl"
+                    :href="event.ticketUrl"
+                    target="_blank"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-heroicons-ticket"
+                    size="xs"
+                    external
+                  >
+                    Get Tickets
+                  </UButton>
+                  <UButton
+                    v-if="event.sourceUrl"
+                    :href="event.sourceUrl"
+                    target="_blank"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-heroicons-arrow-top-right-on-square"
+                    size="xs"
+                    external
+                  >
+                    Official Page
+                  </UButton>
+                </div>
+                <EventAttendanceButtons
+                  :event-id="event.id"
+                  show-labels
+                  :interested-count="interestedCount"
+                  :going-count="goingCount"
+                  @update="onAttendanceUpdate"
+                />
               </div>
             </div>
           </UCard>

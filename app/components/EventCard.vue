@@ -56,15 +56,6 @@ const spotifyArtist = computed(() => {
   )?.artist
 })
 
-// For favorites: check if single or multi-artist event
-const hasMultipleArtists = computed(() => {
-  return (props.event.eventArtists?.length || 0) > 1
-})
-
-const singleArtist = computed(() => {
-  if (hasMultipleArtists.value || !props.event.eventArtists?.length) return null
-  return props.event.eventArtists[0].artist
-})
 
 // For display: use summary if available, otherwise truncate description
 const displaySummary = computed(() => {
@@ -110,31 +101,18 @@ const eventTypeLabel = computed(() => {
   >
     <!-- Mobile-first: Stacked layout, horizontal on md+ -->
     <div class="flex flex-col md:flex-row relative">
-      <!-- Spotify + Favorite buttons - top right corner (desktop only, over image) -->
+      <!-- Spotify button - top right corner (desktop only, over image) -->
       <div class="hidden md:flex absolute top-2 right-2 z-10 items-center gap-1">
         <a
           v-if="spotifyArtist"
           :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
           target="_blank"
-          class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors"
+          class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors bg-white/90 backdrop-blur-sm rounded-full"
           title="Listen on Spotify"
           @click.stop
         >
           <SpotifyIcon class="w-5 h-5" />
         </a>
-        <FavoriteButton
-          v-if="singleArtist"
-          type="artist"
-          :id="singleArtist.id"
-          :name="singleArtist.name"
-          :slug="singleArtist.slug"
-          size="md"
-        />
-        <ArtistFavoriteDropdown
-          v-else-if="hasMultipleArtists && event.eventArtists"
-          :event-artists="event.eventArtists"
-          size="md"
-        />
       </div>
       <!-- Image - Full width edge-to-edge on mobile, fixed width on desktop -->
       <!-- Only shows actual event images, not venue logos -->
@@ -212,32 +190,17 @@ const eventTypeLabel = computed(() => {
               {{ event.title }}
             </h3>
           </NuxtLink>
-          <!-- Spotify + Favorite buttons (mobile only, in content area) -->
-          <div class="flex md:hidden items-center gap-1 flex-shrink-0">
-            <a
-              v-if="spotifyArtist"
-              :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
-              target="_blank"
-              class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors"
-              title="Listen on Spotify"
-              @click.stop
-            >
-              <SpotifyIcon class="w-5 h-5" />
-            </a>
-            <FavoriteButton
-              v-if="singleArtist"
-              type="artist"
-              :id="singleArtist.id"
-              :name="singleArtist.name"
-              :slug="singleArtist.slug"
-              size="md"
-            />
-            <ArtistFavoriteDropdown
-              v-else-if="hasMultipleArtists && event.eventArtists"
-              :event-artists="event.eventArtists"
-              size="md"
-            />
-          </div>
+          <!-- Spotify button (mobile only, in content area) -->
+          <a
+            v-if="spotifyArtist"
+            :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
+            target="_blank"
+            class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors md:hidden flex-shrink-0"
+            title="Listen on Spotify"
+            @click.stop
+          >
+            <SpotifyIcon class="w-5 h-5" />
+          </a>
         </div>
 
         <div
@@ -351,30 +314,38 @@ const eventTypeLabel = computed(() => {
         </div>
 
         <!-- Action buttons - Inline on mobile, separate column on lg+ -->
-        <div class="flex flex-wrap gap-2 mt-2 lg:hidden">
-          <UButton
-            v-if="event.ticketUrl"
-            :to="event.ticketUrl"
-            target="_blank"
+        <div class="flex flex-wrap items-center justify-between gap-2 mt-2 lg:hidden">
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-if="event.ticketUrl"
+              :to="event.ticketUrl"
+              target="_blank"
+              size="sm"
+              color="primary"
+              icon="i-heroicons-ticket"
+            >
+              Tickets
+            </UButton>
+            <UButton
+              :to="`/events/${event.slug}`"
+              size="sm"
+              color="neutral"
+              icon="i-heroicons-information-circle"
+            >
+              More Info
+            </UButton>
+          </div>
+          <EventAttendanceButtons
+            :event-id="event.id"
             size="sm"
-            color="primary"
-            icon="i-heroicons-ticket"
-          >
-            Tickets
-          </UButton>
-          <UButton
-            :to="`/events/${event.slug}`"
-            size="sm"
-            color="neutral"
-            icon="i-heroicons-information-circle"
-          >
-            More Info
-          </UButton>
+            show-labels
+            progressive
+          />
         </div>
       </div>
 
       <!-- Actions - Desktop only (hidden on mobile, shown at lg+) -->
-      <div class="hidden lg:flex flex-shrink-0 flex-col justify-center gap-2 p-3 pl-0">
+      <div class="hidden lg:flex flex-shrink-0 flex-col items-end justify-center gap-2 p-3 pl-0">
         <UButton
           v-if="event.ticketUrl"
           :to="event.ticketUrl"
@@ -393,6 +364,12 @@ const eventTypeLabel = computed(() => {
         >
           More Info
         </UButton>
+        <EventAttendanceButtons
+          :event-id="event.id"
+          size="sm"
+          show-labels
+          progressive
+        />
       </div>
     </div>
   </UCard>

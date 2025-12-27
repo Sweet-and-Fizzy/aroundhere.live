@@ -2,6 +2,8 @@ import prisma from '../../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')
+  const session = await getUserSession(event)
+  const userId = session?.user?.id as string | undefined
 
   if (!slug) {
     throw createError({
@@ -78,5 +80,26 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  return eventData
+  // Get attendance counts and user's status in parallel
+  const [interestedCount, goingCount, userAttendance] = await Promise.all([
+    prisma.userEventAttendance.count({
+      where: { eventId: eventData.id, status: 'INTERESTED' },
+    }),
+    prisma.userEventAttendance.count({
+      where: { eventId: eventData.id, status: 'GOING' },
+    }),
+    userId
+      ? prisma.userEventAttendance.findUnique({
+          where: { userId_eventId: { userId, eventId: eventData.id } },
+          select: { status: true },
+        })
+      : null,
+  ])
+
+  return {
+    ...eventData,
+    interestedCount,
+    goingCount,
+    userAttendanceStatus: userAttendance?.status ?? null,
+  }
 })

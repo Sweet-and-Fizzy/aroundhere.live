@@ -14,6 +14,7 @@ function formatDateParam(date: Date): string {
 }
 
 const { updateRegion, region: currentRegion, loaded: regionLoaded } = useCurrentRegion()
+const { loggedIn } = useUserSession()
 
 const emit = defineEmits<{
   filter: [filters: Record<string, any>]
@@ -68,6 +69,9 @@ function loadSavedFilters() {
       if (urlParams.q && typeof urlParams.q === 'string') {
         filters.searchQuery = urlParams.q
       }
+      if (urlParams.myEvents && typeof urlParams.myEvents === 'string') {
+        filters.myEvents = urlParams.myEvents
+      }
 
       // Only return if we found actual filter values
       if (Object.keys(filters).length > 0) {
@@ -110,6 +114,7 @@ function saveFilters() {
       selectedGenres: selectedGenres.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
+      myEvents: myEvents.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
   }
@@ -132,6 +137,9 @@ const selectedGenres = ref<{ label: string; value: string }[]>(savedFilters?.sel
 const selectedEventTypes = ref<{ label: string; value: string }[]>(
   savedFilters?.selectedEventTypes || [{ label: 'All Music', value: 'ALL_MUSIC' }]
 )
+
+// My Events filter - 'interested', 'going', 'all', or null (disabled)
+const myEvents = ref<string | null>(savedFilters?.myEvents || null)
 
 // Use the location filter composable for hierarchical Region → City → Venue selection
 const {
@@ -256,7 +264,8 @@ const hasActiveFilters = computed(() => {
     selectedEventTypes.value.length !== 1 ||
     selectedEventTypes.value[0]?.value !== 'ALL_MUSIC' ||
     datePreset.value !== 'month' ||
-    mapFilteredVenueIds.value !== null
+    mapFilteredVenueIds.value !== null ||
+    myEvents.value !== null
   )
 })
 
@@ -272,6 +281,7 @@ function resetFilters() {
   datePreset.value = 'month'
   customDateRange.value = undefined
   mapFilteredVenueIds.value = null
+  myEvents.value = null
   if (import.meta.client) {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(MAP_BOUNDS_KEY)
@@ -315,6 +325,13 @@ const datePresets = [
   { label: 'Next 7 Days', value: 'week' },
   { label: 'Next 30 Days', value: 'month' },
   { label: 'All Upcoming', value: 'all' },
+]
+
+// My Events filter options
+const myEventsItems = [
+  { label: 'All My Events', value: 'all' },
+  { label: 'Interested', value: 'interested' },
+  { label: 'Going', value: 'going' },
 ]
 
 const genreItems = computed(() =>
@@ -488,6 +505,7 @@ function applyFilters() {
     genres: selectedGenres.value.length > 0 ? selectedGenres.value.map(g => g.value) : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
+    myEvents: myEvents.value || undefined,
   }
 
   emit('filter', filters)
@@ -515,6 +533,7 @@ function updateUrlFromFilters(filters: Record<string, any>) {
   if (filters.q) query.q = filters.q
   if (filters.startDate) query.startDate = filters.startDate
   if (filters.endDate) query.endDate = filters.endDate
+  if (filters.myEvents) query.myEvents = filters.myEvents
 
   // Only update if query changed
   const currentQuery = router.currentRoute.value.query
@@ -550,7 +569,7 @@ function closeCalendar() {
 }
 
 // Auto-apply on changes
-watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes], () => {
+watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes, myEvents], () => {
   applyFilters()
 }, { deep: true })
 
@@ -617,7 +636,7 @@ watch(regionLoaded, (loaded) => {
         />
       </div>
 
-      <!-- Row 2: Type + Genre -->
+      <!-- Row 2: Type + Genre + My Events -->
       <div class="flex gap-2">
         <!-- Event Type Filter -->
         <div class="flex-1 min-w-0">
@@ -682,6 +701,45 @@ watch(regionLoaded, (loaded) => {
               />
             </template>
           </USelectMenu>
+        </div>
+
+        <!-- My Events Filter (only when logged in) -->
+        <div
+          v-if="loggedIn"
+          class="flex-shrink-0"
+        >
+          <UPopover>
+            <UButton
+              :color="myEvents ? 'primary' : 'neutral'"
+              :variant="myEvents ? 'soft' : 'outline'"
+              icon="i-heroicons-star"
+              class="whitespace-nowrap"
+            >
+              {{ myEvents ? myEventsItems.find(i => i.value === myEvents)?.label || 'My Events' : 'My Events' }}
+            </UButton>
+            <template #content>
+              <div class="p-2 space-y-1 w-40">
+                <button
+                  v-for="item in myEventsItems"
+                  :key="item.value"
+                  class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors"
+                  :class="myEvents === item.value
+                    ? 'bg-primary-100 text-primary-700 font-medium'
+                    : 'hover:bg-gray-100 text-gray-700'"
+                  @click="myEvents = item.value"
+                >
+                  {{ item.label }}
+                </button>
+                <button
+                  v-if="myEvents"
+                  class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-500 hover:bg-gray-100 border-t mt-1 pt-2"
+                  @click="myEvents = null"
+                >
+                  Clear filter
+                </button>
+              </div>
+            </template>
+          </UPopover>
         </div>
       </div>
 

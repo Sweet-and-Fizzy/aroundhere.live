@@ -4,7 +4,7 @@
       <div class="text-center mb-8">
         <h1 class="text-2xl font-bold text-gray-900">Create an account</h1>
         <p class="text-sm text-gray-500 mt-2">
-          Already have an account? <NuxtLink to="/login" class="text-primary-600 hover:underline">Sign in</NuxtLink>
+          Already have an account? <NuxtLink :to="loginLink" class="text-primary-600 hover:underline">Sign in</NuxtLink>
         </p>
       </div>
 
@@ -29,7 +29,7 @@
         <!-- Google OAuth Button -->
         <div class="mb-6">
           <a
-            href="/auth/google"
+            :href="googleAuthUrl"
             class="w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
           >
             <svg class="h-5 w-5" viewBox="0 0 24 24">
@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+const route = useRoute()
 const router = useRouter()
 const { fetch: refreshSession } = useUserSession()
 
@@ -142,6 +143,26 @@ const password = ref('')
 const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
+
+// Get redirect URL from query param
+const redirectTo = computed(() => route.query.redirect as string || '/')
+
+// Build login link with redirect preserved
+const loginLink = computed(() => {
+  if (redirectTo.value && redirectTo.value !== '/') {
+    return `/login?redirect=${encodeURIComponent(redirectTo.value)}`
+  }
+  return '/login'
+})
+
+// Build Google OAuth URL with redirect (uses state parameter for OAuth flow)
+const googleAuthUrl = computed(() => {
+  const base = '/auth/google'
+  if (redirectTo.value && redirectTo.value !== '/') {
+    return `${base}?state=${encodeURIComponent(redirectTo.value)}`
+  }
+  return base
+})
 
 const isFormValid = computed(() => {
   return email.value &&
@@ -164,7 +185,7 @@ const handleRegister = async () => {
 
     // Refresh session and redirect
     await refreshSession()
-    router.push('/')
+    router.push(redirectTo.value)
   } catch (err: any) {
     error.value = err.data?.message || 'Failed to create account. Please try again.'
   } finally {

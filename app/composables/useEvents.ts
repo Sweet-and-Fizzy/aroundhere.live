@@ -17,6 +17,8 @@ export interface EventFilters {
   favoriteArtistIds?: string[]
   favoriteVenueIds?: string[]
   favoriteGenres?: string[]
+  // My Events filter
+  myEvents?: string
 }
 
 export type EventType =
@@ -114,6 +116,8 @@ export function useEvents() {
       if (filters.favoriteArtistIds?.length) params.set('favoriteArtistIds', filters.favoriteArtistIds.join(','))
       if (filters.favoriteVenueIds?.length) params.set('favoriteVenueIds', filters.favoriteVenueIds.join(','))
       if (filters.favoriteGenres?.length) params.set('favoriteGenres', filters.favoriteGenres.join(','))
+      // My Events filter
+      if (filters.myEvents) params.set('myEvents', filters.myEvents)
 
       const response = await $fetch<{
         events: Event[]

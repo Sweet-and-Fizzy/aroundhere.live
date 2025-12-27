@@ -109,6 +109,7 @@ function saveFilters() {
       filterByFavoriteArtists: filterByFavoriteArtists.value,
       filterByFavoriteVenues: filterByFavoriteVenues.value,
       filterByFavoriteGenres: filterByFavoriteGenres.value,
+      myEvents: myEvents.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
   }
@@ -218,6 +219,9 @@ const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
 const filterByFavoriteArtists = ref(savedFilters?.filterByFavoriteArtists || false)
 const filterByFavoriteVenues = ref(savedFilters?.filterByFavoriteVenues || false)
 const filterByFavoriteGenres = ref(savedFilters?.filterByFavoriteGenres || false)
+
+// My Events filter - 'interested', 'going', 'all', or null (disabled)
+const myEvents = ref<string | null>(savedFilters?.myEvents || null)
 
 // Use location filter composable for hierarchical filtering
 const {
@@ -384,7 +388,8 @@ const hasActiveFilters = computed(() => {
     selectedCities.value.length > 0 ||
     filterByFavoriteArtists.value ||
     filterByFavoriteVenues.value ||
-    filterByFavoriteGenres.value
+    filterByFavoriteGenres.value ||
+    myEvents.value !== null
   )
 })
 
@@ -400,6 +405,7 @@ const activeFilterCount = computed(() => {
   if (selectedRegions.value.length > 0) count++
   if (selectedCities.value.length > 0) count++
   if (filterByFavoriteArtists.value || filterByFavoriteVenues.value || filterByFavoriteGenres.value) count++
+  if (myEvents.value !== null) count++
   return count
 })
 
@@ -419,6 +425,7 @@ function resetFilters() {
   filterByFavoriteArtists.value = false
   filterByFavoriteVenues.value = false
   filterByFavoriteGenres.value = false
+  myEvents.value = null
   if (import.meta.client) {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(MAP_BOUNDS_KEY)
@@ -567,6 +574,12 @@ function toggleFavoriteVenues() {
 
 function toggleFavoriteGenres() {
   filterByFavoriteGenres.value = !filterByFavoriteGenres.value
+  applyFilters()
+}
+
+// Toggle My Events filter
+function setMyEvents(value: string | null) {
+  myEvents.value = value
   applyFilters()
 }
 
@@ -812,6 +825,8 @@ function applyFilters() {
     favoriteArtistIds,
     favoriteVenueIds,
     favoriteGenres: favoriteGenreSlugs,
+    // My Events filter
+    myEvents: myEvents.value || undefined,
   }
   emit('filter', filters)
 
@@ -1052,6 +1067,80 @@ defineExpose({
           />
           Manage Interests
         </NuxtLink>
+      </div>
+    </div>
+
+    <!-- My Events - show events user marked as interested/going -->
+    <div
+      v-if="loggedIn"
+      class="filter-section"
+    >
+      <button
+        class="section-header"
+        @click="toggleSection('myEvents')"
+      >
+        <span class="section-title">
+          <UIcon
+            name="i-heroicons-star"
+            class="w-4 h-4"
+          />
+          My Events
+        </span>
+        <span class="section-meta">
+          <span
+            v-if="!isSectionExpanded('myEvents') && myEvents"
+            class="section-summary"
+          >{{ myEvents === 'all' ? 'All' : myEvents === 'interested' ? 'Interested' : 'Going' }}</span>
+          <span
+            v-else-if="!isSectionExpanded('myEvents')"
+            class="section-summary muted"
+          >Off</span>
+          <UIcon
+            :name="isSectionExpanded('myEvents') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+            class="w-4 h-4 text-gray-500"
+          />
+        </span>
+      </button>
+      <div
+        v-if="isSectionExpanded('myEvents')"
+        class="section-content"
+      >
+        <p class="text-xs text-gray-500 mb-2">
+          Show only events you've marked
+        </p>
+        <button
+          class="checkbox-option"
+          :class="{ active: myEvents === 'all' }"
+          @click="setMyEvents(myEvents === 'all' ? null : 'all')"
+        >
+          <span
+            class="checkbox"
+            :class="{ checked: myEvents === 'all' }"
+          />
+          <span class="option-label">All My Events</span>
+        </button>
+        <button
+          class="checkbox-option"
+          :class="{ active: myEvents === 'interested' }"
+          @click="setMyEvents(myEvents === 'interested' ? null : 'interested')"
+        >
+          <span
+            class="checkbox"
+            :class="{ checked: myEvents === 'interested' }"
+          />
+          <span class="option-label">Interested</span>
+        </button>
+        <button
+          class="checkbox-option"
+          :class="{ active: myEvents === 'going' }"
+          @click="setMyEvents(myEvents === 'going' ? null : 'going')"
+        >
+          <span
+            class="checkbox"
+            :class="{ checked: myEvents === 'going' }"
+          />
+          <span class="option-label">Going</span>
+        </button>
       </div>
     </div>
 

@@ -45,7 +45,7 @@
         <!-- Google OAuth Button -->
         <div class="mb-6">
           <a
-            href="/auth/google"
+            :href="googleAuthUrl"
             class="w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
           >
             <svg class="h-5 w-5" viewBox="0 0 24 24">
@@ -211,6 +211,18 @@ const error = ref('')
 const success = ref('')
 const loginMethod = ref<'password' | 'magic'>('password')
 
+// Get redirect URL from query param
+const redirectTo = computed(() => route.query.redirect as string || '/')
+
+// Build Google OAuth URL with redirect (uses state parameter for OAuth flow)
+const googleAuthUrl = computed(() => {
+  const base = '/auth/google'
+  if (redirectTo.value && redirectTo.value !== '/') {
+    return `${base}?state=${encodeURIComponent(redirectTo.value)}`
+  }
+  return base
+})
+
 // Check for OAuth errors in URL
 onMounted(() => {
   const urlError = route.query.error as string
@@ -239,7 +251,7 @@ const handlePasswordLogin = async () => {
 
     // Refresh session and redirect
     await refreshSession()
-    router.push('/')
+    router.push(redirectTo.value)
   } catch (err: any) {
     error.value = err.data?.message || 'Failed to sign in. Please try again.'
   } finally {
@@ -255,7 +267,10 @@ const handleMagicLink = async () => {
   try {
     await $fetch('/api/auth/send-magic-link', {
       method: 'POST',
-      body: { email: email.value },
+      body: {
+        email: email.value,
+        redirect: redirectTo.value !== '/' ? redirectTo.value : undefined,
+      },
     })
 
     success.value = 'Check your email for the magic link!'

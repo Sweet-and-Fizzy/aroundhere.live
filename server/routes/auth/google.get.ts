@@ -1,4 +1,4 @@
-import { sendRedirect } from 'h3'
+import { sendRedirect, getQuery } from 'h3'
 import { prisma } from '../../utils/prisma'
 
 export default defineOAuthGoogleEventHandler({
@@ -6,6 +6,10 @@ export default defineOAuthGoogleEventHandler({
     scope: ['email', 'profile'],
   },
   async onSuccess(event, { user: googleUser }) {
+    // Get redirect URL from state parameter (passed through OAuth flow)
+    const query = getQuery(event)
+    // The state parameter contains our redirect URL (passed through Google OAuth)
+    const redirectTo = (query.state as string) || '/'
     const email = googleUser.email?.toLowerCase().trim()
 
     if (!email) {
@@ -79,7 +83,7 @@ export default defineOAuthGoogleEventHandler({
         },
       })
 
-      return sendRedirect(event, '/')
+      return sendRedirect(event, redirectTo)
     } catch (error) {
       console.error('Google OAuth error:', error)
       return sendRedirect(event, '/login?error=auth_failed')

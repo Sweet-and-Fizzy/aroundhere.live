@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto'
 import { prisma } from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ email: string }>(event)
+  const body = await readBody<{ email: string; redirect?: string }>(event)
 
   if (!body.email || !body.email.includes('@')) {
     throw createError({
@@ -48,7 +48,8 @@ export default defineEventHandler(async (event) => {
     // Build magic link
     const config = useRuntimeConfig()
     const baseUrl = config.public.siteUrl || `http://localhost:${process.env.PORT || 3000}`
-    const magicLink = `${baseUrl}/auth/verify?token=${token}`
+    const redirectParam = body.redirect ? `&redirect=${encodeURIComponent(body.redirect)}` : ''
+    const magicLink = `${baseUrl}/auth/verify?token=${token}${redirectParam}`
 
     // Send email
     await sendMagicLinkEmail(email, magicLink)

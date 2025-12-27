@@ -9,6 +9,41 @@ const props = defineProps<{
   activeEventTypes?: string[]
 }>()
 
+// Fetch attendance status for displayed events
+const { loggedIn } = useUserSession()
+const { checkAttendance, attendance } = useEventAttendance()
+
+// Track which event IDs we've already fetched from API
+const fetchedEventIds = new Set<string>()
+
+// Fetch attendance for events we haven't fetched yet
+async function fetchAttendanceForEvents(events: typeof props.events) {
+  if (!loggedIn.value || events.length === 0) return
+
+  // Only fetch for IDs we haven't fetched before AND don't already have data for
+  const newIds = events
+    .map(e => e.id)
+    .filter(id => !fetchedEventIds.has(id) && attendance.value[id] === undefined)
+
+  if (newIds.length > 0) {
+    // Mark as fetched before the API call
+    newIds.forEach(id => fetchedEventIds.add(id))
+    await checkAttendance(newIds)
+  }
+}
+
+// Fetch on mount and when events change
+onMounted(() => {
+  fetchAttendanceForEvents(props.events)
+})
+
+watch(
+  () => props.events,
+  (events) => {
+    fetchAttendanceForEvents(events)
+  }
+)
+
 // Group events by local date for compact view
 const eventsByDate = computed(() => {
   const grouped = new Map<string, Event[]>()

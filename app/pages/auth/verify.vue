@@ -62,7 +62,7 @@
             You're signed in!
           </h2>
           <p class="mt-2 text-gray-600">
-            Redirecting to homepage...
+            Redirecting...
           </p>
         </div>
 
@@ -135,9 +135,10 @@ onMounted(async () => {
 
     success.value = true
 
-    // Redirect to homepage after 2 seconds
+    // Redirect after 2 seconds (to specified redirect URL or homepage)
+    const redirectTo = route.query.redirect as string || '/'
     setTimeout(() => {
-      router.push('/')
+      router.push(redirectTo)
     }, 2000)
   } catch (err: any) {
     error.value = err.data?.message || 'Invalid or expired magic link. Please request a new one.'

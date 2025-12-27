@@ -3,9 +3,19 @@ import prisma from '../../utils/prisma'
 import { setCacheHeaders } from '../../utils/cache'
 
 export default defineEventHandler(async (event) => {
-  setCacheHeaders(event)
-
   const query = getQuery(event)
+
+  // Get user session for "My Events" filter
+  const session = await getUserSession(event)
+  const userId = session?.user?.id as string | undefined
+
+  // My Events filter - filter by user's attendance status
+  const myEvents = query.myEvents as string | undefined
+
+  // Only cache if not using user-specific filters
+  if (!myEvents) {
+    setCacheHeaders(event)
+  }
 
   // Parse query parameters
   const regionId = query.regionId as string | undefined
@@ -50,6 +60,8 @@ export default defineEventHandler(async (event) => {
   // Support both single eventType and multiple eventTypes
   const eventType = query.eventType as string | undefined
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
+
+  console.log('[Events API] myEvents filter:', myEvents, 'userId:', userId)
 
   // If regions are specified, look up region IDs from region names
   let regionIds: string[] | undefined
@@ -110,6 +122,17 @@ export default defineEventHandler(async (event) => {
     ...(state && { venue: { state: { equals: state, mode: 'insensitive' } } }),
     ...(cities && cities.length > 0 && { venue: { city: { in: cities } } }),
     ...(city && !cities && { venue: { city: { contains: city, mode: 'insensitive' } } }),
+    // Filter by user's attendance status
+    ...(myEvents && userId && {
+      userAttendance: {
+        some: {
+          userId,
+          ...(myEvents !== 'all' && {
+            status: myEvents.toUpperCase() as 'INTERESTED' | 'GOING',
+          }),
+        },
+      },
+    }),
   }
 
   // Add favorites filters with OR logic (show events matching ANY favorite type)

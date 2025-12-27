@@ -2,6 +2,7 @@
 const { loggedIn, ready: sessionReady } = useUserSession()
 const { favorites, loading: favoritesLoading } = useFavorites()
 const { events, loading, pagination, searchTotalCount, fetchEvents, searchEvents } = useEvents()
+const { attendance } = useEventAttendance()
 
 // Computed state for hero section - wait for session and favorites to load
 const heroReady = computed(() => {
@@ -43,6 +44,13 @@ watch(viewMode, (newMode) => {
 
 // Track current filters for pagination and facets
 const currentFilters = ref<Record<string, any>>({})
+
+// Refetch when attendance changes and myEvents filter is active
+watch(attendance, () => {
+  if (currentFilters.value.myEvents) {
+    fetchEvents(currentFilters.value)
+  }
+}, { deep: true })
 
 // Ref to sidebar component for calling methods (desktop)
 const sidebarRef = ref<{

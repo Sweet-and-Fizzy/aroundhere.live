@@ -180,6 +180,7 @@ model Event {
   eventSources EventSource[] // All sources that found this event
   spotifyPlaylistTracks SpotifyPlaylistTrack[]
   recommendationLogs    RecommendationLog[]
+  userAttendance        UserEventAttendance[]
 
   @@unique([sourceId, sourceEventId])
   @@index([regionId, startsAt])
@@ -368,6 +369,7 @@ model User {
   favoriteVenues        UserFavoriteVenue[]
   favoriteGenres        UserFavoriteGenre[]
   favoriteEventTypes    UserFavoriteEventType[]
+  eventAttendance       UserEventAttendance[]
   recommendationLogs    RecommendationLog[]
 
   @@map("users")
@@ -433,6 +435,25 @@ model UserFavoriteEventType {
   @@map("user_favorite_event_types")
 }
 
+// User's event attendance status (interested/going)
+model UserEventAttendance {
+  id        String                  @id @default(cuid())
+  userId    String
+  eventId   String
+  status    EventAttendanceStatus
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+  @@map("user_event_attendance")
+}
+
 enum UserRole {
   ADMIN
   MODERATOR
@@ -453,6 +474,11 @@ enum MusicBrainzMatchStatus {
   NEEDS_REVIEW    // Low confidence match, needs human verification
   VERIFIED        // Manually confirmed correct match
   NO_MATCH        // Confirmed not on MusicBrainz or should be skipped
+}
+
+enum EventAttendanceStatus {
+  INTERESTED      // User is considering attending
+  GOING           // User plans to attend
 }
 
 // Login tokens for magic link authentication
