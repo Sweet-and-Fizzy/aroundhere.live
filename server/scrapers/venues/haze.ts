@@ -15,7 +15,7 @@ export const hazeConfig: ScraperConfig = {
   venueSlug: 'haze',
   url: 'https://hazenorthampton.org/',
   enabled: true,
-  schedule: '0 6 * * *',
+  schedule: '0 6,14 * * *',
   category: 'VENUE',
   priority: 10,
   timezone: 'America/New_York',

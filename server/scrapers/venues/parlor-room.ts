@@ -12,7 +12,7 @@ export const parlorRoomConfig: ScraperConfig = {
   venueSlug: 'the-parlor-room',
   url: 'https://ironhorse.org/parlorroomshows/',
   enabled: true,
-  schedule: '0 6 * * *', // 6 AM daily
+  schedule: '0 6,14 * * *', // 6 AM and 2 PM daily
   category: 'VENUE' as const,
   priority: 10,
   timezone: 'America/New_York', // Northampton, MA

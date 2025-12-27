@@ -11,7 +11,7 @@ export const ironHorseConfig: ScraperConfig = {
   venueSlug: 'iron-horse-music-hall',
   url: 'https://ironhorse.org/calendar',
   enabled: true,
-  schedule: '0 6 * * *', // 6 AM daily
+  schedule: '0 6,14 * * *', // 6 AM and 2 PM daily
   category: 'VENUE' as const,
   priority: 10,
   timezone: 'America/New_York', // Northampton, MA

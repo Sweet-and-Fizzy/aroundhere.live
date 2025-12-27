@@ -15,7 +15,7 @@ export const marigoldBrattleboroConfig: ScraperConfig = {
   venueSlug: 'marigold-brattleboro',
   url: 'https://marigold.org/',
   enabled: true,
-  schedule: '0 6 * * *',
+  schedule: '0 6,14 * * *', // 6 AM and 2 PM daily
   category: 'VENUE',
   priority: 10,
   timezone: 'America/New_York',
@@ -64,7 +64,18 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       const brattleboroTag = await this.page.$('.wonderplugin-gridgallery-tag[data-slug="brattleboro"]')
       if (brattleboroTag) {
         await brattleboroTag.click()
-        await this.page.waitForTimeout(1500) // Wait for gallery to filter
+        await this.page.waitForTimeout(2000) // Wait for gallery to filter
+
+        // Scroll to load any lazy-loaded items
+        await this.page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight)
+        })
+        await this.page.waitForTimeout(1000)
+        await this.page.evaluate(() => {
+          window.scrollTo(0, 0)
+        })
+        await this.page.waitForTimeout(500)
+
         console.log(`[${this.config.name}] Clicked Brattleboro Events tab`)
       } else {
         console.log(`[${this.config.name}] Could not find Brattleboro Events tab`)
@@ -87,12 +98,9 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
 
       items.forEach((item) => {
         // Only process visible items (not hidden by category filter)
+        // After clicking the Brattleboro tab, only matching items should be visible
         const style = window.getComputedStyle(item)
-        if (style.display === 'none') return
-
-        // Only get items from "brattleboro" category
-        const category = item.getAttribute('data-category')
-        if (category && category !== 'brattleboro') return
+        if (style.display === 'none' || style.visibility === 'hidden') return
 
         const link = item.querySelector('a')
         if (!link) return
@@ -222,8 +230,10 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
         year = currentYear
       }
 
-      // Default to 8 PM for evening events
-      const startsAt = this.createDateInTimezone(year, month, day, 20, 0)
+      // Default to 8 PM for evening events - will be updated if we find actual time
+      let hours = 20
+      let minutes = 0
+      let startsAt = this.createDateInTimezone(year, month, day, hours, minutes)
 
       // Skip past events
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -286,15 +296,6 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
         description = undefined
       }
 
-      // Generate stable event ID with brattleboro prefix
-      const dateStr = startsAt.toISOString().split('T')[0]
-      const titleSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 50)
-      const sourceEventId = `marigold-brattleboro-${dateStr}-${titleSlug}`
-
       // Normalize URL
       const sourceUrl = galleryEvent.href.startsWith('http')
         ? galleryEvent.href
@@ -353,7 +354,14 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
             showTime?: string
             price?: string
             ageRestriction?: string
+            isCancelled?: boolean
           } = {}
+
+          // Check if event is cancelled (in title or body)
+          const pageText = $('body').text().toLowerCase()
+          if (pageText.includes('cancelled') || pageText.includes('canceled') || pageText.includes('postponed')) {
+            structuredData.isCancelled = true
+          }
 
           // Find paragraphs with emoji-structured data
           $('p').each((_, el) => {
@@ -455,6 +463,30 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
             finalDescription = descParts.join('\n\n').substring(0, 1500)
           }
 
+          // Skip cancelled/postponed events
+          if (structuredData.isCancelled) {
+            console.log(`[${this.config.name}] Skipping cancelled/postponed event: "${title}"`)
+            return null
+          }
+
+          // Update startsAt with actual show time if found
+          const timeStr = structuredData.showTime || structuredData.doorTime
+          if (timeStr) {
+            const timeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+            if (timeMatch) {
+              let parsedHours = parseInt(timeMatch[1], 10)
+              const parsedMinutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0
+              const ampm = (timeMatch[3] || 'pm').toLowerCase()
+
+              if (ampm === 'pm' && parsedHours < 12) parsedHours += 12
+              if (ampm === 'am' && parsedHours === 12) parsedHours = 0
+
+              // Update startsAt with correct time
+              startsAt = this.createDateInTimezone(year, month, day, parsedHours, parsedMinutes)
+              console.log(`[${this.config.name}] Updated time for "${title}": ${parsedHours}:${parsedMinutes.toString().padStart(2, '0')}`)
+            }
+          }
+
           console.log(`[${this.config.name}] Extracted from page: "${title}"`)
         }
 
@@ -475,6 +507,15 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
           title = cleanDateTitle || 'Event'
         }
       }
+
+      // Generate stable event ID with brattleboro prefix (after title/time are finalized)
+      const dateStr = startsAt.toISOString().split('T')[0]
+      const titleSlug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 50)
+      const sourceEventId = `marigold-brattleboro-${dateStr}-${titleSlug}`
 
       return {
         title,

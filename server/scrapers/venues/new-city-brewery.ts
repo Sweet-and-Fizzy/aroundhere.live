@@ -14,7 +14,7 @@ export const newCityBreweryConfig: ScraperConfig = {
   venueSlug: 'new-city-brewery',
   url: 'https://newcitybrewery.com/events-1',
   enabled: true,
-  schedule: '0 6 * * *',
+  schedule: '0 6,14 * * *',
   category: 'VENUE',
   priority: 10,
   timezone: 'America/New_York',
