@@ -508,14 +508,10 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
         }
       }
 
-      // Generate stable event ID with brattleboro prefix (after title/time are finalized)
+      // Generate stable event ID from URL slug (not title, which can vary)
+      const urlSlug = galleryEvent.href.match(/\/([^/]+)\/?$/)?.[1] || ''
       const dateStr = startsAt.toISOString().split('T')[0]
-      const titleSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 50)
-      const sourceEventId = `marigold-brattleboro-${dateStr}-${titleSlug}`
+      const sourceEventId = `marigold-brattleboro-${dateStr}-${urlSlug}`.slice(0, 100)
 
       return {
         title,

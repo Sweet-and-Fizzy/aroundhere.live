@@ -10,18 +10,6 @@ interface GalleryEventData {
   category?: string
 }
 
-interface LdJsonEvent {
-  '@type': string
-  name?: string
-  startDate?: string
-  endDate?: string
-  url?: string
-  location?: { name?: string }
-  image?: string | string[]
-  description?: string
-  offers?: { price?: string; priceCurrency?: string; url?: string }
-  [key: string]: unknown
-}
 import * as cheerio from 'cheerio'
 
 /**
@@ -158,38 +146,8 @@ export class MarigoldScraper extends PlaywrightScraper {
       }
     }
     
-    // Also extract from LD+JSON on main page
-    const ldJsonEvents = await this.page.evaluate((): LdJsonEvent[] => {
-      const events: LdJsonEvent[] = []
-      const scripts = document.querySelectorAll('script[type="application/ld+json"]')
-      scripts.forEach((script) => {
-        try {
-          const data = JSON.parse(script.textContent || '')
-        const items = Array.isArray(data) ? data : [data]
-          items.forEach((item: LdJsonEvent) => {
-          if (item['@type'] === 'Event' || item['@type'] === 'MusicEvent') {
-              events.push(item)
-          }
-          })
-      } catch {
-        // JSON parse failed
-      }
-      })
-      return events
-    })
-
-    for (const item of ldJsonEvents) {
-      const event = this.parseEventSchema(item)
-        if (event) {
-          // Check for duplicates
-          const isDupe = events.some(
-            (e) => e.sourceEventId === event.sourceEventId || (e.title === event.title && e.startsAt.getTime() === event.startsAt.getTime())
-          )
-          if (!isDupe) {
-            events.push(event)
-          }
-        }
-    }
+    // Gallery extraction is sufficient - LD+JSON doesn't respect category filters
+    // and causes duplicates with slightly different titles
 
     return events
   }
@@ -377,19 +335,15 @@ export class MarigoldScraper extends PlaywrightScraper {
         description = undefined
       }
 
-      // Generate stable event ID
-      const dateStr = startsAt.toISOString().split('T')[0]
-      const titleSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 50)
-      const sourceEventId = `marigold-${dateStr}-${titleSlug}`
-
       // Normalize URL
-      const sourceUrl = galleryEvent.href.startsWith('http') 
-        ? galleryEvent.href 
+      const sourceUrl = galleryEvent.href.startsWith('http')
+        ? galleryEvent.href
         : `https://marigold.org${galleryEvent.href}`
+
+      // Generate stable event ID from URL slug (not title, which can vary)
+      const urlSlug = galleryEvent.href.match(/\/([^/]+)\/?$/)?.[1] || ''
+      const dateStr = startsAt.toISOString().split('T')[0]
+      const sourceEventId = `marigold-${dateStr}-${urlSlug}`.slice(0, 100)
 
       // Fetch from event page to get description, check for cancellation, and extract time
       let finalDescription = description
@@ -412,10 +366,18 @@ export class MarigoldScraper extends PlaywrightScraper {
             isCancelled = true
           }
 
-          // Try to find title in h2 (often the event title)
-          const h2Title = $('h2').first().text().trim()
-          if (h2Title && h2Title.length > 5 && (!title || title.length < 5)) {
-            title = h2Title
+          // Primary source: page <title> tag - most reliable
+          // Format: "Event Name – Marigold" or "Event Name - Marigold"
+          const pageTitle = $('title').text().trim()
+          const titleMatch = pageTitle.match(/^(.+?)\s*[–-]\s*Marigold$/i)
+          if (titleMatch && titleMatch[1] && titleMatch[1].length > 3) {
+            title = titleMatch[1].trim()
+          } else {
+            // Fallback: Try to find title in h2
+            const h2Title = $('h2').first().text().trim()
+            if (h2Title && h2Title.length > 5) {
+              title = h2Title
+            }
           }
 
           // Parse time from page content
