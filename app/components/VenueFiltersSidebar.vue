@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import FilterSection from '~/components/filters/FilterSection.vue'
-import LocationFilter from '~/components/filters/LocationFilter.vue'
 
 const props = defineProps<{
   venues?: Array<{

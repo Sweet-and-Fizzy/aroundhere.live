@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, toRef } from 'vue'
-import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
 // Import filter sub-components

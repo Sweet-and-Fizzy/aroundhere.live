@@ -12,7 +12,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string[]]
 }>()
 
-const { getEventTypeLabel, getEventTypeBadgeClasses } = useEventTypeLabels()
+const { getEventTypeLabel } = useEventTypeLabels()
 
 // Event type hierarchy
 const eventTypeHierarchy = {

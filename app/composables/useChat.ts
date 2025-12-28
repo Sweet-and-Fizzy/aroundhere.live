@@ -1,4 +1,3 @@
-import { nextTick } from 'vue'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -41,7 +40,7 @@ export function useChat(options: {
         // Only restore session if it's less than 7 days old
         if (age < SESSION_TTL) {
           sessionId.value = data.sessionId
-          messages.value = data.messages.map((m: any) => ({
+          messages.value = data.messages.map((m: { role: 'user' | 'assistant'; content: string; timestamp: string }) => ({
             ...m,
             timestamp: new Date(m.timestamp),
           }))
@@ -106,23 +105,24 @@ export function useChat(options: {
 
       saveSession()
       options.scrollToBottom?.()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Chat error:', error)
 
       // Format error message based on type
       let errorMessage = 'Sorry, I encountered an error. Please try again.'
+      const httpError = error as { statusCode?: number; statusMessage?: string; data?: { limitType?: string }; name?: string }
 
-      if (error.statusCode === 429) {
-        const limitData = error.data
+      if (httpError.statusCode === 429) {
+        const limitData = httpError.data
         if (limitData?.limitType === 'cost') {
-          errorMessage = error.statusMessage || 'Usage limit reached. Please try again later.'
+          errorMessage = httpError.statusMessage || 'Usage limit reached. Please try again later.'
         } else {
-          errorMessage = error.statusMessage || 'Too many requests. Please wait a moment and try again.'
+          errorMessage = httpError.statusMessage || 'Too many requests. Please wait a moment and try again.'
         }
-      } else if (error.statusCode === 408 || error.name === 'AbortError') {
+      } else if (httpError.statusCode === 408 || httpError.name === 'AbortError') {
         errorMessage = 'Request timed out. Please try again.'
-      } else if (error.statusMessage) {
-        errorMessage = error.statusMessage
+      } else if (httpError.statusMessage) {
+        errorMessage = httpError.statusMessage
       }
 
       messages.value.push({

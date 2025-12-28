@@ -12,7 +12,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string[]]
 }>()
 
-const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
+const { getGenreLabel } = useGenreLabels()
 
 function isSelected(genre: string): boolean {
   return props.modelValue.includes(genre)

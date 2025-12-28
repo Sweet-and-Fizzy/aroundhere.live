@@ -30,7 +30,7 @@ async function locateUser() {
       // Fallback to IP geolocation
       await fallbackToIpGeolocation()
     }
-  } catch (error) {
+  } catch {
     // Fallback to IP geolocation if browser geolocation fails
     await fallbackToIpGeolocation()
   } finally {

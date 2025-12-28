@@ -3,6 +3,8 @@
  * Reduces duplication across 10+ components that use localStorage.
  */
 
+import { readonly, type Ref } from 'vue'
+
 export interface LocalStorageOptions<T> {
   /** Default value if nothing is stored */
   defaultValue: T

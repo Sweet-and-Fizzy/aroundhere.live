@@ -3,6 +3,7 @@
  * Used by EventFilters, EventFiltersSidebar, and other filter components.
  */
 
+import { readonly, type Ref } from 'vue'
 import type {
   FilterState,
   DatePreset,

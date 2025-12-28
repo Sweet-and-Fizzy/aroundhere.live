@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, toRef } from 'vue'
-import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
 // Import filter sub-components
@@ -268,10 +267,6 @@ const venuesWithCoords = computed(() =>
   props.venues?.filter(v => v.latitude && v.longitude) || []
 )
 
-// Show more genres toggle
-const showAllGenres = ref(false)
-const INITIAL_GENRE_COUNT = 8
-
 // Filter genres to only show those with events (count > 0) and that would actually narrow results
 // Sort alphabetically
 const availableGenres = computed(() => {
@@ -290,18 +285,6 @@ const availableGenres = computed(() => {
       return a.localeCompare(b)
     })
 })
-
-const visibleGenres = computed(() => {
-  if (showAllGenres.value) return availableGenres.value
-  return availableGenres.value.slice(0, INITIAL_GENRE_COUNT)
-})
-
-const hasMoreGenres = computed(() => availableGenres.value.length > INITIAL_GENRE_COUNT)
-
-// Get count for a specific event type
-function getTypeCount(type: string): number {
-  return props.facets?.typeCounts?.[type] || 0
-}
 
 // Calculate distance between two points in miles (Haversine formula)
 function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -570,28 +553,6 @@ const hasFavorites = computed(() => {
          favorites.value.genres.length > 0
 })
 
-// Toggle functions for favorites
-function toggleFavoriteArtists() {
-  filterByFavoriteArtists.value = !filterByFavoriteArtists.value
-  applyFilters()
-}
-
-function toggleFavoriteVenues() {
-  filterByFavoriteVenues.value = !filterByFavoriteVenues.value
-  applyFilters()
-}
-
-function toggleFavoriteGenres() {
-  filterByFavoriteGenres.value = !filterByFavoriteGenres.value
-  applyFilters()
-}
-
-// Toggle My Events filter
-function setMyEvents(value: string | null) {
-  myEvents.value = value
-  applyFilters()
-}
-
 // Use venuesByRegion and venuesByCity from composable
 const venuesByRegion = locationVenuesByRegion
 const venuesByCity = locationVenuesByCity
@@ -632,35 +593,6 @@ const showAllVenues = ref(false)
 // Venue search/autocomplete
 const venueSearchQuery = ref('')
 const showVenueDropdown = ref(false)
-const venueSearchInput = ref<HTMLInputElement | null>(null)
-
-// All venues with events (for search - no filtering by whether they narrow results)
-const searchableVenues = computed(() => {
-  const venueCounts = props.facets?.venueCounts ?? {}
-  return (props.venues ?? [])
-    .filter((v) => {
-      // If map filter is active, only show venues in the geographic area
-      if (mapFilteredVenueIds.value !== null && !mapFilteredVenueIds.value.includes(v.id)) {
-        return false
-      }
-      const count = venueCounts[v.id] ?? 0
-      // For search, just check if venue has events
-      return count > 0
-    })
-    .sort((a, b) => a.name.localeCompare(b.name))
-})
-
-// Filtered venues for autocomplete dropdown (excludes already selected)
-const venueSearchResults = computed(() => {
-  if (!venueSearchQuery.value.trim()) return []
-  const query = venueSearchQuery.value.toLowerCase()
-  return searchableVenues.value
-    .filter(v =>
-      !selectedVenueIds.value.includes(v.id) &&
-      v.name.toLowerCase().includes(query)
-    )
-    .slice(0, 6)
-})
 
 // Use selectedVenueObjects from composable
 const selectedVenueObjects = locationSelectedVenueObjects
@@ -689,17 +621,6 @@ function removeVenue(venueId: string) {
   }
 }
 
-function onVenueSearchFocus() {
-  showVenueDropdown.value = true
-}
-
-function onVenueSearchBlur() {
-  // Delay to allow click on dropdown item
-  setTimeout(() => {
-    showVenueDropdown.value = false
-  }, 200)
-}
-
 // Toggle venue selection
 function toggleVenue(venueId: string) {
   const index = selectedVenueIds.value.indexOf(venueId)
@@ -716,13 +637,6 @@ function toggleVenue(venueId: string) {
   }
   applyFilters()
 }
-
-// Get venue count
-function getVenueCount(venueId: string): number {
-  return props.facets?.venueCounts?.[venueId] ?? 0
-}
-
-const todayDate = computed(() => today(getLocalTimeZone()))
 
 function getDateRange(range: string) {
   const now = new Date()
@@ -841,45 +755,6 @@ function applyFilters() {
 
   saveFilters()
   updateUrl()
-}
-
-function toggleGenre(genre: string) {
-  const index = selectedGenres.value.indexOf(genre)
-  if (index === -1) {
-    selectedGenres.value.push(genre)
-  } else {
-    selectedGenres.value.splice(index, 1)
-  }
-  applyFilters()
-}
-
-function toggleEventType(type: string) {
-  // Handle special "All" options
-  if (type === 'ALL_EVENTS' || type === 'ALL_MUSIC') {
-    selectedEventTypes.value = [type]
-  } else {
-    // Remove ALL_EVENTS and ALL_MUSIC when selecting specific types
-    selectedEventTypes.value = selectedEventTypes.value.filter(t => t !== 'ALL_EVENTS' && t !== 'ALL_MUSIC')
-
-    const index = selectedEventTypes.value.indexOf(type)
-    if (index === -1) {
-      selectedEventTypes.value.push(type)
-    } else {
-      selectedEventTypes.value.splice(index, 1)
-    }
-
-    // If nothing selected, default back to ALL_MUSIC
-    if (selectedEventTypes.value.length === 0) {
-      selectedEventTypes.value = ['ALL_MUSIC']
-    }
-  }
-  applyFilters()
-}
-
-function selectDatePreset(preset: string) {
-  datePreset.value = preset
-  showCustomCalendar.value = false
-  applyFilters()
 }
 
 // Watch for custom range selection
