@@ -232,7 +232,9 @@ export class ProgressionBrewingScraper extends HttpScraper {
       } else if (data.meta?.mec_date) {
         startsAt = new Date(data.meta.mec_date)
         if (data.meta.mec_start_time) {
-          const [hours, minutes] = data.meta.mec_start_time.split(':').map(Number)
+          const parts = data.meta.mec_start_time.split(':').map(Number)
+          const hours = parts[0] ?? 19
+          const minutes = parts[1] ?? 0
           startsAt.setHours(hours, minutes)
         }
       }
@@ -469,9 +471,9 @@ export class ProgressionBrewingScraper extends HttpScraper {
       const dateMatch = dateStr.match(/(\d+)\s+(\w+)\s+(\d{4})/)
       if (!dateMatch) return null
 
-      const day = parseInt(dateMatch[1], 10)
-      const monthName = dateMatch[2].toLowerCase()
-      const year = parseInt(dateMatch[3], 10)
+      const day = parseInt(dateMatch[1] ?? '1', 10)
+      const monthName = (dateMatch[2] ?? '').toLowerCase()
+      const year = parseInt(dateMatch[3] ?? '2025', 10)
 
       const months: Record<string, number> = {
         january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
@@ -488,9 +490,9 @@ export class ProgressionBrewingScraper extends HttpScraper {
       if (timeStr) {
         const timeMatch = timeStr.match(/(\d+):(\d+)\s*(am|pm)/i)
         if (timeMatch) {
-          hours = parseInt(timeMatch[1], 10)
-          minutes = parseInt(timeMatch[2], 10)
-          const ampm = timeMatch[3]?.toLowerCase()
+          hours = parseInt(timeMatch[1] ?? '19', 10)
+          minutes = parseInt(timeMatch[2] ?? '0', 10)
+          const ampm = (timeMatch[3] ?? '').toLowerCase()
           if (ampm === 'pm' && hours < 12) hours += 12
           if (ampm === 'am' && hours === 12) hours = 0
         }
@@ -595,15 +597,15 @@ export class ProgressionBrewingScraper extends HttpScraper {
         /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s*(\w+)\s+(\d+),?\s*(\d{4})/i
       )
       if (monthDayYear) {
-        date = new Date(`${monthDayYear[1]} ${monthDayYear[2]}, ${monthDayYear[3]}`)
+        date = new Date(`${monthDayYear[1] ?? ''} ${monthDayYear[2] ?? ''}, ${monthDayYear[3] ?? ''}`)
         if (!isNaN(date.getTime())) {
           // Parse time if provided
           if (timeStr) {
             const timeMatch = timeStr.match(/(\d+):(\d+)\s*(am|pm)?/i)
             if (timeMatch) {
-              let hours = parseInt(timeMatch[1], 10)
-              const minutes = parseInt(timeMatch[2], 10)
-              const ampm = timeMatch[3]?.toLowerCase()
+              let hours = parseInt(timeMatch[1] ?? '19', 10)
+              const minutes = parseInt(timeMatch[2] ?? '0', 10)
+              const ampm = (timeMatch[3] ?? '').toLowerCase()
               if (ampm === 'pm' && hours < 12) hours += 12
               if (ampm === 'am' && hours === 12) hours = 0
               date.setHours(hours, minutes, 0, 0)

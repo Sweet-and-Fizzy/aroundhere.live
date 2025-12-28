@@ -5,12 +5,15 @@
 
 // Human-readable labels for event types
 const EVENT_TYPE_LABELS: Record<string, string> = {
+  'ALL_MUSIC': 'All Music',
+  'ALL_EVENTS': 'All Events',
   'MUSIC': 'Live Music',
   'DJ': 'DJ',
   'OPEN_MIC': 'Open Mic',
   'KARAOKE': 'Karaoke',
   'COMEDY': 'Comedy',
   'THEATER': 'Theater',
+  'TRIVIA': 'Trivia',
   'GAMES': 'Games',
   'DANCE': 'Dance',
   'MARKET': 'Market',
@@ -21,6 +24,9 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   'PRIVATE': 'Private Event',
   'FILM': 'Film',
   'SPOKEN_WORD': 'Spoken Word',
+  'COMMUNITY': 'Community',
+  'FOOD': 'Food',
+  'SPORTS': 'Sports',
   'OTHER': 'Other',
 }
 

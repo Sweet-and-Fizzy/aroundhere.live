@@ -61,7 +61,7 @@ export function mergeVenueData(attempts: Array<{
 
     if (values.length === 1) {
       // Only one attempt provided this field - use it
-      mergedData[field as keyof VenueInfo] = values[0]!.value
+      ;(mergedData as Record<string, unknown>)[field] = values[0]!.value
       sources[field] = values[0]!.attemptNumber
       continue
     }
@@ -72,14 +72,14 @@ export function mergeVenueData(attempts: Array<{
 
     if (uniqueValues.size === 1) {
       // All attempts agree on this value
-      mergedData[field as keyof VenueInfo] = values[0]!.value
+      ;(mergedData as Record<string, unknown>)[field] = values[0]!.value
       sources[field] = latestValue.attemptNumber // Credit last attempt
     } else {
       // Conflict! Different attempts extracted different values
       conflicts.push({ field, values })
 
       // Prefer the value from the latest attempt (most refined code)
-      mergedData[field as keyof VenueInfo] = latestValue.value
+      ;(mergedData as Record<string, unknown>)[field] = latestValue.value
       sources[field] = latestValue.attemptNumber
     }
   }

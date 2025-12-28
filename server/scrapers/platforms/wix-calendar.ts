@@ -94,11 +94,11 @@ export class WixCalendarScraper {
       if (!iframe) {
         const iframeElement = await page.$('iframe[title="Calendar"]')
         if (iframeElement) {
-          iframe = await iframeElement.contentFrame()
+          iframe = await iframeElement.contentFrame() ?? undefined
         }
       }
 
-      return iframe || null
+      return iframe ?? null
     } catch (error) {
       console.error('Failed to find calendar iframe:', error)
       return null
@@ -171,6 +171,7 @@ export class WixCalendarScraper {
     for (let i = 0; i < Math.min(eventElements.length, events.length); i++) {
       const event = events[i]
       const element = eventElements[i]
+      if (!event || !element) continue
 
       try {
         // Click on the event - use force option to bypass iframe overlays
@@ -210,7 +211,11 @@ export class WixCalendarScraper {
 
           detailedEvents.push({
             ...event,
-            details,
+            details: {
+              time: details.time,
+              description: details.description,
+              image: details.image,
+            },
           })
 
           // Close modal - click the close button
@@ -287,8 +292,8 @@ export class WixCalendarScraper {
     // Convert back to CalendarEvent array
     return Array.from(eventMap.values()).map(({ dates, ...event }) => ({
       ...event,
-      date: dates.sort()[0], // Use earliest date as the start date
+      date: dates.sort()[0] ?? '', // Use earliest date as the start date
       isMultiDay: dates.length > 1,
-    }))
+    })) as CalendarEvent[]
   }
 }

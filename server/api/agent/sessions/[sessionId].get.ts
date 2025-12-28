@@ -49,8 +49,8 @@ export default defineEventHandler(async (event) => {
     }
 
     return session
-  } catch (error) {
-    if (error.statusCode) {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'statusCode' in error) {
       throw error
     }
 

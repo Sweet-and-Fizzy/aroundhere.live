@@ -86,6 +86,7 @@
     "vue-eslint-parser": "^10.2.0"
   },
   "lint-staged": {
-    "*.{js,ts,vue}": "eslint --fix"
+    "*.{js,ts,vue}": "eslint --fix",
+    "*.{ts,vue}": "bash -c 'npx vue-tsc --noEmit'"
   }
 }

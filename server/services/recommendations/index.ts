@@ -13,12 +13,16 @@ import { prisma } from '../../utils/prisma'
 // Minimum confidence to include in recommendations
 export const MIN_CONFIDENCE_THRESHOLD = 0.6
 
-// Scoring weights
+// Scoring weights - attendance-based signals get a smaller weight as a boost
 const WEIGHTS = {
-  embeddingSimilarity: 0.4,
-  venueMatch: 0.15,
-  genreOverlap: 0.25,
-  eventTypeMatch: 0.2,
+  embeddingSimilarity: 0.35,
+  venueMatch: 0.12,
+  genreOverlap: 0.20,
+  eventTypeMatch: 0.15,
+  // Attendance-based signals (derived from events user is interested in/going to)
+  attendanceVenueMatch: 0.06,
+  attendanceGenreOverlap: 0.07,
+  attendanceEventTypeMatch: 0.05,
 }
 
 export interface ScoredEvent {
@@ -55,6 +59,11 @@ export interface UserProfile {
   favoriteEventTypes: string[]
   favoriteArtistIds: string[]
   interestDescription: string | null
+  attendingEventIds: string[] // Events user is interested in or going to
+  // Derived from attendance - genres/venues/types the user has shown interest in
+  attendanceGenres: string[]
+  attendanceVenueIds: string[]
+  attendanceEventTypes: string[]
 }
 
 /**
@@ -104,6 +113,48 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     select: { artistId: true },
   })
 
+  // Get events user is attending (interested or going) with event details for signals
+  const attendingEvents = await prisma.userEventAttendance.findMany({
+    where: {
+      userId,
+      event: {
+        startsAt: { gte: new Date() }, // Only future events
+        isCancelled: false,
+      },
+    },
+    select: {
+      eventId: true,
+      status: true,
+      event: {
+        select: {
+          canonicalGenres: true,
+          venueId: true,
+          eventType: true,
+        },
+      },
+    },
+  })
+
+  // Extract characteristics from attended events (weight "GOING" higher)
+  const attendanceGenres = new Set<string>()
+  const attendanceVenueIds = new Set<string>()
+  const attendanceEventTypes = new Set<string>()
+
+  for (const a of attendingEvents) {
+    // Add genres from attended events
+    for (const genre of a.event.canonicalGenres) {
+      attendanceGenres.add(genre)
+    }
+    // Add venue from attended events
+    if (a.event.venueId) {
+      attendanceVenueIds.add(a.event.venueId)
+    }
+    // Add event type from attended events
+    if (a.event.eventType) {
+      attendanceEventTypes.add(a.event.eventType)
+    }
+  }
+
   // Parse the embedding
   let embedding: number[] | null = null
   if (user[0].tasteProfileEmbedding) {
@@ -123,6 +174,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     favoriteEventTypes: favoriteEventTypes.map((t) => t.eventType),
     favoriteArtistIds: favoriteArtists.map((a) => a.artistId),
     interestDescription: user[0].interestDescription,
+    attendingEventIds: attendingEvents.map((a) => a.eventId),
+    // Derived signals from attendance
+    attendanceGenres: Array.from(attendanceGenres),
+    attendanceVenueIds: Array.from(attendanceVenueIds),
+    attendanceEventTypes: Array.from(attendanceEventTypes),
   }
 }
 
@@ -362,18 +418,59 @@ function scoreEvent(
     totalWeight += WEIGHTS.eventTypeMatch
   }
 
+  // Attendance-based signals (boost from events user is interested in/going to)
+  // These are secondary signals that add a boost when matched
+
+  // Attendance venue match - event is at a venue where user is attending another event
+  const attendanceVenueMatch = event.venue && userProfile.attendanceVenueIds.includes(event.venue.id)
+  if (attendanceVenueMatch) {
+    totalScore += 1.0 * WEIGHTS.attendanceVenueMatch
+    totalWeight += WEIGHTS.attendanceVenueMatch
+    // Don't add to reasons - this is a subtle boost
+  } else {
+    totalWeight += WEIGHTS.attendanceVenueMatch
+  }
+
+  // Attendance genre overlap - event has genres the user is attending events for
+  const attendanceGenreOverlap = event.canonicalGenres.filter((g) =>
+    userProfile.attendanceGenres.includes(g)
+  )
+  if (attendanceGenreOverlap.length > 0) {
+    const genreScore = Math.min(1, attendanceGenreOverlap.length / 2)
+    totalScore += genreScore * WEIGHTS.attendanceGenreOverlap
+    totalWeight += WEIGHTS.attendanceGenreOverlap
+    // Only add to reasons if not already covered by favorite genres
+    if (overlappingGenres.length === 0 && attendanceGenreOverlap.length > 0) {
+      reasons.push(`Similar to events you're attending`)
+    }
+  } else {
+    totalWeight += WEIGHTS.attendanceGenreOverlap
+  }
+
+  // Attendance event type match - same type as events user is attending
+  const attendanceEventTypeMatch = event.eventType && userProfile.attendanceEventTypes.includes(event.eventType)
+  if (attendanceEventTypeMatch) {
+    totalScore += 1.0 * WEIGHTS.attendanceEventTypeMatch
+    totalWeight += WEIGHTS.attendanceEventTypeMatch
+  } else {
+    totalWeight += WEIGHTS.attendanceEventTypeMatch
+  }
+
   // Calculate final score
   const score = totalWeight > 0 ? totalScore / totalWeight : 0
 
-  // Confidence is based on how many signals we have
+  // Confidence is based on how many signals we have (including attendance signals)
   const signalCount = [
     embeddingSimilarity !== null,
     event.venue && userProfile.favoriteVenueIds.includes(event.venue.id),
     overlappingGenres.length > 0,
     eventTypeMatch,
+    attendanceVenueMatch,
+    attendanceGenreOverlap.length > 0,
+    attendanceEventTypeMatch,
   ].filter(Boolean).length
 
-  const confidence = Math.min(1, signalCount * 0.2 + score * 0.5)
+  const confidence = Math.min(1, signalCount * 0.15 + score * 0.5)
 
   return {
     event,
@@ -393,11 +490,13 @@ function scoreEventWithoutEmbedding(
 ): ScoredEvent {
   const reasons: string[] = []
   let score = 0
+  let signalCount = 0
 
   // Venue match
   if (event.venue && userProfile.favoriteVenueIds.includes(event.venue.id)) {
-    score += 0.3
+    score += 0.25
     reasons.push(`At ${event.venue.name}, a favorite venue`)
+    signalCount++
   }
 
   // Genre overlap
@@ -405,13 +504,14 @@ function scoreEventWithoutEmbedding(
     userProfile.favoriteGenres.includes(g)
   )
   if (overlappingGenres.length > 0) {
-    score += Math.min(0.4, overlappingGenres.length * 0.15)
+    score += Math.min(0.35, overlappingGenres.length * 0.12)
     reasons.push(`${overlappingGenres.join(', ')} music`)
+    signalCount++
   }
 
   // Event type match
   if (event.eventType && userProfile.favoriteEventTypes.includes(event.eventType)) {
-    score += 0.3
+    score += 0.25
     const eventTypeLabels: Record<string, string> = {
       'MUSIC': 'Live Music',
       'DJ': 'DJ',
@@ -424,9 +524,35 @@ function scoreEventWithoutEmbedding(
     }
     const label = eventTypeLabels[event.eventType] || event.eventType
     reasons.push(`${label} event`)
+    signalCount++
   }
 
-  const confidence = Math.min(1, reasons.length * 0.25 + score * 0.4)
+  // Attendance-based signals (boost from events user is interested in/going to)
+  // Attendance venue match
+  if (event.venue && userProfile.attendanceVenueIds.includes(event.venue.id)) {
+    score += 0.05
+    signalCount++
+  }
+
+  // Attendance genre overlap
+  const attendanceGenreOverlap = event.canonicalGenres.filter((g) =>
+    userProfile.attendanceGenres.includes(g)
+  )
+  if (attendanceGenreOverlap.length > 0) {
+    score += Math.min(0.08, attendanceGenreOverlap.length * 0.04)
+    if (overlappingGenres.length === 0) {
+      reasons.push(`Similar to events you're attending`)
+    }
+    signalCount++
+  }
+
+  // Attendance event type match
+  if (event.eventType && userProfile.attendanceEventTypes.includes(event.eventType)) {
+    score += 0.05
+    signalCount++
+  }
+
+  const confidence = Math.min(1, signalCount * 0.15 + score * 0.4)
 
   return {
     event,

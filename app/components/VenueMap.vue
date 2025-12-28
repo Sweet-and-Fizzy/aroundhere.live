@@ -36,87 +36,35 @@ const emit = defineEmits<{
   centerChanged: [center: MapCenter]
 }>()
 
-// Search and controls state
-const searchQuery = ref('')
-const searchResults = ref<Array<{ name: string; lat: number; lng: number }>>([])
-const showSearchResults = ref(false)
-const isSearching = ref(false)
-const isLocating = ref(false)
+// Component refs
+const locationSearchRef = ref<{ setQuery: (q: string) => void; clearSearch: () => void } | null>(null)
+
+// Controls state
 const searchRadius = ref<number | 'view'>(25) // miles, or 'view' for map extent
 const radiusCircle = ref<LeafletCircle | null>(null)
 const currentCenter = ref<{ lat: number; lng: number } | null>(null)
 
-// Radius options in miles ('view' = map extent)
-const radiusOptions: (number | 'view')[] = ['view', 5, 10, 15, 25, 50, 100]
-
-// Debounced location search using Nominatim
-let searchTimeout: ReturnType<typeof setTimeout>
-async function searchLocation(query: string) {
-  if (!query || query.length < 2) {
-    searchResults.value = []
-    showSearchResults.value = false
-    return
-  }
-
-  isSearching.value = true
-  try {
-    // Search Nominatim for places - bias toward US
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=us&limit=5`,
-      { headers: { 'Accept-Language': 'en' } }
-    )
-    const data = await response.json()
-    searchResults.value = data.map((r: { display_name: string; lat: string; lon: string }) => ({
-      name: r.display_name,
-      lat: parseFloat(r.lat),
-      lng: parseFloat(r.lon),
-    }))
-
-    // Also search venues by name
-    const matchingVenues = props.venues
-      .filter(v => v.latitude && v.longitude && v.name.toLowerCase().includes(query.toLowerCase()))
-      .slice(0, 3)
-      .map(v => ({
-        name: `📍 ${v.name}`,
-        lat: v.latitude!,
-        lng: v.longitude!,
-      }))
-
-    searchResults.value = [...matchingVenues, ...searchResults.value].slice(0, 6)
-    showSearchResults.value = searchResults.value.length > 0
-  } catch (error) {
-    console.error('Location search failed:', error)
-  } finally {
-    isSearching.value = false
-  }
-}
-
-watch(searchQuery, (query) => {
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => searchLocation(query), 300)
-})
-
-function selectSearchResult(result: { name: string; lat: number; lng: number }) {
-  if (!map.value) return
-  showSearchResults.value = false
-  searchResults.value = [] // Clear results to prevent re-showing
-  searchQuery.value = result.name.replace(/📍 /, '').split(',')[0] || '' // Clean up display
-  centerMapAt(result.lat, result.lng)
-}
-
-function hideSearchResults() {
-  // Small delay to allow click events on results to fire first
-  setTimeout(() => {
-    showSearchResults.value = false
-  }, 150)
-}
-
-function centerMapAt(lat: number, lng: number) {
+function centerMapAt(lat: number, lng: number, name?: string) {
   if (!map.value) return
   currentCenter.value = { lat, lng }
   map.value.setView([lat, lng], 11)
   updateRadiusCircle()
   emitCenterChanged()
+  if (name && locationSearchRef.value) {
+    locationSearchRef.value.setQuery(name.split(',')[0] || name)
+  }
+}
+
+function handleLocationSelect(result: { lat: number; lng: number; name: string }) {
+  centerMapAt(result.lat, result.lng, result.name)
+}
+
+function handleLocate(coords: { lat: number; lng: number; name?: string }) {
+  centerMapAt(coords.lat, coords.lng, coords.name || 'My Location')
+}
+
+function handleLocateError(message: string) {
+  alert(message + ' Please search for a location instead.')
 }
 
 function updateRadiusCircle() {
@@ -172,50 +120,6 @@ function onRadiusChange(newRadius: number | 'view') {
   // If switching to view mode, emit visible venues immediately
   if (newRadius === 'view') {
     emitCurrentVisibleVenues()
-  }
-}
-
-// Geolocation - find user's location
-async function locateMe() {
-  if (!map.value) return
-  isLocating.value = true
-
-  // Clear search state to prevent dropdown from showing
-  showSearchResults.value = false
-  searchResults.value = []
-
-  try {
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes cache
-      })
-    })
-
-    const { latitude, longitude } = position.coords
-    // Set query without triggering search by clearing timeout
-    clearTimeout(searchTimeout)
-    searchQuery.value = 'My Location'
-    centerMapAt(latitude, longitude)
-  } catch (error) {
-    console.error('Geolocation failed:', error)
-    // Fallback to IP geolocation
-    try {
-      const response = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
-      if (response.ok) {
-        const data = await response.json()
-        if (data.latitude && data.longitude) {
-          clearTimeout(searchTimeout)
-          searchQuery.value = data.city || 'My Location'
-          centerMapAt(data.latitude, data.longitude)
-        }
-      }
-    } catch {
-      alert('Could not determine your location. Please search for a location instead.')
-    }
-  } finally {
-    isLocating.value = false
   }
 }
 
@@ -456,54 +360,19 @@ onUnmounted(() => {
     >
       <!-- Search Input -->
       <div class="search-container">
-        <div class="search-input-wrapper">
-          <UIcon
-            name="i-heroicons-magnifying-glass"
-            class="search-icon"
-          />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search location or venue..."
-            class="search-input"
-            @focus="showSearchResults = searchResults.length > 0"
-            @blur="hideSearchResults"
-          >
-          <UIcon
-            v-if="isSearching"
-            name="i-heroicons-arrow-path"
-            class="search-spinner"
-          />
-        </div>
-
-        <!-- Search Results Dropdown -->
-        <div
-          v-if="showSearchResults"
-          class="search-results"
-        >
-          <button
-            v-for="result in searchResults"
-            :key="result.name"
-            class="search-result-item"
-            @mousedown.prevent="selectSearchResult(result)"
-          >
-            {{ result.name }}
-          </button>
-        </div>
+        <MapLocationSearch
+          ref="locationSearchRef"
+          :venues="venues"
+          placeholder="Search location or venue..."
+          @select="handleLocationSelect"
+        />
       </div>
 
       <!-- Locate Me Button -->
-      <button
-        class="control-button locate-button"
-        title="Find my location"
-        :disabled="isLocating"
-        @click="locateMe"
-      >
-        <UIcon
-          :name="isLocating ? 'i-heroicons-arrow-path' : 'i-heroicons-map-pin'"
-          :class="{ 'animate-spin': isLocating }"
-        />
-      </button>
+      <MapLocateButton
+        @locate="handleLocate"
+        @error="handleLocateError"
+      />
 
       <!-- Radius Select with Label -->
       <div class="radius-wrapper">
@@ -514,12 +383,15 @@ onUnmounted(() => {
           title="Filter venues by area"
           @change="onRadiusChange(($event.target as HTMLSelectElement).value === 'view' ? 'view' : Number(($event.target as HTMLSelectElement).value))"
         >
+          <option value="view">
+            Visible map
+          </option>
           <option
-            v-for="r in radiusOptions"
-            :key="String(r)"
+            v-for="r in [5, 10, 15, 25, 50, 100]"
+            :key="r"
             :value="r"
           >
-            {{ r === 'view' ? 'Visible map' : `${r} mi radius` }}
+            {{ r }} mi radius
           </option>
         </select>
       </div>
@@ -564,107 +436,6 @@ onUnmounted(() => {
 
 .search-container {
   flex: 1;
-  position: relative;
-}
-
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 0.625rem;
-  width: 1rem;
-  height: 1rem;
-  color: #6b7280;
-  pointer-events: none;
-}
-
-.search-spinner {
-  position: absolute;
-  right: 0.625rem;
-  width: 1rem;
-  height: 1rem;
-  color: #6b7280;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.5rem 0.625rem 0.5rem 2rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  outline: none;
-}
-
-.search-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.search-results {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  max-height: 200px;
-  overflow-y: auto;
-  margin-top: 0.25rem;
-}
-
-.search-result-item {
-  display: block;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  font-size: 0.875rem;
-  color: #374151;
-  background: none;
-  border: none;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.search-result-item:hover {
-  background: #f3f4f6;
-}
-
-.control-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  background: white;
-  color: #374151;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.control-button:hover {
-  background: #f3f4f6;
-}
-
-.control-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .radius-wrapper {

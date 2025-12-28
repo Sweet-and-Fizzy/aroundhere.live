@@ -31,14 +31,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // If regions are specified, look up region IDs from region names
+  // If regions are specified, look up region IDs from region slugs
   let regionIds: string[] | undefined
   if (regions && regions.length > 0) {
     const regionRecords = await prisma.region.findMany({
       where: {
-        name: {
+        slug: {
           in: regions,
-          mode: 'insensitive'
         }
       },
       select: { id: true },

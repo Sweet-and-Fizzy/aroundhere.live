@@ -264,7 +264,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       if (!title || title.length < 5 || looksLikeSlug) {
         // Title is missing or looks like a URL slug - mark it for fetching from page
         const urlMatch = galleryEvent.href.match(/\/([^/]+)\/?$/)
-        if (urlMatch) {
+        if (urlMatch && urlMatch[1]) {
           // For now, use a formatted slug as fallback
           // The real title will be fetched from the page below
           title = urlMatch[1]
@@ -283,7 +283,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       } else {
         // Clean up description - take first line or first 100 chars for title
         // But keep | separators for multi-artist shows in title
-        const firstLine = title.split('\n')[0].trim()
+        const firstLine = (title.split('\n')[0] ?? '').trim()
         // If it has multiple artists separated by |, keep them
         if (firstLine.includes('|')) {
           const parts = firstLine.split('|').map(p => p.trim())
@@ -322,7 +322,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
           // Format: "Event Name – Marigold" or "Event Name - Marigold"
           const pageTitle = $('title').text().trim()
           const titleMatch = pageTitle.match(/^(.+?)\s*[–-]\s*Marigold$/i)
-          if (titleMatch && titleMatch[1].length > 3) {
+          if (titleMatch && titleMatch[1] && titleMatch[1].length > 3) {
             title = titleMatch[1].trim()
           }
 
@@ -477,7 +477,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
           if (timeStr) {
             const timeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
             if (timeMatch) {
-              let parsedHours = parseInt(timeMatch[1], 10)
+              let parsedHours = parseInt(timeMatch[1] ?? '20', 10)
               const parsedMinutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0
               const ampm = (timeMatch[3] || 'pm').toLowerCase()
 
@@ -508,7 +508,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       // Ensure title is not undefined or empty
       if (!title || title.length < 2) {
         const urlMatch = galleryEvent.href.match(/\/([^/]+)\/?$/)
-        if (urlMatch) {
+        if (urlMatch && urlMatch[1]) {
           title = urlMatch[1]
             .split('-')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))

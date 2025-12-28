@@ -64,8 +64,8 @@ export default defineEventHandler(async (event) => {
   try {
     // Execute the scraper with longer timeout for full runs
     const result = await executeScraperCode(
-      config.generatedCode,
-      source.website || config.url || '',
+      config.generatedCode as string,
+      source.website || (config.url as string) || '',
       'America/New_York', // TODO: Get timezone from venue/region
       180000 // 3 minute timeout for full scraper runs
     )
@@ -85,7 +85,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const scrapedEvents: ScrapedEvent[] = result.data || []
+    const scrapedEvents: ScrapedEvent[] = (result.data as ScrapedEvent[]) || []
 
     let savedCount = 0
     let skippedCount = 0

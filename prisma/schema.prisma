@@ -186,6 +186,9 @@ model Event {
   @@index([regionId, startsAt])
   @@index([venueId])
   @@index([reviewStatus])
+  @@index([isMusic])
+  @@index([startsAt])
+  @@index([eventType])
   @@map("events")
 }
 
@@ -451,6 +454,7 @@ model UserEventAttendance {
   @@index([userId])
   @@index([eventId])
   @@index([status])
+  @@index([userId, status])
   @@map("user_event_attendance")
 }
 

@@ -263,7 +263,9 @@ class MusicBrainzService {
       if (!pages) return null
 
       // Get the first (and only) page result
-      const pageId = Object.keys(pages)[0]
+      const pageIds = Object.keys(pages)
+      const pageId = pageIds[0]
+      if (!pageId) return null
       const extract = pages[pageId]?.extract
 
       if (!extract) return null
@@ -325,26 +327,30 @@ function levenshteinDistance(s1: string, s2: string): number {
 
   const dp: number[][] = Array(m + 1)
     .fill(null)
-    .map(() => Array(n + 1).fill(0))
+    .map(() => Array(n + 1).fill(0) as number[])
 
-  for (let i = 0; i <= m; i++) dp[i][0] = i
-  for (let j = 0; j <= n; j++) dp[0][j] = j
+  for (let i = 0; i <= m; i++) {
+    dp[i]![0] = i
+  }
+  for (let j = 0; j <= n; j++) {
+    dp[0]![j] = j
+  }
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       if (s1[i - 1] === s2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1]
+        dp[i]![j] = dp[i - 1]![j - 1]!
       } else {
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1, // deletion
-          dp[i][j - 1] + 1, // insertion
-          dp[i - 1][j - 1] + 1 // substitution
+        dp[i]![j] = Math.min(
+          dp[i - 1]![j]! + 1, // deletion
+          dp[i]![j - 1]! + 1, // insertion
+          dp[i - 1]![j - 1]! + 1 // substitution
         )
       }
     }
   }
 
-  return dp[m][n]
+  return dp[m]![n]!
 }
 
 function sleep(ms: number): Promise<void> {

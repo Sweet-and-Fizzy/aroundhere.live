@@ -206,16 +206,16 @@ export class MarigoldScraper extends PlaywrightScraper {
         jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
         jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
       }
-      const monthStr = dateMatch[1].toLowerCase().slice(0, 3)
+      const monthStr = (dateMatch[1] ?? '').toLowerCase().slice(0, 3)
       const month = monthNames[monthStr]
       if (month === undefined) {
         console.log(`[${this.config.name}] Invalid month: ${monthStr}`)
         return null
       }
-      
-      const day = parseInt(dateMatch[2], 10)
+
+      const day = parseInt(dateMatch[2] ?? '', 10)
       if (isNaN(day) || day < 1 || day > 31) {
-        console.log(`[${this.config.name}] Invalid day: ${dateMatch[2]}`)
+        console.log(`[${this.config.name}] Invalid day: ${dateMatch[2] ?? ''}`)
         return null
       }
       
@@ -242,7 +242,7 @@ export class MarigoldScraper extends PlaywrightScraper {
       const descriptionText = galleryEvent.description.replace(/<[^>]+>/g, ' ')
       const yearMatch = descriptionText.match(/\b(20[2-9]\d)\b/)
       if (yearMatch) {
-        const foundYear = parseInt(yearMatch[1], 10)
+        const foundYear = parseInt(yearMatch[1] ?? '', 10)
         // Validate: year should be reasonable (2020-2030)
         if (foundYear >= 2020 && foundYear <= 2030) {
           // If this year would be in the past but next year wouldn't, use next year
@@ -318,7 +318,7 @@ export class MarigoldScraper extends PlaywrightScraper {
       if (!title || title.length < 5) {
         // Try to extract from URL slug
         const urlMatch = galleryEvent.href.match(/\/([^/]+)\/?$/)
-        if (urlMatch) {
+        if (urlMatch && urlMatch[1]) {
           title = urlMatch[1]
             .split('-')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -328,7 +328,9 @@ export class MarigoldScraper extends PlaywrightScraper {
         }
       } else {
         // Clean up description - take first line or first 100 chars for title
-        title = title.split('\n')[0].split('|')[0].trim().slice(0, 100)
+        const firstLine = title.split('\n')[0]
+        const firstPart = firstLine?.split('|')[0]
+        title = (firstPart ?? title).trim().slice(0, 100)
       }
       
       // If description is empty or very short, we'll need to fetch it from the event page
@@ -423,9 +425,9 @@ export class MarigoldScraper extends PlaywrightScraper {
             // Match show/music time first (preferred)
             const showMatch = text.match(/(?:music|show):?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
             if (showMatch) {
-              let parsedHours = parseInt(showMatch[1], 10)
+              let parsedHours = parseInt(showMatch[1] ?? '0', 10)
               const parsedMinutes = showMatch[2] ? parseInt(showMatch[2], 10) : 0
-              const ampm = (showMatch[3] || 'pm').toLowerCase()
+              const ampm = (showMatch[3] ?? 'pm').toLowerCase()
 
               if (ampm === 'pm' && parsedHours < 12) parsedHours += 12
               if (ampm === 'am' && parsedHours === 12) parsedHours = 0
@@ -439,9 +441,9 @@ export class MarigoldScraper extends PlaywrightScraper {
             // Fall back to door time
             const doorMatch = text.match(/doors?:?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
             if (doorMatch) {
-              let parsedHours = parseInt(doorMatch[1], 10)
+              let parsedHours = parseInt(doorMatch[1] ?? '0', 10)
               const parsedMinutes = doorMatch[2] ? parseInt(doorMatch[2], 10) : 0
-              const ampm = (doorMatch[3] || 'pm').toLowerCase()
+              const ampm = (doorMatch[3] ?? 'pm').toLowerCase()
 
               if (ampm === 'pm' && parsedHours < 12) parsedHours += 12
               if (ampm === 'am' && parsedHours === 12) parsedHours = 0
@@ -509,7 +511,7 @@ export class MarigoldScraper extends PlaywrightScraper {
       if (!title || title.length < 2) {
         // Final fallback - use URL slug
         const urlMatch = galleryEvent.href.match(/\/([^/]+)\/?$/)
-        if (urlMatch) {
+        if (urlMatch && urlMatch[1]) {
           title = urlMatch[1]
             .split('-')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -700,13 +702,13 @@ export class MarigoldScraper extends PlaywrightScraper {
             )
             if (dateMatch && !startsAt) {
               const monthMatch = text.match(/(?:January|February|March|April|May|June|July|August|September|October|November|December)/i)
-              if (monthMatch) {
+              if (monthMatch && monthMatch[0]) {
                 const monthNames: Record<string, number> = {
                   january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
                   july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
                 }
-                const month = monthNames[monthMatch[0].toLowerCase()]
-                const day = parseInt(dateMatch[1], 10)
+                const month = monthNames[monthMatch[0].toLowerCase()] ?? 0
+                const day = parseInt(dateMatch[1] ?? '1', 10)
                 const now = new Date()
                 let year = dateMatch[2] ? parseInt(dateMatch[2], 10) : now.getFullYear()
                 if (!dateMatch[2] && month < now.getMonth()) {
@@ -716,9 +718,9 @@ export class MarigoldScraper extends PlaywrightScraper {
                 let minutes = 0
                 const timeMatch = text.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i)
                 if (timeMatch) {
-                  hours = parseInt(timeMatch[1], 10)
-                  minutes = parseInt(timeMatch[2], 10)
-                  const ampm = timeMatch[3].toLowerCase()
+                  hours = parseInt(timeMatch[1] ?? '20', 10)
+                  minutes = parseInt(timeMatch[2] ?? '0', 10)
+                  const ampm = (timeMatch[3] ?? 'pm').toLowerCase()
                   if (ampm === 'pm' && hours < 12) hours += 12
                   if (ampm === 'am' && hours === 12) hours = 0
                 }
@@ -740,33 +742,33 @@ export class MarigoldScraper extends PlaywrightScraper {
         )
         if (dateMatch) {
           const monthMatch = content.match(/(?:January|February|March|April|May|June|July|August|September|October|November|December)/i)
-          if (monthMatch) {
+          if (monthMatch && monthMatch[0]) {
             const monthNames: Record<string, number> = {
               january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
               july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
             }
-            const month = monthNames[monthMatch[0].toLowerCase()]
-            const day = parseInt(dateMatch[1], 10)
+            const month = monthNames[monthMatch[0].toLowerCase()] ?? 0
+            const day = parseInt(dateMatch[1] ?? '1', 10)
             const now = new Date()
             let year = dateMatch[2] ? parseInt(dateMatch[2], 10) : now.getFullYear()
-            
+
             // If no year specified and month has passed, assume next year
             if (!dateMatch[2] && month < now.getMonth()) {
               year++
             }
-            
+
             // Try to find time in content
             let hours = 20 // Default 8 PM
             let minutes = 0
             const timeMatch = content.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i)
             if (timeMatch) {
-              hours = parseInt(timeMatch[1], 10)
-              minutes = parseInt(timeMatch[2], 10)
-              const ampm = timeMatch[3].toLowerCase()
+              hours = parseInt(timeMatch[1] ?? '20', 10)
+              minutes = parseInt(timeMatch[2] ?? '0', 10)
+              const ampm = (timeMatch[3] ?? 'pm').toLowerCase()
               if (ampm === 'pm' && hours < 12) hours += 12
               if (ampm === 'am' && hours === 12) hours = 0
             }
-            
+
             // Default to 8 PM for evening events
             startsAt = this.createDateInTimezone(year, month, day, hours, minutes)
           }

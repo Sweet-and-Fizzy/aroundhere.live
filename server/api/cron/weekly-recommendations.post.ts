@@ -7,7 +7,7 @@
  * Query params:
  *   dryRun: 'true' to preview without sending emails
  *   limit: max users to process (default: 100)
- *   userId: process a specific user (for testing)
+ *   userId: process a specific user (bypasses lastRecommendationSent check)
  *
  * Sends personalized recommendations in three sections:
  *   1. Favorite artists this week (deterministic)
@@ -16,6 +16,12 @@
  *
  * Recommended crontab:
  *   Wednesday 8am: 0 8 * * 3 curl -sX POST "http://localhost:3000/api/cron/weekly-recommendations?token=$CRON_SECRET"
+ *
+ * Testing:
+ *   To send a test email to a specific user (bypasses the 6-day cooldown):
+ *   curl -X POST "http://localhost:3000/api/cron/weekly-recommendations?userId=USER_ID" -H "Authorization: Bearer $CRON_SECRET"
+ *
+ *   Find user IDs via the database or check server logs for previous sends.
  */
 
 import { verifyCronAuth } from '../../utils/cron-auth'
@@ -36,12 +42,26 @@ interface WeekendListingEvent {
   venue: string
   title: string
   slug: string
+  attendanceStatus?: 'INTERESTED' | 'GOING'
 }
 
 interface WeekendDayListings {
   date: Date
   dayLabel: string
   events: WeekendListingEvent[]
+}
+
+interface UpcomingAttendanceEvent {
+  id: string
+  title: string
+  slug: string
+  startsAt: Date
+  imageUrl: string | null
+  venue: {
+    name: string
+    city: string | null
+  } | null
+  status: 'INTERESTED' | 'GOING'
 }
 
 export default defineEventHandler(async (event) => {
@@ -111,6 +131,11 @@ export default defineEventHandler(async (event) => {
         email: true,
         interestDescription: true,
         regionId: true,
+        region: {
+          select: {
+            timezone: true,
+          },
+        },
       },
       take: limit,
     })
@@ -131,14 +156,19 @@ export default defineEventHandler(async (event) => {
 
         // Section 1: Favorite artist events (deterministic)
         // Note: No region filter - show favorite artists regardless of where they're playing
+        // Use 'now' to exclude events that have already started
         const favoriteArtistEvents = await findFavoriteArtistEvents(
           user.id,
-          todayStart,
+          now,
           favoriteArtistsEnd
         )
 
         // Track event IDs for deduplication across sections
-        const usedEventIds = new Set(favoriteArtistEvents.map((e) => e.event.id))
+        // Include attended events (interested/going) so we don't recommend what they already know about
+        const usedEventIds = new Set([
+          ...favoriteArtistEvents.map((e) => e.event.id),
+          ...userProfile.attendingEventIds,
+        ])
 
         // Section 2 & 3: Get and score candidate events
         let weekendPicks: CuratedEvent[] = []
@@ -146,9 +176,11 @@ export default defineEventHandler(async (event) => {
 
         // Only do AI curation if user has a taste profile
         if (userProfile.tasteProfileEmbedding) {
-          // Weekend candidates - filter by region for discovery, exclude favorite artist events
+          // Weekend candidates - filter by region for discovery, exclude favorite artist events and attended events
+          // Use max of weekendStart and now to exclude past events
+          const weekendQueryStart = weekendStart > now ? weekendStart : now
           const weekendCandidates = await findCandidateEvents(
-            weekendStart,
+            weekendQueryStart,
             weekendEnd,
             Array.from(usedEventIds),
             50,
@@ -194,20 +226,71 @@ export default defineEventHandler(async (event) => {
           }
         }
 
+        // Fetch user's attendance records for upcoming events
+        const userAttendance = await prisma.userEventAttendance.findMany({
+          where: {
+            userId: user.id,
+            event: {
+              startsAt: { gte: todayStart },
+              isCancelled: false,
+            },
+          },
+          select: {
+            eventId: true,
+            status: true,
+            event: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                startsAt: true,
+                imageUrl: true,
+                venue: {
+                  select: {
+                    name: true,
+                    city: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            event: { startsAt: 'asc' },
+          },
+        })
+
+        // Create attendance lookup map
+        const attendanceMap = new Map<string, 'INTERESTED' | 'GOING'>()
+        for (const a of userAttendance) {
+          attendanceMap.set(a.eventId, a.status)
+        }
+
+        // Section: Your Upcoming Events (events user is interested in or going to)
+        const upcomingAttendanceEvents: UpcomingAttendanceEvent[] = userAttendance.map(a => ({
+          id: a.event.id,
+          title: a.event.title,
+          slug: a.event.slug,
+          startsAt: a.event.startsAt,
+          imageUrl: a.event.imageUrl,
+          venue: a.event.venue,
+          status: a.status,
+        }))
+
         // Section 4: Full week listings for user's region
         // Shows all events from today through next 7 days
         let fullWeekendListings: WeekendDayListings[] = []
         if (user.regionId) {
-          const weekListingEnd = new Date(todayStart)
+          const weekListingEnd = new Date(now)
           weekListingEnd.setDate(weekListingEnd.getDate() + 7)
           weekListingEnd.setHours(23, 59, 59, 999)
 
           // Fetch all events for the user's region for the next week
+          // Use 'now' to exclude events that have already started
           const allWeekendEvents = await prisma.event.findMany({
             where: {
               regionId: user.regionId,
               startsAt: {
-                gte: todayStart,
+                gte: now,
                 lte: weekListingEnd,
               },
               isCancelled: false,
@@ -234,53 +317,68 @@ export default defineEventHandler(async (event) => {
             },
           })
 
-          // Group events by day
-          const eventsByDay = new Map<string, typeof allWeekendEvents>()
+          // Group events by day using the region's timezone
+          // Events are stored in UTC but should be displayed in local event time
+          const timezone = user.region?.timezone || 'America/New_York'
+          const eventsByDay = new Map<string, { sortKey: number; events: typeof allWeekendEvents }>()
           for (const event of allWeekendEvents) {
-            const dateKey = event.startsAt.toISOString().split('T')[0]
+            // Format date in region timezone to get the correct local date
+            const dateKey = event.startsAt.toLocaleDateString('en-US', {
+              timeZone: timezone,
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            })
             if (!eventsByDay.has(dateKey)) {
-              eventsByDay.set(dateKey, [])
+              // Use first event's timestamp as sort key for the day
+              eventsByDay.set(dateKey, { sortKey: event.startsAt.getTime(), events: [] })
             }
-            eventsByDay.get(dateKey)!.push(event)
+            eventsByDay.get(dateKey)!.events.push(event)
           }
 
-          // Convert to listing format
+          // Convert to listing format with attendance status, sorted by date
           fullWeekendListings = Array.from(eventsByDay.entries())
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([dateKey, events]) => {
-              const date = new Date(dateKey + 'T12:00:00') // Noon to avoid timezone issues
-              const dayLabel = date.toLocaleDateString('en-US', {
+            .sort(([, a], [, b]) => a.sortKey - b.sortKey)
+            .map(([_dateKey, { events }]) => {
+              // Use the first event's date for the label (they're all on the same day)
+              const dayLabel = events[0].startsAt.toLocaleDateString('en-US', {
+                timeZone: timezone,
                 weekday: 'long',
                 month: 'short',
                 day: 'numeric',
               })
               return {
-                date,
+                date: events[0].startsAt,
                 dayLabel,
                 events: events.map(e => ({
                   time: e.startsAt.toLocaleTimeString('en-US', {
+                    timeZone: timezone,
                     hour: 'numeric',
                     minute: '2-digit',
                   }),
                   venue: e.venue?.name || 'TBA',
                   title: e.title,
                   slug: e.slug,
+                  attendanceStatus: attendanceMap.get(e.id),
                 })),
               }
             })
         }
 
         // Check if we have any content to send
+        // Attendance alone is not enough - we need recommendations OR listings
+        // Attendance is supplemental info shown alongside other content
         const totalRecs = favoriteArtistEvents.length + weekendPicks.length + comingUpPicks.length
         const totalListings = fullWeekendListings.reduce((sum, day) => sum + day.events.length, 0)
+        const totalAttendance = upcomingAttendanceEvents.length
         if (totalRecs === 0 && totalListings === 0) {
-          console.log(`[Weekly Recommendations] User ${user.email}: No content, skipping`)
+          console.log(`[Weekly Recommendations] User ${user.email}: No recommendations or listings, skipping (${totalAttendance} attendance events)`)
           results.usersSkipped++
           continue
         }
 
         console.log(
-          `[Weekly Recommendations] User ${user.email}: ${favoriteArtistEvents.length} favorites, ${weekendPicks.length} weekend, ${comingUpPicks.length} coming up, ${totalListings} listings`
+          `[Weekly Recommendations] User ${user.email}: ${favoriteArtistEvents.length} favorites, ${weekendPicks.length} weekend, ${comingUpPicks.length} coming up, ${totalAttendance} attending, ${totalListings} listings`
         )
 
         if (dryRun) {
@@ -292,6 +390,7 @@ export default defineEventHandler(async (event) => {
             favoriteArtistEvents,
             weekendPicks,
             comingUpPicks,
+            upcomingAttendanceEvents,
             fullWeekendListings,
           })
 
