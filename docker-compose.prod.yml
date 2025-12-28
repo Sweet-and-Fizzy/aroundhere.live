@@ -50,6 +50,8 @@ services:
              touch /var/log/cron.log &&
              crontab /etc/cron.d/aroundhere &&
              crond -f -l 2"
+    environment:
+      - CRON_SECRET=${CRON_SECRET}
     volumes:
       - ./docker/crontab:/etc/cron.d/aroundhere:ro
     networks:
