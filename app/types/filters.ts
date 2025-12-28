@@ -3,19 +3,33 @@
  */
 
 // Event types and type groups
-export type EventType = 'MUSIC' | 'DJ' | 'OPEN_MIC' | 'KARAOKE' | 'COMEDY' | 'THEATER' | 'TRIVIA'
-export type EventTypeGroup = 'ALL_MUSIC' | 'ALL_EVENTS'
+export type EventType =
+  | 'MUSIC' | 'DJ' | 'OPEN_MIC' | 'KARAOKE'  // Music types
+  | 'COMEDY' | 'THEATER' | 'TRIVIA' | 'GAMES' | 'PRIVATE' | 'FILM'  // Other types
+  | 'SPOKEN_WORD' | 'DANCE' | 'MARKET' | 'WORKSHOP' | 'PARTY' | 'SPORTS'
+  | 'COMMUNITY' | 'FOOD' | 'DRAG' | 'FITNESS' | 'OTHER'
+
+export type EventTypeGroup = 'ALL_EVENTS' | 'ALL_MUSIC' | 'OTHER_EVENTS'
 export type EventTypeSelection = EventType | EventTypeGroup
 
 // All valid event types including groups
-export const EVENT_TYPES: EventType[] = ['MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE', 'COMEDY', 'THEATER', 'TRIVIA']
-export const EVENT_TYPE_GROUPS: EventTypeGroup[] = ['ALL_MUSIC', 'ALL_EVENTS']
+export const EVENT_TYPES: EventType[] = [
+  'MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE',
+  'COMEDY', 'THEATER', 'TRIVIA', 'GAMES', 'PRIVATE', 'FILM',
+  'SPOKEN_WORD', 'DANCE', 'MARKET', 'WORKSHOP', 'PARTY', 'SPORTS',
+  'COMMUNITY', 'FOOD', 'DRAG', 'FITNESS', 'OTHER'
+]
+export const EVENT_TYPE_GROUPS: EventTypeGroup[] = ['ALL_EVENTS', 'ALL_MUSIC', 'OTHER_EVENTS']
 export const ALL_EVENT_TYPE_SELECTIONS: EventTypeSelection[] = [...EVENT_TYPE_GROUPS, ...EVENT_TYPES]
 
 // Music-related event types (for ALL_MUSIC group)
 export const MUSIC_EVENT_TYPES: EventType[] = ['MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE']
-// Non-music event types (for ALL_EVENTS minus ALL_MUSIC)
-export const NON_MUSIC_EVENT_TYPES: EventType[] = ['COMEDY', 'THEATER', 'TRIVIA']
+// Non-music event types (for OTHER_EVENTS group)
+export const NON_MUSIC_EVENT_TYPES: EventType[] = [
+  'COMEDY', 'THEATER', 'TRIVIA', 'GAMES', 'PRIVATE', 'FILM',
+  'SPOKEN_WORD', 'DANCE', 'MARKET', 'WORKSHOP', 'PARTY', 'SPORTS',
+  'COMMUNITY', 'FOOD', 'DRAG', 'FITNESS', 'OTHER'
+]
 
 // Date presets
 export type DatePreset = 'today' | 'tomorrow' | 'weekend' | 'week' | 'month' | 'all'

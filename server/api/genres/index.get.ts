@@ -48,7 +48,7 @@ export default defineEventHandler(async () => {
   const genreSet = new Set<string>()
   for (const event of events) {
     for (const genre of event.canonicalGenres) {
-      if (CANONICAL_GENRES.includes(genre)) {
+      if ((CANONICAL_GENRES as readonly string[]).includes(genre)) {
         genreSet.add(genre)
       }
     }

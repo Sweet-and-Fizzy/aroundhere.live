@@ -3,6 +3,7 @@
  * Generates scrapers iteratively using LLMs
  */
 
+import type { Prisma } from '@prisma/client'
 import { llmService } from '../llm'
 import { prisma } from '../../utils/prisma'
 import { validateScraperCode, extractCode } from './validator'
@@ -386,7 +387,7 @@ export class AgentService {
           type: 'execution',
           message: `Execution succeeded in ${execution.executionTime}ms`,
           data: {
-            preview: sessionType === 'VENUE_INFO' ? execution.data : { eventCount: execution.data?.length || 0 }
+            preview: sessionType === 'VENUE_INFO' ? execution.data : { eventCount: Array.isArray(execution.data) ? execution.data.length : 0 }
           },
         })
 
@@ -397,8 +398,8 @@ export class AgentService {
         })
 
         const evaluation = sessionType === 'VENUE_INFO'
-          ? evaluateVenueData(execution.data)
-          : evaluateEventData(execution.data)
+          ? evaluateVenueData(execution.data as VenueInfo | null | undefined)
+          : evaluateEventData(execution.data as Record<string, unknown>[] | null | undefined)
 
         addThinking({
           type: 'evaluation',
@@ -459,7 +460,7 @@ export class AgentService {
               codeHash,
               executionStatus: 'SUCCESS',
               executionTime: execution.executionTime,
-              scrapedData: execution.data,
+              scrapedData: execution.data as Prisma.InputJsonValue,
               fieldsFound: evaluation.fieldsFound,
               fieldsMissing: evaluation.fieldsMissing,
               completenessScore: evaluation.completenessScore,
@@ -483,7 +484,7 @@ export class AgentService {
         if (evaluation.completenessScore > bestScore) {
           bestScore = evaluation.completenessScore
           bestCode = generatedCode
-          bestData = execution.data
+          bestData = execution.data as VenueInfo | Record<string, unknown>[] | null
           bestEvaluation = evaluation
 
           // Update session with current best data for real-time preview

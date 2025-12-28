@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
   const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
   const musicOnly = query.musicOnly !== 'false'
+  const nonMusicOnly = query.nonMusicOnly === 'true'
   const limit = Math.min(parseInt(query.limit as string) || 20, 50)
 
   if (!q) {
@@ -104,7 +105,9 @@ export default defineEventHandler(async (event) => {
     filterConditions.push({ eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } })
   }
 
-  if (musicOnly) {
+  if (nonMusicOnly) {
+    filterConditions.push({ isMusic: false })
+  } else if (musicOnly) {
     filterConditions.push({
       OR: [
         { isMusic: true },

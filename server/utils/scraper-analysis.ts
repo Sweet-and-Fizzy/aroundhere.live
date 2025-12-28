@@ -88,11 +88,11 @@ export function analyzeEventFields(events: ScrapedEvent[]): FieldsAnalysis {
   }
 
   // Calculate required fields coverage
-  const requiredCoverage = REQUIRED_FIELDS.map(f => coverage[f].percentage)
+  const requiredCoverage = REQUIRED_FIELDS.map(f => coverage[f]?.percentage ?? 0)
   const requiredFieldsCoverage = requiredCoverage.reduce((sum, p) => sum + p, 0) / REQUIRED_FIELDS.length
 
   // Calculate optional fields coverage
-  const optionalCoverage = OPTIONAL_FIELDS.map(f => coverage[f].percentage)
+  const optionalCoverage = OPTIONAL_FIELDS.map(f => coverage[f]?.percentage ?? 0)
   const optionalFieldsCoverage = optionalCoverage.reduce((sum, p) => sum + p, 0) / OPTIONAL_FIELDS.length
 
   // Overall completeness score (weighted: 70% required, 30% optional)

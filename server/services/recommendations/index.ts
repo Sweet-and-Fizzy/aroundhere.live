@@ -398,7 +398,7 @@ function scoreEvent(
 
   // Event type match
   const eventTypeMatch = event.eventType && userProfile.favoriteEventTypes.includes(event.eventType)
-  if (eventTypeMatch) {
+  if (eventTypeMatch && event.eventType) {
     totalScore += 1.0 * WEIGHTS.eventTypeMatch
     totalWeight += WEIGHTS.eventTypeMatch
     // Human-readable event type names

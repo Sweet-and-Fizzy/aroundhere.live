@@ -73,7 +73,10 @@ async function fetchVersions() {
         await loadVersion(activeVersion.id)
       } else {
         // No active version, load the first one (most recent)
-        await loadVersion(versions.value[0].id)
+        const firstVersion = versions.value[0]
+        if (firstVersion) {
+          await loadVersion(firstVersion.id)
+        }
       }
     }
   } catch (error: any) {
@@ -428,18 +431,19 @@ function compareWithPrevious(versionIndex: number) {
   const currentVersion = versions.value[versionIndex]
   const previousVersion = versions.value[versionIndex + 1]
 
+  if (!currentVersion || !previousVersion) return
   openDiffComparison(previousVersion.id, currentVersion.id)
 }
 
 // Update scraper mode
-async function updateScraperMode(mode: ScraperMode) {
+async function updateScraperMode(mode: ScraperMode | string) {
   try {
     savingMode.value = true
     await $fetch(`/api/scrapers/${sourceId}/config`, {
       method: 'PUT',
       body: { scraperMode: mode },
     })
-    scraperMode.value = mode
+    scraperMode.value = mode as ScraperMode
     toast.add({
       title: 'Mode Updated',
       description: `Scraper mode set to "${mode}"`,
@@ -602,7 +606,7 @@ function adaptEventForCard(event: any, index: number) {
             :loading="savingMode"
             size="sm"
             class="w-40"
-            @update:model-value="updateScraperMode"
+            @update:model-value="(val) => updateScraperMode(String(val))"
           />
         </div>
         <UButton
@@ -941,10 +945,10 @@ function adaptEventForCard(event: any, index: number) {
               <div class="flex items-center gap-4 text-sm">
                 <span><strong>Events Found:</strong> {{ testResults.eventCount }}</span>
                 <span><strong>Execution Time:</strong> {{ (testResults.executionTime / 1000).toFixed(1) }}s</span>
-                <span><strong>Completeness:</strong> {{ (testResults.fieldsAnalysis.completenessScore * 100).toFixed(0) }}%</span>
+                <span v-if="testResults.fieldsAnalysis"><strong>Completeness:</strong> {{ (testResults.fieldsAnalysis.completenessScore * 100).toFixed(0) }}%</span>
               </div>
 
-              <div>
+              <div v-if="testResults.fieldsAnalysis">
                 <p class="text-sm font-medium mb-2">
                   Field Coverage:
                 </p>
@@ -993,7 +997,7 @@ function adaptEventForCard(event: any, index: number) {
                 </div>
               </div>
 
-              <div v-if="testResults.events.length > 0">
+              <div v-if="testResults.events && testResults.events.length > 0">
                 <p class="text-sm font-medium mb-3">
                   Preview (showing first 3 of {{ testResults.events.length }} events):
                 </p>

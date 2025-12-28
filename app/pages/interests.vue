@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
+
 definePageMeta({
   middleware: ['auth'],
 })
@@ -134,6 +136,18 @@ const allEventTypes = computed(() => {
 const interestDescription = ref('')
 const originalInterestDescription = ref('')
 const savingInterest = ref(false)
+// eslint-disable-next-line no-undef
+const interestTextarea = ref<HTMLTextAreaElement | null>(null)
+
+// Auto-resize textarea to fit content
+function autoResizeTextarea() {
+  const textarea = interestTextarea.value
+  if (!textarea) return
+  // Reset height to auto to get the correct scrollHeight
+  textarea.style.height = 'auto'
+  // Set height to scrollHeight, respecting max-height from CSS
+  textarea.style.height = `${textarea.scrollHeight}px`
+}
 
 // Load interest description on mount
 onMounted(async () => {
@@ -141,6 +155,9 @@ onMounted(async () => {
     const data = await $fetch('/api/user/preferences')
     interestDescription.value = data.interestDescription || ''
     originalInterestDescription.value = data.interestDescription || ''
+    // Resize textarea after content loads
+    await nextTick()
+    autoResizeTextarea()
   } catch (e) {
     console.error('Failed to load preferences:', e)
   }
@@ -349,11 +366,14 @@ useSeoMeta({
           </p>
           <div @focusout="saveInterestDescription">
             <textarea
+              ref="interestTextarea"
               v-model="interestDescription"
-              rows="2"
+              rows="1"
               maxlength="500"
               placeholder="e.g., I love indie rock and folk music. Jazz is growing on me lately."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none overflow-hidden"
+              style="min-height: 2.5rem; max-height: 10rem;"
+              @input="autoResizeTextarea"
             />
           </div>
           <div class="flex items-center justify-between">

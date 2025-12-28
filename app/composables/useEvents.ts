@@ -11,6 +11,7 @@ export interface EventFilters {
   offset?: number
   limit?: number
   musicOnly?: boolean
+  nonMusicOnly?: boolean
   eventType?: string
   eventTypes?: string[]
   // Favorites filters
@@ -110,6 +111,7 @@ export function useEvents() {
       if (filters.offset) params.set('offset', filters.offset.toString())
       if (filters.limit) params.set('limit', filters.limit.toString())
       if (filters.musicOnly !== undefined) params.set('musicOnly', filters.musicOnly.toString())
+      if (filters.nonMusicOnly) params.set('nonMusicOnly', 'true')
       if (filters.eventType) params.set('eventType', filters.eventType)
       if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
       // Favorites filters
@@ -157,6 +159,7 @@ export function useEvents() {
       if (filters.venueIds?.length) params.set('venueIds', filters.venueIds.join(','))
       if (filters.eventTypes?.length) params.set('eventTypes', filters.eventTypes.join(','))
       if (filters.musicOnly !== undefined) params.set('musicOnly', filters.musicOnly.toString())
+      if (filters.nonMusicOnly) params.set('nonMusicOnly', 'true')
       if (filters.limit) params.set('limit', filters.limit.toString())
 
       const response = await $fetch<{

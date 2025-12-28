@@ -308,6 +308,7 @@ class SpotifyService {
       genres: artist.genres,
       images: artist.images,
       external_urls: artist.external_urls,
+      uri: artist.uri,
     }
   }
 

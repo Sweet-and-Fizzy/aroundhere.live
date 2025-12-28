@@ -5,8 +5,9 @@
 
 // Human-readable labels for event types
 const EVENT_TYPE_LABELS: Record<string, string> = {
-  'ALL_MUSIC': 'All Music',
   'ALL_EVENTS': 'All Events',
+  'ALL_MUSIC': 'All Music',
+  'OTHER_EVENTS': 'All Other Events',
   'MUSIC': 'Live Music',
   'DJ': 'DJ',
   'OPEN_MIC': 'Open Mic',

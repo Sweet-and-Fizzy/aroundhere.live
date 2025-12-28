@@ -88,7 +88,7 @@ async function saveEditing() {
     })
 
     // Update local event data
-    event.value.eventType = editEventType.value
+    event.value.eventType = editEventType.value as typeof event.value.eventType
     event.value.canonicalGenres = editGenres.value
 
     isEditing.value = false

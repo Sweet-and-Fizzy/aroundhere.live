@@ -6,13 +6,14 @@
 import { Queue } from 'bullmq'
 import { getProducerConnection } from './connection'
 import type { VenueInfo } from '../services/agent/types'
+import type { LLMProvider } from '../services/llm/types'
 
 // Job data types
 export interface GenerateVenueJobData {
   type: 'generate-venue'
   url: string
   sessionId: string
-  llmProvider: string
+  llmProvider: LLMProvider
   llmModel: string
   maxIterations: number
   userFeedback?: string
@@ -22,7 +23,7 @@ export interface GenerateEventsJobData {
   type: 'generate-events'
   url: string
   sessionId: string
-  llmProvider: string
+  llmProvider: LLMProvider
   llmModel: string
   maxIterations: number
   venueInfo: VenueInfo
@@ -36,7 +37,7 @@ export interface ImproveScraperJobData {
   sourceId: string
   sessionId: string
   url: string
-  llmProvider: string
+  llmProvider: LLMProvider
   llmModel: string
   maxIterations: number
   venueInfo: VenueInfo
@@ -100,7 +101,6 @@ export const addScraperJob = async (
 
   return queue.add(data.type, data, {
     jobId,
-    timeout: options?.timeout || 10 * 60 * 1000, // 10 minute default timeout
     priority: options?.priority,
   })
 }

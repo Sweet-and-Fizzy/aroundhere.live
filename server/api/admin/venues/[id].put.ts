@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
     console.error('Error updating venue:', error)
     throw createError({
       statusCode: 500,
-      message: `Failed to update venue: ${error.message}`,
+      message: `Failed to update venue: ${error instanceof Error ? error.message : 'Unknown error'}`,
     })
   }
 })

@@ -69,6 +69,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     emailFrom: process.env.EMAIL_FROM || 'AroundHere <whatsup@aroundhere.live>',
     superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
     // Session configuration for nuxt-auth-utils
+    // Note: password is set via NUXT_SESSION_PASSWORD env variable at runtime
+    // @ts-expect-error password is required by SessionConfig but provided via env
     session: {
       maxAge: 60 * 60 * 24 * 30, // 30 days in seconds
       cookie: {
@@ -91,7 +93,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
   // Nuxt UI configuration
   ui: {
-    safelistColors: ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose', 'gray', 'neutral'],
+    theme: {
+      colors: ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose', 'gray', 'neutral', 'primary', 'secondary', 'success', 'info', 'warning', 'error'],
+    },
   },
 
   // Vite configuration for cache busting

@@ -236,7 +236,7 @@ export async function runAIScrapers(): Promise<RunnerResult[]> {
         180000 // 3 minute timeout
       )
 
-      const scrapedEvents: ScrapedEvent[] = execResult.data || []
+      const scrapedEvents: ScrapedEvent[] = (execResult.data as ScrapedEvent[]) || []
       let savedEvents = 0
       let skippedEvents = 0
 

@@ -26,7 +26,7 @@ export function createChatTools(userId?: string) {
   return {
   search_events: tool({
     description:
-      'Search for live music events, concerts, and shows. Use this when the user asks about events, shows, concerts, what\'s happening, or wants to find specific performances.',
+      'Search for events including concerts, theater, comedy, film screenings, art shows, and other cultural events. Use this when the user asks about events, shows, what\'s happening, or wants to find specific performances.',
     inputSchema: z.object({
       q: z.string().optional().describe('Search query - artist name, venue, genre keyword, or general term'),
       startDate: z.string().optional().describe('Start date in YYYY-MM-DD format. Defaults to today. For monthly queries like "January", use the first day of that month.'),
@@ -88,7 +88,7 @@ export function createChatTools(userId?: string) {
 
   list_venues: tool({
     description:
-      'Get a list of music venues. Use when the user asks about venues, places to see shows, or needs venue information.',
+      'Get a list of venues including music venues, theaters, galleries, and other event spaces. Use when the user asks about venues, places to see shows, or needs venue information.',
     inputSchema: z.object({
       city: z.string().optional().describe('Filter venues by city name (e.g., "Northampton", "Amherst", "Brattleboro")'),
       state: z.string().optional().describe('Filter venues by US state abbreviation (e.g., "MA", "VT")'),
@@ -225,7 +225,7 @@ export function createChatTools(userId?: string) {
 
   list_genres: tool({
     description:
-      'Get available music genres with event counts. Use when the user asks what types of music or genres are available.',
+      'Get available genres and event categories with event counts. Use when the user asks what types of music, events, or genres are available.',
     inputSchema: z.object({
       _placeholder: z.string().optional().describe('No parameters needed'),
     }),

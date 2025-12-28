@@ -242,14 +242,6 @@ export class StoneChurchScraper extends PlaywrightScraper {
             }
           }
 
-          // Get ticket URL from button
-          let ticketUrl: string | null = null
-          const ticketBtn = modal.querySelector('.vp-btn-tickets') as HTMLButtonElement
-          if (ticketBtn) {
-            // The button might have an onclick or data attribute with the URL
-            ticketUrl = ticketBtn.getAttribute('data-url') || null
-          }
-
           // Get artists/lineup
           const artistNames: string[] = []
           modal.querySelectorAll('.vp-artist-row h2').forEach(h2 => {
@@ -267,10 +259,24 @@ export class StoneChurchScraper extends PlaywrightScraper {
             dateText,
             ageText,
             imageUrl,
-            ticketUrl,
             artistNames,
           }
         })
+
+        // Get ticket URL by clicking the button and intercepting the popup
+        let ticketUrl: string | undefined
+        try {
+          const ticketBtn = this.page.locator('.vp-event-listing .vp-btn-tickets')
+          if (await ticketBtn.count() > 0) {
+            const popupPromise = this.page.waitForEvent('popup', { timeout: 3000 })
+            await ticketBtn.click({ timeout: 2000 })
+            const popup = await popupPromise
+            ticketUrl = popup.url()
+            await popup.close()
+          }
+        } catch {
+          // Ticket button might not exist or popup didn't open - that's ok
+        }
 
         // Close modal by clearing the hash
         await this.page.evaluate(() => { window.location.hash = '' })
@@ -373,8 +379,7 @@ export class StoneChurchScraper extends PlaywrightScraper {
           sourceUrl: sourceEventUrl,
           sourceEventId,
           imageUrl: modalData.imageUrl || undefined,
-          // Only set ticketUrl if we found a real one (VenuePilot handles tickets via JS)
-          ticketUrl: modalData.ticketUrl || undefined,
+          ticketUrl,
         })
 
         console.log(`[${this.config.name}] Extracted: ${title} @ ${startsAt.toISOString().split('T')[0]}`)

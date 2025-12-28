@@ -10,6 +10,7 @@
  * Admin/moderator only
  */
 
+import type { EventType } from '@prisma/client'
 import { prisma } from '../../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
@@ -76,14 +77,14 @@ export default defineEventHandler(async (event) => {
   // Build update data
   const updateData: {
     updatedAt: Date
-    eventType?: string
+    eventType?: EventType
     canonicalGenres?: string[]
   } = {
     updatedAt: new Date(),
   }
 
   if (eventType !== undefined) {
-    updateData.eventType = eventType
+    updateData.eventType = eventType as EventType
   }
 
   if (canonicalGenres !== undefined) {

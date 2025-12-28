@@ -143,7 +143,7 @@ export const startScraperWorker = () => {
           }
 
           default:
-            throw new Error(`Unknown job type: ${job.data.type}`)
+            throw new Error(`Unknown job type: ${(job.data as { type: string }).type}`)
         }
 
         // Update final progress

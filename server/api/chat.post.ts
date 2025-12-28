@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { Prisma } from '@prisma/client'
 import { generateText, stepCountIs } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { getRequestIP } from 'h3'
@@ -136,7 +137,7 @@ export default defineEventHandler(async (event) => {
           llmCallsCount: result.steps?.length ?? 1,
           model: CHAT_MODEL,
           toolsUsed,
-          toolInputs,
+          toolInputs: toolInputs as unknown as Prisma.InputJsonValue,
           responseText,
           latencyMs,
         },

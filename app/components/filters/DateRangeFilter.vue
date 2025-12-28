@@ -36,8 +36,8 @@ function selectPreset(value: string) {
   }
 }
 
-function handleCustomRangeSelect(range: CalendarDateRange) {
-  emit('update:customRange', range)
+function handleCustomRangeSelect(range: DateRange | null) {
+  emit('update:customRange', range ?? undefined)
   if (range?.start && range?.end) {
     emit('update:modelValue', 'custom')
     showCustomCalendar.value = false
@@ -81,7 +81,8 @@ const customRangeLabel = computed(() => {
       v-if="showCustomCalendar"
       class="mt-3 p-3 bg-gray-50 rounded-lg"
     >
-      <RangeCalendar
+      <UCalendar
+        range
         :model-value="customRange"
         :min-value="today(getLocalTimeZone())"
         class="rounded-lg border bg-white"

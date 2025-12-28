@@ -70,7 +70,9 @@ export default defineEventHandler(async (event) => {
   // Classification filters
   // By default, only show music events (isMusic=true or null for unclassified)
   // Pass musicOnly=false to include non-music events
+  // Pass nonMusicOnly=true to show only non-music events
   const musicOnly = query.musicOnly !== 'false'
+  const nonMusicOnly = query.nonMusicOnly === 'true'
   // Support both single eventType and multiple eventTypes
   const eventType = query.eventType as string | undefined
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
@@ -101,10 +103,19 @@ export default defineEventHandler(async (event) => {
     reviewStatus: { in: ['APPROVED', 'PENDING'] },
     isCancelled: false,
     // Filter by music/non-music
-    // musicOnly=true (default): only isMusic=true (exclude unclassified)
+    // musicOnly=true (default): only isMusic=true
+    // nonMusicOnly=true: only isMusic=false (non-music events)
     // musicOnly=false: show all classified events (music AND non-music)
     // If specific event types are requested, don't filter by isMusic
-    ...(!eventType && !eventTypes && musicOnly && {
+    ...(!eventType && !eventTypes && nonMusicOnly && {
+      isMusic: false,
+      // Exclude PRIVATE events, but allow null eventType
+      OR: [
+        { eventType: { not: 'PRIVATE' as const } },
+        { eventType: null }
+      ]
+    }),
+    ...(!eventType && !eventTypes && musicOnly && !nonMusicOnly && {
       isMusic: true,
       // Exclude PRIVATE events, but allow null eventType
       OR: [
@@ -112,7 +123,7 @@ export default defineEventHandler(async (event) => {
         { eventType: null }
       ]
     }),
-    ...(!eventType && !eventTypes && !musicOnly && {
+    ...(!eventType && !eventTypes && !musicOnly && !nonMusicOnly && {
       isMusic: { not: null }, // Only show classified events
       OR: [
         { eventType: { not: 'PRIVATE' as const } },

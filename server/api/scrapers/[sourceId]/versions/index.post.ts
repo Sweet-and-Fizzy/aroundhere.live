@@ -207,7 +207,7 @@ export default defineEventHandler(async (event) => {
       warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
     }
   } catch (error) {
-    if (error.statusCode) {
+    if (error && typeof error === 'object' && 'statusCode' in error) {
       throw error
     }
 

@@ -167,7 +167,7 @@ function parseAIResponse(
     // Extract JSON from response (handle markdown code blocks)
     let jsonStr = content
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (jsonMatch) {
+    if (jsonMatch?.[1]) {
       jsonStr = jsonMatch[1].trim()
     } else {
       // Try to find raw JSON array

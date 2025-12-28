@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
       updatedAt: version.updatedAt,
     }
   } catch (error) {
-    if (error.statusCode) {
+    if (error && typeof error === 'object' && 'statusCode' in error) {
       throw error
     }
 

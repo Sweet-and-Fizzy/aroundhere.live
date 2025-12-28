@@ -339,16 +339,18 @@ export default defineEventHandler(async (event) => {
           // Convert to listing format with attendance status, sorted by date
           fullWeekendListings = Array.from(eventsByDay.entries())
             .sort(([, a], [, b]) => a.sortKey - b.sortKey)
+            .filter(([, { events }]) => events.length > 0)
             .map(([_dateKey, { events }]) => {
               // Use the first event's date for the label (they're all on the same day)
-              const dayLabel = events[0].startsAt.toLocaleDateString('en-US', {
+              const firstEvent = events[0]!
+              const dayLabel = firstEvent.startsAt.toLocaleDateString('en-US', {
                 timeZone: timezone,
                 weekday: 'long',
                 month: 'short',
                 day: 'numeric',
               })
               return {
-                date: events[0].startsAt,
+                date: firstEvent.startsAt,
                 dayLabel,
                 events: events.map(e => ({
                   time: e.startsAt.toLocaleTimeString('en-US', {

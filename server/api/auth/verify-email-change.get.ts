@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Check if it's an email change token
-  if (!loginToken.email.startsWith('change:')) {
+  if (!loginToken.email?.startsWith('change:')) {
     throw createError({
       statusCode: 400,
       message: 'Invalid token type',
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Extract the new email
-  const newEmail = loginToken.email.replace('change:', '')
+  const newEmail = loginToken.email!.replace('change:', '')
 
   // Check if email is still available (in case someone else took it)
   const existingUser = await prisma.user.findUnique({
@@ -55,6 +55,14 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 400,
       message: 'This email address is no longer available',
+    })
+  }
+
+  // Ensure token has a user
+  if (!loginToken.userId) {
+    throw createError({
+      statusCode: 400,
+      message: 'Invalid token - no associated user',
     })
   }
 

@@ -768,9 +768,12 @@ function renderEventGrid(
 
   const rows: string[] = []
   for (let i = 0; i < items.length; i += 2) {
-    const card1 = renderEventCard(items[i], baseUrl, isFavoriteArtist)
-    const card2 = items[i + 1]
-      ? renderEventCard(items[i + 1], baseUrl, isFavoriteArtist)
+    const item1 = items[i]
+    const item2 = items[i + 1]
+    if (!item1) continue
+    const card1 = renderEventCard(item1, baseUrl, isFavoriteArtist)
+    const card2 = item2
+      ? renderEventCard(item2, baseUrl, isFavoriteArtist)
       : '<td style="width: 50%; padding: 8px;"></td>'
     rows.push(`<tr>${card1}${card2}</tr>`)
   }
@@ -849,9 +852,12 @@ function renderUpcomingAttendance(
   // Render as 2-column grid like recommendations
   const rows: string[] = []
   for (let i = 0; i < events.length; i += 2) {
-    const card1 = renderAttendanceCard(events[i], baseUrl)
-    const card2 = events[i + 1]
-      ? renderAttendanceCard(events[i + 1], baseUrl)
+    const event1 = events[i]
+    const event2 = events[i + 1]
+    if (!event1) continue
+    const card1 = renderAttendanceCard(event1, baseUrl)
+    const card2 = event2
+      ? renderAttendanceCard(event2, baseUrl)
       : '<td style="width: 50%; padding: 8px;"></td>'
     rows.push(`<tr>${card1}${card2}</tr>`)
   }

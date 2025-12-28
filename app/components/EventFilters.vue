@@ -490,24 +490,36 @@ function applyFilters() {
   // Get event types from multi-select (already string array)
   let eventTypes = [...selectedEventTypes.value]
 
-  // ALL_EVENTS means no filtering by type
-  const showAllEvents = eventTypes.includes('ALL_EVENTS')
+  // Empty array means show all events (no filtering by type)
+  const showAllEvents = eventTypes.length === 0
 
-  // ALL_MUSIC means filter by isMusic=true (don't expand to specific types)
+  // ALL_MUSIC means filter by isMusic=true
   const showAllMusic = eventTypes.includes('ALL_MUSIC')
 
-  // If ALL_MUSIC is selected, don't send specific event types
-  // Instead, rely on musicOnly=true to filter by isMusic field
-  if (showAllMusic && !showAllEvents) {
-    // Remove ALL_MUSIC from the list, keep any other specific types
-    eventTypes = eventTypes.filter(t => t !== 'ALL_MUSIC')
-  }
+  // OTHER_EVENTS means filter by isMusic=false (non-music events only)
+  const showOtherEvents = eventTypes.includes('OTHER_EVENTS')
 
-  // Determine musicOnly flag
-  // - ALL_EVENTS: musicOnly=false (show all events)
-  // - ALL_MUSIC: musicOnly=true (show only music events via isMusic field)
-  // - Specific types: musicOnly=undefined (let specific types determine results)
-  const musicOnly = showAllEvents ? false : (showAllMusic && eventTypes.length === 0) ? true : undefined
+  // Remove meta-types from the list - they're handled via musicOnly/nonMusicOnly
+  eventTypes = eventTypes.filter(t => t !== 'ALL_MUSIC' && t !== 'OTHER_EVENTS')
+
+  // Determine musicOnly and nonMusicOnly flags
+  // - showAllEvents (empty selection): musicOnly=false (show all events)
+  // - ALL_MUSIC only: musicOnly=true (show only music events)
+  // - OTHER_EVENTS only: nonMusicOnly=true (show only non-music events)
+  // - Specific types: let event types determine results
+  let musicOnly: boolean | undefined = undefined
+  let nonMusicOnly: boolean | undefined = undefined
+
+  if (showAllEvents) {
+    musicOnly = false
+  } else if (showAllMusic && !showOtherEvents && eventTypes.length === 0) {
+    musicOnly = true
+  } else if (showOtherEvents && !showAllMusic && eventTypes.length === 0) {
+    nonMusicOnly = true
+  } else if (eventTypes.length > 0) {
+    // Specific event types selected - don't filter by music/non-music
+    musicOnly = false
+  }
 
   // Get favorite IDs if favorites filters are enabled
   const favoriteArtistIds = filterByFavoriteArtists.value && favorites.value.artists.length > 0
@@ -530,6 +542,7 @@ function applyFilters() {
     genres: selectedGenres.value.length > 0 ? selectedGenres.value : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
+    nonMusicOnly,
     myEvents: myEvents.value || undefined,
     favoriteArtistIds,
     favoriteVenueIds,

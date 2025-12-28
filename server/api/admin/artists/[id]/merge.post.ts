@@ -140,7 +140,7 @@ export default defineEventHandler(async (event) => {
           spotifyName: sourceArtist.spotifyName,
           spotifyMatchConfidence: sourceArtist.spotifyMatchConfidence,
           spotifyMatchStatus: sourceArtist.spotifyMatchStatus,
-          spotifyPopularTracks: sourceArtist.spotifyPopularTracks,
+          spotifyPopularTracks: sourceArtist.spotifyPopularTracks ?? undefined,
           spotifyTracksUpdatedAt: sourceArtist.spotifyTracksUpdatedAt,
         },
       })

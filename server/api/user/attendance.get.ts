@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   const upcoming = query.upcoming === 'true'
 
   // Build where clause
-  const where: Prisma.EventAttendanceWhereInput = { userId }
+  const where: Prisma.UserEventAttendanceWhereInput = { userId }
 
   if (status && ['INTERESTED', 'GOING'].includes(status)) {
     where.status = status

@@ -131,7 +131,7 @@ export function extractArtistNames(title: string): string[] {
   // Strip long descriptions after the first sentence-like break
   // e.g., "Band Name Get up and get ready..." -> "Band Name"
   const longDescMatch = workingTitle.match(/^([^.!?]{10,60})\s+[A-Z][a-z]+\s+[a-z]+\s+[a-z]+/)
-  if (longDescMatch) {
+  if (longDescMatch?.[1]) {
     workingTitle = longDescMatch[1].trim()
   }
 
@@ -277,7 +277,7 @@ function isNonArtist(text: string): boolean {
  */
 export function extractArtistName(title: string): string | null {
   const artists = extractArtistNames(title)
-  return artists.length > 0 ? artists[0] : null
+  return artists.length > 0 ? (artists[0] ?? null) : null
 }
 
 /**
@@ -372,6 +372,7 @@ export async function extractAndLinkArtists(
 
   for (let i = 0; i < artistNames.length; i++) {
     const artistName = artistNames[i]
+    if (!artistName) continue
     const slug = slugify(artistName)
     if (!slug || slug.length < 2) continue
 
@@ -425,5 +426,5 @@ export async function extractAndLinkArtist(
   eventTitle: string
 ): Promise<{ artistId: string; artistName: string } | null> {
   const results = await extractAndLinkArtists(prisma, eventId, eventTitle)
-  return results.length > 0 ? results[0] : null
+  return results.length > 0 ? (results[0] ?? null) : null
 }

@@ -407,9 +407,9 @@ async function retryWithFeedback() {
           if (session.status === 'SUCCESS') {
             status.value = 'success'
             if (sessionType.value === 'VENUE_INFO') {
-              venueData.value = session.venueData || null
+              venueData.value = (session.venueData as VenueInfo) || null
             } else {
-              eventData.value = session.eventData || null
+              eventData.value = (session.eventData as any[]) || null
             }
             completenessScore.value = session.completenessScore || 0
             return
@@ -608,7 +608,7 @@ async function startVenueInfoScraper() {
           const session = await $fetch(`/api/agent/session/${sessionId.value}`)
           if (session.status === 'SUCCESS') {
             status.value = 'success'
-            venueData.value = session.venueData || null
+            venueData.value = (session.venueData as VenueInfo) || null
             completenessScore.value = session.completenessScore || 0
             showEventScraper.value = true
             return
@@ -724,7 +724,7 @@ async function startEventScraper() {
           const session = await $fetch(`/api/agent/session/${sessionId.value}`)
           if (session.status === 'SUCCESS') {
             status.value = 'success'
-            eventData.value = session.eventData || null
+            eventData.value = (session.eventData as any[]) || null
             completenessScore.value = session.completenessScore || 0
             return
           } else if (session.status === 'FAILED') {

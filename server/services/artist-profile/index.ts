@@ -300,12 +300,12 @@ function averageEmbeddings(embeddings: number[][]): number[] {
 
   for (const emb of embeddings) {
     for (let i = 0; i < dim; i++) {
-      avg[i] += emb[i]!
+      avg[i]! += emb[i]!
     }
   }
 
   for (let i = 0; i < dim; i++) {
-    avg[i] /= embeddings.length
+    avg[i]! /= embeddings.length
   }
 
   return avg

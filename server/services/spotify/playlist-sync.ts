@@ -8,6 +8,7 @@
  * - Orders by event date (soonest first)
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 import { spotifyService } from './index'
 import type { PopularTrack } from './types'
@@ -140,7 +141,7 @@ export async function syncPlaylist(playlistId: string): Promise<SyncResult> {
           await prisma.artist.update({
             where: { id: artist.id },
             data: {
-              spotifyPopularTracks: tracks as unknown, // Cast to unknown for Prisma JSON field
+              spotifyPopularTracks: tracks as unknown as Prisma.InputJsonValue, // Cast for Prisma JSON field
               spotifyTracksUpdatedAt: new Date(),
             },
           })

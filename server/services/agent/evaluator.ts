@@ -64,7 +64,7 @@ function detectEventQualityIssues(event: Record<string, unknown>): DataQualityIs
   // Check for invalid/past dates
   if (event.startsAt) {
     try {
-      const date = new Date(event.startsAt)
+      const date = new Date(event.startsAt as string | number | Date)
       const now = new Date()
       const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -130,8 +130,8 @@ function formatEventSample(events: Record<string, unknown>[], maxEvents: number 
     for (const field of fieldsToShow) {
       if (event[field] !== undefined && event[field] !== null) {
         let value = event[field]
-        if (value instanceof Date || (typeof value === 'object' && value.constructor?.name === 'Date')) {
-          value = new Date(value).toISOString()
+        if (value instanceof Date || (typeof value === 'object' && value !== null && (value as { constructor?: { name?: string } }).constructor?.name === 'Date')) {
+          value = new Date(value as string | number | Date).toISOString()
         } else if (typeof value === 'string' && value.length > 80) {
           value = value.substring(0, 77) + '...'
         }
@@ -255,7 +255,7 @@ export function evaluateEventData(events: Record<string, unknown>[] | null | und
         // Special handling for dates - check for Date-like objects from VM sandbox
         if (field === 'startsAt') {
           const isValidDate = (value instanceof Date && !isNaN(value.getTime())) ||
-            (typeof value === 'object' && value.constructor?.name === 'Date' && !isNaN(new Date(value).getTime())) ||
+            (typeof value === 'object' && (value as { constructor?: { name?: string } }).constructor?.name === 'Date' && !isNaN(new Date(value as string | number | Date).getTime())) ||
             (typeof value === 'string' && !isNaN(Date.parse(value)))
           if (isValidDate) {
             fieldCounts[field] = (fieldCounts[field] || 0) + 1
@@ -273,7 +273,7 @@ export function evaluateEventData(events: Record<string, unknown>[] | null | und
         if (field === 'doorsAt' || field === 'endsAt') {
           // Handle Date-like objects from VM sandbox
           const isValidDate = (value instanceof Date && !isNaN(value.getTime())) ||
-            (typeof value === 'object' && value.constructor?.name === 'Date' && !isNaN(new Date(value).getTime())) ||
+            (typeof value === 'object' && (value as { constructor?: { name?: string } }).constructor?.name === 'Date' && !isNaN(new Date(value as string | number | Date).getTime())) ||
             (typeof value === 'string' && !isNaN(Date.parse(value)))
           if (isValidDate) {
             fieldCounts[field] = (fieldCounts[field] || 0) + 1

@@ -130,6 +130,8 @@ export function processDescriptions(
  */
 export function cleanEventTitle(title: string): string {
   const cleaned = title
+    // Remove status prefixes like "(SOLD OUT)", "(CANCELED)", "(POSTPONED)", etc.
+    .replace(/^\s*\((?:SOLD\s*OUT|CANCELED|CANCELLED|POSTPONED|RESCHEDULED|NEW\s*DATE|MOVED)\)\s*/i, '')
     // Remove generic category prefixes like "Live music: " or "Live Music - "
     .replace(/^(?:live\s+music|music|comedy|theater|performance|show)\s*[:\-–—]\s*/i, '')
     // Remove date prefixes like "Saturday December 20th - " or "Friday, January 3rd - "

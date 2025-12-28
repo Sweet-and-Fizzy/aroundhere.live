@@ -214,7 +214,7 @@ export default defineEventHandler(async (event) => {
       )
 
       if (result.success) {
-        const events: ScrapedEvent[] = result.data || []
+        const events: ScrapedEvent[] = (result.data as ScrapedEvent[]) ?? []
         const runStartTime = new Date()
         const saveResult = await saveScrapedEvents(
           prisma,

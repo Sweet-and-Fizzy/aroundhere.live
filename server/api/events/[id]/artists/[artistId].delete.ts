@@ -51,9 +51,10 @@ export default defineEventHandler(async (event) => {
 
   // Update orders to be sequential starting from 1
   for (let i = 0; i < remainingArtists.length; i++) {
-    if (remainingArtists[i].order !== i + 1) {
+    const artist = remainingArtists[i]
+    if (artist && artist.order !== i + 1) {
       await prisma.eventArtist.update({
-        where: { id: remainingArtists[i].id },
+        where: { id: artist.id },
         data: { order: i + 1 },
       })
     }

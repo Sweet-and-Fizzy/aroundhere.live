@@ -3,7 +3,7 @@
  * GET /api/admin/artists?q=search&page=1&limit=50&sort=name&order=asc
  */
 
-import { Prisma } from '@prisma/client'
+import { Prisma, MusicBrainzMatchStatus } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     }
   }
   if (musicbrainzStatus) {
-    where.musicbrainzMatchStatus = musicbrainzStatus
+    where.musicbrainzMatchStatus = musicbrainzStatus as MusicBrainzMatchStatus
   }
 
   // Get total count

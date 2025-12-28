@@ -396,7 +396,7 @@ export class MarigoldScraper extends PlaywrightScraper {
             if (ticketMatch) {
               // Extract the full price text including any suffix like "Sliding Scale"
               const fullMatch = text.match(/🎟️\s*(\$\d+(?:\s+[A-Za-z\s]+)?)/i)
-              if (fullMatch) {
+              if (fullMatch?.[1]) {
                 coverCharge = fullMatch[1].trim()
               }
             }

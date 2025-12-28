@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
         disambiguation: artist.disambiguation || null,
         country: artist.country || null,
         type: artist.type || null,
-        score: artist.score,
+        score: (artist as { score?: number }).score,
         tags: artist.tags?.slice(0, 5).map(t => t.name) || [],
       })),
     }

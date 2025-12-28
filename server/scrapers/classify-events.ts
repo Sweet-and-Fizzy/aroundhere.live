@@ -166,7 +166,7 @@ export async function classifyPendingEvents(
         eventType: 'MUSIC',
         classificationConfidence: 0.3,
         classifiedAt: new Date(),
-        reviewStatus: 'NEEDS_REVIEW',
+        reviewStatus: 'FLAGGED',
       },
     })
 
