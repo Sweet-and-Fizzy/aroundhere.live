@@ -1,5 +1,5 @@
 import prisma from '../../utils/prisma'
-import { generateEmbedding } from '../../services/embeddings'
+import { buildUserTasteProfile } from '../../services/artist-profile'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -97,21 +97,14 @@ export default defineEventHandler(async (event) => {
     },
   })
 
-  // Generate interest embedding if description was updated and is non-empty
+  // Build/update taste profile if interest description was updated
+  // This generates both interestEmbedding and tasteProfileEmbedding
   if (interestDescriptionChanged && user.interestDescription) {
     try {
-      const embedding = await generateEmbedding(user.interestDescription)
-      const embeddingStr = `[${embedding.join(',')}]`
-      await prisma.$executeRawUnsafe(
-        `UPDATE users
-         SET "interestEmbedding" = $1::vector
-         WHERE id = $2`,
-        embeddingStr,
-        userId
-      )
+      await buildUserTasteProfile(userId)
     } catch (err) {
       // Log error but don't fail the request
-      console.error('Failed to generate interest embedding:', err)
+      console.error('Failed to build taste profile:', err)
     }
   }
 

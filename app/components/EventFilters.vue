@@ -3,6 +3,14 @@ import { nextTick, toRef } from 'vue'
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
+// Import filter sub-components
+import FavoritesFilter from '~/components/filters/FavoritesFilter.vue'
+import MyEventsFilter from '~/components/filters/MyEventsFilter.vue'
+import LocationFilter from '~/components/filters/LocationFilter.vue'
+import DateRangeFilter from '~/components/filters/DateRangeFilter.vue'
+import EventTypeFilter from '~/components/filters/EventTypeFilter.vue'
+import GenreFilter from '~/components/filters/GenreFilter.vue'
+
 type CalendarDateRange = DateRange | any
 
 // Format date as YYYY-MM-DD for cleaner URLs (using local date components)
@@ -112,6 +120,7 @@ function saveFilters() {
       selectedRegions: selectedRegions.value,
       selectedCities: selectedCities.value,
       selectedVenueIds: selectedVenueIds.value,
+      // Store as string arrays (new format)
       selectedGenres: selectedGenres.value,
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
@@ -129,17 +138,19 @@ const savedFilters = loadSavedFilters()
 // Date range state - default to 'all' for all upcoming events
 const datePreset = ref(savedFilters?.datePreset || 'all')
 const customDateRange = ref<CalendarDateRange | undefined>(undefined)
-const showCalendar = ref(false)
 
 // Location filter - now tracks selections at Region, City, and Venue levels separately
 const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
 const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
 const selectedVenueIds = ref<string[]>(savedFilters?.selectedVenueIds || [])
 const searchQuery = ref(savedFilters?.searchQuery || '')
-const selectedGenres = ref<{ label: string; value: string }[]>(savedFilters?.selectedGenres || [])
+// Store as plain string arrays for sub-component compatibility
+const selectedGenres = ref<string[]>(
+  savedFilters?.selectedGenres?.map((g: any) => typeof g === 'string' ? g : g.value) || []
+)
 // Multi-select for event types - default to All Music
-const selectedEventTypes = ref<{ label: string; value: string }[]>(
-  savedFilters?.selectedEventTypes || [{ label: 'All Music', value: 'ALL_MUSIC' }]
+const selectedEventTypes = ref<string[]>(
+  savedFilters?.selectedEventTypes?.map((t: any) => typeof t === 'string' ? t : t.value) || ['ALL_MUSIC']
 )
 
 // My Events filter - 'interested', 'going', 'all', or null (disabled)
@@ -292,7 +303,7 @@ const hasActiveFilters = computed(() => {
     selectedVenueIds.value.length > 0 ||
     selectedGenres.value.length > 0 ||
     selectedEventTypes.value.length !== 1 ||
-    selectedEventTypes.value[0]?.value !== 'ALL_MUSIC' ||
+    selectedEventTypes.value[0] !== 'ALL_MUSIC' ||
     datePreset.value !== 'all' ||
     mapFilteredVenueIds.value !== null ||
     myEvents.value !== null ||
@@ -308,7 +319,7 @@ function resetFilters() {
   selectedCities.value = []
   selectedVenueIds.value = []
   selectedGenres.value = []
-  selectedEventTypes.value = [{ label: 'All Music', value: 'ALL_MUSIC' }]
+  selectedEventTypes.value = ['ALL_MUSIC']
   datePreset.value = 'all'
   customDateRange.value = undefined
   mapFilteredVenueIds.value = null
@@ -323,57 +334,23 @@ function resetFilters() {
   applyFilters()
 }
 
-// Music-related event types (for "All Music" selection)
-const musicEventTypes = [
-  { label: 'Live Music', value: 'MUSIC' },
-  { label: 'DJ Sets', value: 'DJ' },
-  { label: 'Open Mic', value: 'OPEN_MIC' },
-  { label: 'Karaoke', value: 'KARAOKE' },
-]
+// Date preset labels for display
+const datePresetLabels: Record<string, string> = {
+  all: 'All Dates',
+  today: 'Today',
+  tomorrow: 'Tomorrow',
+  weekend: 'This Weekend',
+  week: 'This Week',
+  month: 'This Month',
+  custom: 'Custom',
+}
 
-// Non-music event types
-const nonMusicEventTypes = [
-  { label: 'Comedy', value: 'COMEDY' },
-  { label: 'Theater', value: 'THEATER' },
-  { label: 'Games', value: 'GAMES' },
-  { label: 'Dance', value: 'DANCE' },
-  { label: 'Market', value: 'MARKET' },
-  { label: 'Workshop', value: 'WORKSHOP' },
-  { label: 'Party', value: 'PARTY' },
-  { label: 'Fitness', value: 'FITNESS' },
-  { label: 'Drag', value: 'DRAG' },
-]
-
-// Event type options - includes common non-music events
-const eventTypeItems = [
-  { label: 'All Events', value: 'ALL_EVENTS' },
-  { label: 'All Music', value: 'ALL_MUSIC' },
-  ...musicEventTypes,
-  ...nonMusicEventTypes,
-]
-
-const datePresets = [
-  { label: 'Today', value: 'today' },
-  { label: 'Tomorrow', value: 'tomorrow' },
-  { label: 'This Weekend', value: 'weekend' },
-  { label: 'Next 7 Days', value: 'week' },
-  { label: 'Next 30 Days', value: 'month' },
-  { label: 'All Upcoming', value: 'all' },
-]
-
-// My Events filter options
-const myEventsItems = [
-  { label: 'All My Events', value: 'all' },
-  { label: 'Interested', value: 'interested' },
-  { label: 'Going', value: 'going' },
-]
-
-const genreItems = computed(() =>
-  (props.genres?.map(g => ({
-    label: props.genreLabels?.[g] || g.charAt(0).toUpperCase() + g.slice(1),
-    value: g
-  })) ?? [])
-)
+// My Events filter options (for button label)
+const myEventsLabels: Record<string, string> = {
+  all: 'All My Events',
+  interested: 'Interested',
+  going: 'Going',
+}
 
 // Custom labels for multi-selects
 const locationLabel = computed(() => {
@@ -384,42 +361,40 @@ const locationLabel = computed(() => {
   return locationSummary.value || 'Location'
 })
 
+// Use label composables for formatting
+const { getGenreLabel } = useGenreLabels()
+const { getEventTypeLabel } = useEventTypeLabels()
+
 const genreLabel = computed(() => {
   if (selectedGenres.value.length === 0) return 'Genre'
 
-  // Filter out any undefined values
-  const validGenres = selectedGenres.value.filter((g): g is { label: string; value: string } => g?.label !== undefined)
-
+  const validGenres = selectedGenres.value.filter(Boolean)
   if (validGenres.length === 0) return 'Genre'
-  const first = validGenres[0]
-  if (!first) return 'Genre'
-  if (validGenres.length === 1) return first.label
+
+  const first = validGenres[0]!
+  const firstLabel = getGenreLabel(first)
+  if (validGenres.length === 1) return firstLabel
   if (validGenres.length === 2) {
-    const second = validGenres[1]
-    return second ? `${first.label}, ${second.label}` : first.label
+    return `${firstLabel}, ${getGenreLabel(validGenres[1]!)}`
   }
-  return `${first.label} and ${validGenres.length - 1} more`
+  return `${firstLabel} and ${validGenres.length - 1} more`
 })
 
 const eventTypeLabel = computed(() => {
   if (selectedEventTypes.value.length === 0) return 'Type'
 
-  // Filter out any undefined values
-  const validTypes = selectedEventTypes.value.filter((t): t is { label: string; value: string } => t?.label !== undefined)
-
+  const validTypes = selectedEventTypes.value.filter(Boolean)
   if (validTypes.length === 0) return 'Type'
-  const first = validTypes[0]
-  if (!first) return 'Type'
-  if (validTypes.length === 1) return first.label
+
+  const first = validTypes[0]!
+  const firstLabel = getEventTypeLabel(first)
+  if (validTypes.length === 1) return firstLabel
   if (validTypes.length === 2) {
-    const second = validTypes[1]
-    return second ? `${first.label}, ${second.label}` : first.label
+    return `${firstLabel}, ${getEventTypeLabel(validTypes[1]!)}`
   }
-  return `${first.label} and ${validTypes.length - 1} more`
+  return `${firstLabel} and ${validTypes.length - 1} more`
 })
 
-// Get today's CalendarDate
-const todayDate = computed(() => today(getLocalTimeZone()))
 
 // Display label for date selection
 const dateDisplayLabel = computed(() => {
@@ -432,7 +407,7 @@ const dateDisplayLabel = computed(() => {
       return `${startStr} - ${endStr}`
     }
   }
-  return datePresets.find(p => p.value === datePreset.value)?.label || 'Select Date'
+  return datePresetLabels[datePreset.value] || 'Select Date'
 })
 
 function getDateRange(range: string) {
@@ -513,8 +488,8 @@ function applyFilters() {
     venueIds = mapFilteredVenueIds.value
   }
 
-  // Get event types from multi-select
-  let eventTypes = selectedEventTypes.value.map(e => e.value).filter(Boolean)
+  // Get event types from multi-select (already string array)
+  let eventTypes = [...selectedEventTypes.value]
 
   // ALL_EVENTS means no filtering by type
   const showAllEvents = eventTypes.includes('ALL_EVENTS')
@@ -553,7 +528,7 @@ function applyFilters() {
     cities: selectedCities.value.length > 0 ? selectedCities.value : undefined,
     venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
     q: searchQuery.value || undefined,
-    genres: selectedGenres.value.length > 0 ? selectedGenres.value.map(g => g.value) : undefined,
+    genres: selectedGenres.value.length > 0 ? selectedGenres.value : undefined,
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
     myEvents: myEvents.value || undefined,
@@ -612,15 +587,6 @@ watch(customDateRange, (newRange) => {
   }
 }, { deep: true })
 
-function selectDatePreset(preset: string) {
-  datePreset.value = preset
-  showCalendar.value = false
-  applyFilters()
-}
-
-function closeCalendar() {
-  showCalendar.value = false
-}
 
 // Auto-apply on changes
 watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes, myEvents, filterByFavoriteArtists, filterByFavoriteVenues, filterByFavoriteGenres], () => {
@@ -696,37 +662,35 @@ watch(regionLoaded, (loaded) => {
         </UInput>
       </div>
 
-      <!-- Row 2: Type + Genre + My Events -->
-      <div class="flex gap-2">
+      <!-- Row 2: Type + Genre -->
+      <div class="flex gap-2 justify-end">
         <!-- Event Type Filter -->
         <div class="flex-1 min-w-0">
-          <USelectMenu
-            v-model="selectedEventTypes"
-            :items="eventTypeItems"
-            multiple
-            class="w-full"
-            :ui="{ base: 'text-gray-900 border-gray-400' }"
-          >
-            <template #default>
-              <span>{{ eventTypeLabel }}</span>
+          <UPopover>
+            <UButton
+              color="neutral"
+              :variant="selectedEventTypes.length > 0 && selectedEventTypes[0] !== 'ALL_MUSIC' ? 'soft' : 'outline'"
+              trailing-icon="i-lucide-chevron-down"
+              class="w-full justify-between"
+            >
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <UIcon
+                  name="i-lucide-tag"
+                  class="w-4 h-4 flex-shrink-0"
+                />
+                <span class="truncate">{{ eventTypeLabel }}</span>
+              </div>
+            </UButton>
+            <template #content>
+              <div class="p-3 w-64">
+                <EventTypeFilter
+                  :model-value="selectedEventTypes"
+                  :facets="props.facets"
+                  @update:model-value="selectedEventTypes = $event"
+                />
+              </div>
             </template>
-            <template #leading>
-              <UIcon
-                name="i-lucide-tag"
-                class="w-4 h-4"
-              />
-            </template>
-            <template #trailing>
-              <UButton
-                v-if="selectedEventTypes.length > 0"
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                @click.stop="selectedEventTypes = []"
-              />
-            </template>
-          </USelectMenu>
+          </UPopover>
         </div>
 
         <!-- Genre Filter -->
@@ -734,40 +698,40 @@ watch(regionLoaded, (loaded) => {
           v-if="genres?.length"
           class="flex-1 min-w-0"
         >
-          <USelectMenu
-            v-model="selectedGenres"
-            :items="genreItems"
-            multiple
-            class="w-full"
-            :ui="{ base: 'text-gray-900 border-gray-400', content: 'w-64' }"
-          >
-            <template #default>
-              <span>{{ genreLabel }}</span>
+          <UPopover>
+            <UButton
+              color="neutral"
+              :variant="selectedGenres.length > 0 ? 'soft' : 'outline'"
+              trailing-icon="i-lucide-chevron-down"
+              class="w-full justify-between"
+            >
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <UIcon
+                  name="i-lucide-music"
+                  class="w-4 h-4 flex-shrink-0"
+                />
+                <span class="truncate">{{ genreLabel }}</span>
+              </div>
+            </UButton>
+            <template #content>
+              <div class="p-3 w-64">
+                <GenreFilter
+                  :model-value="selectedGenres"
+                  :genres="props.genres"
+                  :genre-labels="props.genreLabels"
+                  :facets="props.facets"
+                  @update:model-value="selectedGenres = $event"
+                />
+              </div>
             </template>
-            <template #leading>
-              <UIcon
-                name="i-lucide-music"
-                class="w-4 h-4"
-              />
-            </template>
-            <template #trailing>
-              <UButton
-                v-if="selectedGenres.length > 0"
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                @click.stop="selectedGenres = []"
-              />
-            </template>
-          </USelectMenu>
+          </UPopover>
         </div>
       </div>
 
       <!-- Row 3: My Favorites + My Events (only when logged in) -->
       <div
         v-if="loggedIn"
-        class="flex gap-2"
+        class="flex gap-2 justify-end"
       >
         <!-- My Favorites Filter -->
         <div
@@ -776,7 +740,7 @@ watch(regionLoaded, (loaded) => {
         >
           <UPopover>
             <UButton
-              :color="hasActiveFavoritesFilter ? 'primary' : 'neutral'"
+              color="neutral"
               :variant="hasActiveFavoritesFilter ? 'soft' : 'outline'"
               trailing-icon="i-lucide-chevron-down"
               class="w-full justify-between"
@@ -790,53 +754,18 @@ watch(regionLoaded, (loaded) => {
               </div>
             </UButton>
             <template #content>
-              <div class="p-2 space-y-1 w-48">
-                <p class="text-xs text-gray-500 px-2 mb-2">
-                  Filter by your favorites
-                </p>
-                <label
-                  v-if="favorites.artists.length > 0"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer"
-                >
-                  <input
-                    v-model="filterByFavoriteArtists"
-                    type="checkbox"
-                    class="checkbox"
-                  >
-                  <span class="text-sm flex-1">Artists</span>
-                  <span class="text-xs text-gray-500">{{ favorites.artists.length }}</span>
-                </label>
-                <label
-                  v-if="favorites.venues.length > 0"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer"
-                >
-                  <input
-                    v-model="filterByFavoriteVenues"
-                    type="checkbox"
-                    class="checkbox"
-                  >
-                  <span class="text-sm flex-1">Venues</span>
-                  <span class="text-xs text-gray-500">{{ favorites.venues.length }}</span>
-                </label>
-                <label
-                  v-if="favorites.genres.length > 0"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer"
-                >
-                  <input
-                    v-model="filterByFavoriteGenres"
-                    type="checkbox"
-                    class="checkbox"
-                  >
-                  <span class="text-sm flex-1">Genres</span>
-                  <span class="text-xs text-gray-500">{{ favorites.genres.length }}</span>
-                </label>
-                <button
-                  v-if="hasActiveFavoritesFilter"
-                  class="w-full text-left px-2 py-1.5 text-sm rounded-md text-gray-500 hover:bg-gray-100 border-t mt-1 pt-2"
-                  @click="filterByFavoriteArtists = false; filterByFavoriteVenues = false; filterByFavoriteGenres = false"
-                >
-                  Clear filter
-                </button>
+              <div class="p-2 w-48">
+                <FavoritesFilter
+                  :filter-by-artists="filterByFavoriteArtists"
+                  :filter-by-venues="filterByFavoriteVenues"
+                  :filter-by-genres="filterByFavoriteGenres"
+                  :artist-count="favorites.artists.length"
+                  :venue-count="favorites.venues.length"
+                  :genre-count="favorites.genres.length"
+                  @update:filter-by-artists="filterByFavoriteArtists = $event"
+                  @update:filter-by-venues="filterByFavoriteVenues = $event"
+                  @update:filter-by-genres="filterByFavoriteGenres = $event"
+                />
               </div>
             </template>
           </UPopover>
@@ -846,7 +775,7 @@ watch(regionLoaded, (loaded) => {
         <div class="flex-1 min-w-0">
           <UPopover>
             <UButton
-              :color="myEvents ? 'primary' : 'neutral'"
+              color="neutral"
               :variant="myEvents ? 'soft' : 'outline'"
               trailing-icon="i-lucide-chevron-down"
               class="w-full justify-between"
@@ -856,42 +785,22 @@ watch(regionLoaded, (loaded) => {
                   name="i-lucide-star"
                   class="w-4 h-4 flex-shrink-0"
                 />
-                <span class="truncate">{{ myEvents ? myEventsItems.find(i => i.value === myEvents)?.label || 'My Events' : 'My Events' }}</span>
+                <span class="truncate">{{ myEvents ? myEventsLabels[myEvents] || 'My Events' : 'My Events' }}</span>
               </div>
             </UButton>
             <template #content>
-              <div class="p-2 space-y-1 w-48">
-                <p class="text-xs text-gray-500 px-2 mb-2">
-                  Events you've marked
-                </p>
-                <label
-                  v-for="item in myEventsItems"
-                  :key="item.value"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer"
-                >
-                  <input
-                    v-model="myEvents"
-                    type="radio"
-                    name="myEvents"
-                    :value="item.value"
-                    class="checkbox"
-                  >
-                  <span class="text-sm flex-1">{{ item.label }}</span>
-                </label>
-                <button
-                  v-if="myEvents"
-                  class="w-full text-left px-2 py-1.5 text-sm rounded-md text-gray-500 hover:bg-gray-100 border-t mt-1 pt-2"
-                  @click="myEvents = null"
-                >
-                  Clear filter
-                </button>
+              <div class="p-2 w-48">
+                <MyEventsFilter
+                  :model-value="myEvents"
+                  @update:model-value="myEvents = $event"
+                />
               </div>
             </template>
           </UPopover>
         </div>
       </div>
 
-      <!-- Row 3: Location (Full Width) -->
+      <!-- Row 4: Location (Full Width) -->
       <div
         v-if="venuesByRegion.length || venuesByCity.length"
         class="location-row"
@@ -899,7 +808,7 @@ watch(regionLoaded, (loaded) => {
         <UPopover v-model:open="locationPopoverOpen">
           <UButton
             color="neutral"
-            variant="outline"
+            :variant="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0 ? 'soft' : 'outline'"
             class="w-full justify-between"
             trailing-icon="i-lucide-chevron-down"
           >
@@ -922,156 +831,42 @@ watch(regionLoaded, (loaded) => {
           </UButton>
 
           <template #content>
-            <div class="p-2 max-h-96 overflow-y-auto w-80">
-              <!-- Multi-region: show Region → City → Venue hierarchy -->
-              <template v-if="venuesByRegion.length > 1">
-                <div
-                  v-for="{ region, regionName, cities: regionCities, totalEvents } in venuesByRegion"
-                  :key="region"
-                  class="mb-2"
-                >
-                  <!-- Region Header with Checkbox -->
-                  <label class="region-header">
-                    <input
-                      type="checkbox"
-                      :checked="isRegionFullySelected(region)"
-                      :indeterminate="isRegionPartiallySelected(region)"
-                      class="checkbox"
-                      @change="toggleRegionSelection(region)"
-                    >
-                    <button
-                      class="flex-1 flex items-center gap-2"
-                      @click.prevent="expandedRegions.has(region) ? expandedRegions.delete(region) : expandedRegions.add(region)"
-                    >
-                      <UIcon
-                        :name="expandedRegions.has(region) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                        class="w-4 h-4 text-gray-500"
-                      />
-                      <span class="font-medium text-sm text-gray-700">{{ (regionName || region).replace(/^the /i, '') }}</span>
-                      <span class="text-xs text-gray-500 ml-auto">({{ totalEvents }} events)</span>
-                    </button>
-                  </label>
-
-                  <!-- Cities under this region -->
-                  <div
-                    v-if="expandedRegions.has(region)"
-                    class="ml-6 mt-1 space-y-1"
-                  >
-                    <div
-                      v-for="{ city, venues: cityVenues, totalEvents: cityTotal } in regionCities"
-                      :key="city"
-                      class="mb-1"
-                    >
-                      <!-- City Header with Checkbox -->
-                      <label class="city-header">
-                        <input
-                          type="checkbox"
-                          :checked="isCityFullySelected(city)"
-                          :indeterminate="isCityPartiallySelected(city)"
-                          class="checkbox"
-                          @change="toggleCitySelection(city)"
-                        >
-                        <button
-                          class="flex-1 flex items-center gap-2"
-                          @click.prevent="expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
-                        >
-                          <UIcon
-                            :name="expandedCities.has(city) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                            class="w-3 h-3 text-gray-400"
-                          />
-                          <span class="text-sm font-medium text-gray-600">{{ city }}</span>
-                          <span class="text-xs text-gray-400 ml-auto">({{ cityTotal }})</span>
-                        </button>
-                      </label>
-
-                      <!-- Venues under this city -->
-                      <div
-                        v-if="expandedCities.has(city)"
-                        class="ml-6 mt-1 space-y-1"
-                      >
-                        <label
-                          v-for="venue in cityVenues"
-                          :key="venue.id"
-                          class="venue-checkbox-label"
-                        >
-                          <input
-                            type="checkbox"
-                            :checked="selectedVenueIds.includes(venue.id)"
-                            class="checkbox"
-                            @change="selectedVenueIds.includes(venue.id) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venue.id), 1) : selectedVenueIds.push(venue.id)"
-                          >
-                          <span class="text-sm">{{ venue.name }}</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Single region: show City → Venue hierarchy directly -->
-              <template v-else>
-                <div
-                  v-for="{ city, venues: cityVenues, totalEvents: cityTotal } in venuesByCity"
-                  :key="city"
-                  class="mb-2"
-                >
-                  <!-- City Header with Checkbox -->
-                  <label class="city-header">
-                    <input
-                      type="checkbox"
-                      :checked="isCityFullySelected(city)"
-                      :indeterminate="isCityPartiallySelected(city)"
-                      class="checkbox"
-                      @change="toggleCitySelection(city)"
-                    >
-                    <button
-                      class="flex-1 flex items-center gap-2"
-                      @click.prevent="expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
-                    >
-                      <UIcon
-                        :name="expandedCities.has(city) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                        class="w-4 h-4 text-gray-500"
-                      />
-                      <span class="font-medium text-sm text-gray-700">{{ city }}</span>
-                      <span class="text-xs text-gray-500 ml-auto">({{ cityTotal }} events)</span>
-                    </button>
-                  </label>
-
-                  <!-- Venues under this city -->
-                  <div
-                    v-if="expandedCities.has(city)"
-                    class="ml-6 mt-1 space-y-1"
-                  >
-                    <label
-                      v-for="venue in cityVenues"
-                      :key="venue.id"
-                      class="venue-checkbox-label"
-                    >
-                      <input
-                        type="checkbox"
-                        :checked="selectedVenueIds.includes(venue.id)"
-                        class="checkbox"
-                        @change="selectedVenueIds.includes(venue.id) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venue.id), 1) : selectedVenueIds.push(venue.id)"
-                      >
-                      <span class="text-sm">{{ venue.name }}</span>
-                    </label>
-                  </div>
-                </div>
-              </template>
+            <div class="p-2 w-80">
+              <LocationFilter
+                :venues-by-region="venuesByRegion"
+                :venues-by-city="venuesByCity"
+                :all-venues="props.venues"
+                :selected-regions="selectedRegions"
+                :selected-cities="selectedCities"
+                :selected-venue-ids="selectedVenueIds"
+                :expanded-regions="expandedRegions"
+                :expanded-cities="expandedCities"
+                :is-region-fully-selected="isRegionFullySelected"
+                :is-region-partially-selected="isRegionPartiallySelected"
+                :is-city-fully-selected="isCityFullySelected"
+                :is-city-partially-selected="isCityPartiallySelected"
+                :facets="props.facets"
+                :show-venues="true"
+                :show-search="true"
+                @toggle-region="region => expandedRegions.has(region) ? expandedRegions.delete(region) : expandedRegions.add(region)"
+                @toggle-region-selection="toggleRegionSelection"
+                @toggle-city="city => expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
+                @toggle-city-selection="toggleCitySelection"
+                @toggle-venue="venueId => selectedVenueIds.includes(venueId) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venueId), 1) : selectedVenueIds.push(venueId)"
+                @select-venue="venueId => { if (!selectedVenueIds.includes(venueId)) selectedVenueIds.push(venueId) }"
+                @remove-venue="venueId => selectedVenueIds.splice(selectedVenueIds.indexOf(venueId), 1)"
+              />
             </div>
           </template>
         </UPopover>
       </div>
 
-      <!-- Row 3: Date Filter -->
+      <!-- Row 5: Date Filter -->
       <div class="flex gap-2">
-        <UPopover
-          v-model:open="showCalendar"
-          class="flex-1"
-        >
+        <UPopover class="flex-1">
           <UButton
             color="neutral"
-            variant="outline"
+            :variant="datePreset !== 'all' ? 'soft' : 'outline'"
             class="w-full justify-between"
             trailing-icon="i-lucide-chevron-down"
           >
@@ -1081,60 +876,17 @@ watch(regionLoaded, (loaded) => {
                 class="w-4 h-4 flex-shrink-0"
               />
               <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
-              <UButton
-                v-if="datePreset !== 'all'"
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                class="ml-auto flex-shrink-0"
-                @click.stop="datePreset = 'all'; customDateRange = undefined"
-              />
             </div>
           </UButton>
 
           <template #content>
-            <div class="p-3 space-y-3 w-[calc(100vw-2rem)] max-w-80">
-              <div class="flex flex-wrap gap-1.5 sm:gap-2">
-                <button
-                  v-for="preset in datePresets"
-                  :key="preset.value"
-                  class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors"
-                  :class="datePreset === preset.value
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'"
-                  @click="selectDatePreset(preset.value)"
-                >
-                  {{ preset.label }}
-                </button>
-              </div>
-
-              <div class="border-t pt-3">
-                <p class="text-sm text-gray-600 mb-2">
-                  Or select a custom range:
-                </p>
-                <UCalendar
-                  v-model="customDateRange"
-                  range
-                  :min-value="todayDate"
-                  :number-of-months="1"
-                />
-                <p
-                  v-if="customDateRange?.start && customDateRange?.end"
-                  class="text-xs text-primary-600 mt-2 font-medium"
-                >
-                  {{ customDateRange.start.month }}/{{ customDateRange.start.day }} - {{ customDateRange.end.month }}/{{ customDateRange.end.day }}
-                </p>
-              </div>
-
-              <div class="flex justify-end">
-                <UButton
-                  size="sm"
-                  @click="closeCalendar"
-                >
-                  Done
-                </UButton>
-              </div>
+            <div class="p-3 w-[calc(100vw-2rem)] max-w-80">
+              <DateRangeFilter
+                :model-value="datePreset"
+                :custom-range="customDateRange"
+                @update:model-value="datePreset = $event; applyFilters()"
+                @update:custom-range="customDateRange = $event"
+              />
             </div>
           </template>
         </UPopover>

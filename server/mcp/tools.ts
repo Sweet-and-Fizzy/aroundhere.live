@@ -376,7 +376,7 @@ export function createChatTools(userId?: string) {
       const events = await prisma.event.findMany({
         where: {
           startsAt: { gte: now },
-          status: 'ACTIVE',
+          isCancelled: false,
           OR: conditions,
         },
         include: {
@@ -405,23 +405,25 @@ export function createChatTools(userId?: string) {
       })
 
       return {
-        events: events.map(e => {
-          const matchedArtists = e.eventArtists
-            .filter(ea => artistIds.includes(ea.artistId))
-            .map(ea => ea.artist.name)
+        events: events.map((e: typeof events[number]) => {
+          const eventArtists = e.eventArtists as Array<{ artistId: string; artist: { id: string; name: string } }>
+          const venue = e.venue as { name: string; slug: string; city: string | null; state: string | null } | null
+          const matchedArtists = eventArtists
+            .filter((ea) => artistIds.includes(ea.artistId))
+            .map((ea) => ea.artist.name)
           const isVenueFavorite = venueIds.includes(e.venueId || '')
 
           return {
             title: e.title,
             date: formatEventDate(e.startsAt.toISOString()),
-            venue: e.venue?.name || 'TBA',
-            city: e.venue?.city || '',
+            venue: venue?.name || 'TBA',
+            city: venue?.city || '',
             url: `/events/${e.slug}`,
             matchReason: [
               ...(matchedArtists.length > 0 ? [`Favorite artist: ${matchedArtists.join(', ')}`] : []),
               ...(isVenueFavorite ? ['Favorite venue'] : []),
             ].join('; '),
-            artists: e.eventArtists.map(ea => ea.artist.name).slice(0, 3),
+            artists: eventArtists.map((ea) => ea.artist.name).slice(0, 3),
           }
         }),
         total: events.length,

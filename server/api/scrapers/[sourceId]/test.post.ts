@@ -121,7 +121,7 @@ export default defineEventHandler(async (event) => {
           message: 'No active scraper code found for this source',
         })
       }
-      testCode = config.generatedCode
+      testCode = config.generatedCode as string
     }
 
     // Validate code safety
@@ -153,11 +153,11 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const events = execResult.data || []
+    const events = (execResult.data as Array<Record<string, unknown>>) || []
 
     // Analyze results
-    const fieldsAnalysis = analyzeEventFields(events)
-    const sampleEvents = getSampleEvents(events, 50) // First 50 for preview
+    const fieldsAnalysis = analyzeEventFields(events as Parameters<typeof analyzeEventFields>[0])
+    const sampleEvents = getSampleEvents(events as Parameters<typeof getSampleEvents>[0], 50) // First 50 for preview
 
     return {
       success: true,
@@ -172,8 +172,8 @@ export default defineEventHandler(async (event) => {
       },
       warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
     }
-  } catch (error) {
-    if (error.statusCode) {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'statusCode' in error) {
       throw error
     }
 

@@ -61,7 +61,7 @@ export class LuthiersScraper extends HttpScraper {
    * Use Tribe Events REST API for reliable event fetching.
    * The API handles pagination and returns all future events.
    */
-  async scrape(): Promise<ScraperResult> {
+  override async scrape(): Promise<ScraperResult> {
     const startTime = Date.now()
     const errors: string[] = []
     const allEvents: ScrapedEvent[] = []
@@ -329,7 +329,8 @@ export class LuthiersScraper extends HttpScraper {
         if (typeof image === 'string') {
           imageUrl = image
         } else if (Array.isArray(image) && image.length > 0) {
-          imageUrl = typeof image[0] === 'string' ? image[0] : (image[0] as { url: string })?.url
+          const firstImage = image[0]
+          imageUrl = typeof firstImage === 'string' ? firstImage : (firstImage as { url: string } | undefined)?.url
         } else if (typeof image === 'object' && 'url' in image) {
           imageUrl = image.url
         }

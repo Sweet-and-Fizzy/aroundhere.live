@@ -111,16 +111,27 @@ export default defineEventHandler(async (event) => {
     genreConditions.push({ venue: { city: { in: cities } } })
   }
 
-  // For genres, we need to fetch events and count genres manually since they're arrays
-  const eventsWithGenres = await prisma.event.findMany({
-    where: buildWhereClause(genreConditions),
-    select: { canonicalGenres: true },
+  // For genres, use PostgreSQL unnest to count array elements efficiently
+  // Build the WHERE clause conditions for raw SQL
+  const genreWhereClause = buildWhereClause(genreConditions)
+
+  // Use Prisma's findMany to get IDs matching the filter, then use raw SQL to count genres
+  const matchingEventIds = await prisma.event.findMany({
+    where: genreWhereClause,
+    select: { id: true },
   })
 
   const genreCounts: Record<string, number> = {}
-  for (const e of eventsWithGenres) {
-    for (const genre of e.canonicalGenres) {
-      genreCounts[genre] = (genreCounts[genre] || 0) + 1
+  if (matchingEventIds.length > 0) {
+    const eventIds = matchingEventIds.map(e => e.id)
+    const genreCountsRaw = await prisma.$queryRaw<Array<{ genre: string; count: bigint }>>`
+      SELECT unnest("canonicalGenres") as genre, count(*) as count
+      FROM events
+      WHERE id = ANY(${eventIds})
+      GROUP BY genre
+    `
+    for (const gc of genreCountsRaw) {
+      genreCounts[gc.genre] = Number(gc.count)
     }
   }
 
@@ -173,37 +184,40 @@ export default defineEventHandler(async (event) => {
     cityConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
   }
 
-  const eventsWithCities = await prisma.event.findMany({
+  // Get city counts using raw SQL with proper JOINs for efficiency
+  const cityMatchingEventIds = await prisma.event.findMany({
     where: buildWhereClause(cityConditions),
-    select: {
-      venue: {
-        select: {
-          city: true,
-          region: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
-    },
+    select: { id: true },
   })
 
   const cityCounts: Record<string, number> = {}
   const cityRegions: Record<string, string> = {} // Map city -> region slug
   const regionNames: Record<string, string> = {} // Map region slug -> region name
-  for (const e of eventsWithCities) {
-    const city = e.venue?.city
-    const regionSlug = e.venue?.region?.slug
-    const regionName = e.venue?.region?.name
-    if (city) {
-      cityCounts[city] = (cityCounts[city] || 0) + 1
-      if (regionSlug && !cityRegions[city]) {
-        cityRegions[city] = regionSlug
-      }
-      if (regionSlug && regionName && !regionNames[regionSlug]) {
-        regionNames[regionSlug] = regionName
+
+  if (cityMatchingEventIds.length > 0) {
+    const eventIds = cityMatchingEventIds.map(e => e.id)
+    const cityCountsRaw = await prisma.$queryRaw<Array<{
+      city: string | null
+      region_slug: string | null
+      region_name: string | null
+      count: bigint
+    }>>`
+      SELECT v.city, r.slug as region_slug, r.name as region_name, count(*) as count
+      FROM events e
+      JOIN venues v ON e."venueId" = v.id
+      LEFT JOIN regions r ON v."regionId" = r.id
+      WHERE e.id = ANY(${eventIds}) AND v.city IS NOT NULL
+      GROUP BY v.city, r.slug, r.name
+    `
+    for (const cc of cityCountsRaw) {
+      if (cc.city) {
+        cityCounts[cc.city] = Number(cc.count)
+        if (cc.region_slug && !cityRegions[cc.city]) {
+          cityRegions[cc.city] = cc.region_slug
+        }
+        if (cc.region_slug && cc.region_name && !regionNames[cc.region_slug]) {
+          regionNames[cc.region_slug] = cc.region_name
+        }
       }
     }
   }

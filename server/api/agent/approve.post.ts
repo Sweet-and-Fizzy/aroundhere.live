@@ -4,9 +4,27 @@
  */
 
 import crypto from 'crypto'
+import type { VenueType } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
 import { notifyScraperApproved, notifyVenueApproved } from '../../services/notifications'
+
+// Type for venue data stored in session JSON
+interface VenueData {
+  name?: string
+  address?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  latitude?: number
+  longitude?: number
+  website?: string
+  phone?: string
+  description?: string
+  venueType?: VenueType
+  capacity?: number
+  imageUrl?: string
+}
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -42,10 +60,10 @@ export default defineEventHandler(async (event) => {
     // Pre-process venue data and geocode BEFORE the transaction
     let geocodedLat: number | null = null
     let geocodedLng: number | null = null
-    let venueData: Record<string, unknown> | null = null
+    let venueData: VenueData | null = null
 
     if (session.sessionType === 'VENUE_INFO' && session.venueData) {
-      venueData = session.venueData as Record<string, unknown>
+      venueData = session.venueData as VenueData
 
       // Validate required fields
       if (!venueData.name) {
@@ -79,15 +97,16 @@ export default defineEventHandler(async (event) => {
         let regionId: string | null = null
 
         // Try to find region by state (e.g., "Western Massachusetts" contains "Massachusetts")
-        const regions = await tx.region.findMany({
+        const stateValue = venueData.state ?? ''
+        const regions = stateValue ? await tx.region.findMany({
           where: {
             isActive: true,
             OR: [
-              { name: { contains: venueData.state, mode: 'insensitive' } },
-              { slug: { contains: venueData.state?.toLowerCase().replace(/\s+/g, '-'), mode: 'insensitive' } },
+              { name: { contains: stateValue, mode: 'insensitive' } },
+              { slug: { contains: stateValue.toLowerCase().replace(/\s+/g, '-'), mode: 'insensitive' } },
             ],
           },
-        })
+        }) : []
 
         if (regions.length > 0 && regions[0]) {
           regionId = regions[0].id
@@ -106,7 +125,8 @@ export default defineEventHandler(async (event) => {
         }
 
         // Generate slug if not provided
-        let slug = venueSlug || venueData.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        const venueName = venueData.name ?? 'unnamed-venue'
+        let slug = venueSlug || venueName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
         // Check if slug already exists and make it unique if needed
         const existingVenue = await tx.venue.findUnique({
@@ -139,20 +159,20 @@ export default defineEventHandler(async (event) => {
         venue = await tx.venue.create({
           data: {
             regionId,
-            name: venueData.name,
+            name: venueName,
             slug,
-            address: venueData.address,
-            city: venueData.city,
-            state: venueData.state,
-            postalCode: venueData.postalCode,
-            latitude,
-            longitude,
-            website: venueData.website,
-            phone: venueData.phone,
-            description: venueData.description,
-            venueType: venueData.venueType || 'OTHER',
-            capacity: venueData.capacity,
-            imageUrl: venueData.imageUrl,
+            address: venueData.address ?? null,
+            city: venueData.city ?? null,
+            state: venueData.state ?? null,
+            postalCode: venueData.postalCode ?? null,
+            latitude: latitude as number | null,
+            longitude: longitude as number | null,
+            website: venueData.website ?? null,
+            phone: venueData.phone ?? null,
+            description: venueData.description ?? null,
+            venueType: venueData.venueType ?? 'OTHER',
+            capacity: venueData.capacity ?? null,
+            imageUrl: venueData.imageUrl ?? null,
             verified: false, // Manual review needed
             isActive: true,
           },
@@ -268,12 +288,12 @@ export default defineEventHandler(async (event) => {
 
     // Send Slack notifications
     if (result.venue) {
-      const venueData = session.venueData as Record<string, unknown>
+      const notifyVenueData = session.venueData as VenueData | null
       notifyVenueApproved({
         venueName: result.venue.name,
         venueUrl: session.url,
-        city: venueData?.city,
-        state: venueData?.state,
+        city: notifyVenueData?.city,
+        state: notifyVenueData?.state,
         llmProvider: session.llmProvider,
         llmModel: session.llmModel,
       }).catch(err => console.error('[Approve] Failed to send Slack notification:', err))

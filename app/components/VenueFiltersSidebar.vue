@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import FilterSection from '~/components/filters/FilterSection.vue'
+import LocationFilter from '~/components/filters/LocationFilter.vue'
+
 const props = defineProps<{
   venues?: Array<{
     id: string
@@ -359,40 +362,15 @@ onMounted(() => {
     </div>
 
     <!-- Venue Type -->
-    <div
+    <FilterSection
       v-if="availableVenueTypes.length"
-      class="filter-section"
+      title="Venue Type"
+      section-key="type"
+      :is-expanded="isSectionExpanded('type')"
+      :badge="typeSummary || undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('type')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-building-storefront"
-            class="w-4 h-4"
-          />
-          Venue Type
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('type') && typeSummary"
-            class="section-summary"
-          >{{ typeSummary }}</span>
-          <span
-            v-else-if="!isSectionExpanded('type')"
-            class="section-summary muted"
-          >All types</span>
-          <UIcon
-            :name="isSectionExpanded('type') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-400"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('type')"
-        class="section-content"
-      >
+      <div class="space-y-1">
         <button
           v-for="type in availableVenueTypes"
           :key="type.value"
@@ -408,43 +386,18 @@ onMounted(() => {
           <span class="option-count">{{ venueTypeCounts[type.value] }}</span>
         </button>
       </div>
-    </div>
+    </FilterSection>
 
     <!-- Location (Region/City) -->
-    <div
+    <FilterSection
       v-if="availableCities.length"
-      class="filter-section"
+      title="Location"
+      section-key="city"
+      :is-expanded="isSectionExpanded('city')"
+      :badge="citySummary || undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('city')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-map-pin"
-            class="w-4 h-4"
-          />
-          Location
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('city') && citySummary"
-            class="section-summary"
-          >{{ citySummary }}</span>
-          <span
-            v-else-if="!isSectionExpanded('city')"
-            class="section-summary muted"
-          >All locations</span>
-          <UIcon
-            :name="isSectionExpanded('city') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-400"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('city')"
-        class="section-content location-hierarchy"
-      >
+      <div class="location-hierarchy">
         <!-- Multiple regions: show region grouping -->
         <template v-if="venuesByRegion.length > 1">
           <div
@@ -532,7 +485,7 @@ onMounted(() => {
           </div>
         </template>
       </div>
-    </div>
+    </FilterSection>
 
     <!-- Reset Button -->
     <div

@@ -18,7 +18,7 @@ export class FameScraper extends PlaywrightScraper {
   }
 
   // Override to use custom navigation strategy for Wix
-  async scrape() {
+  override async scrape() {
     const startTime = Date.now()
     const errors: string[] = []
     let events: ScrapedEvent[] = []
@@ -136,9 +136,9 @@ export class FameScraper extends PlaywrightScraper {
     const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i)
 
     if (timeMatch) {
-      let hour = parseInt(timeMatch[1])
-      const minute = parseInt(timeMatch[2])
-      const meridiem = timeMatch[3].toLowerCase()
+      let hour = parseInt(timeMatch[1] ?? '20', 10)
+      const minute = parseInt(timeMatch[2] ?? '0', 10)
+      const meridiem = (timeMatch[3] ?? 'pm').toLowerCase()
 
       // Convert to 24-hour format
       if (meridiem === 'pm' && hour < 12) {
@@ -158,7 +158,7 @@ export class FameScraper extends PlaywrightScraper {
     )
   }
 
-  async waitForContent(): Promise<void> {
+  override async waitForContent(): Promise<void> {
     // Not used - we handle navigation in parseEvents
   }
 }

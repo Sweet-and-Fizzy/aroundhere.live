@@ -3,6 +3,15 @@ import { nextTick, toRef } from 'vue'
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
 
+// Import filter sub-components
+import FilterSection from '~/components/filters/FilterSection.vue'
+import DateRangeFilter from '~/components/filters/DateRangeFilter.vue'
+import EventTypeFilter from '~/components/filters/EventTypeFilter.vue'
+import GenreFilter from '~/components/filters/GenreFilter.vue'
+import FavoritesFilter from '~/components/filters/FavoritesFilter.vue'
+import MyEventsFilter from '~/components/filters/MyEventsFilter.vue'
+import LocationFilter from '~/components/filters/LocationFilter.vue'
+
 type CalendarDateRange = DateRange | any
 
 // Format date as YYYY-MM-DD for cleaner URLs (using local date components)
@@ -981,725 +990,137 @@ defineExpose({
     </div>
 
     <!-- My Favorites - only show when logged in and has favorites -->
-    <div
+    <FilterSection
       v-if="loggedIn && hasFavorites"
-      class="filter-section"
+      title="My Favorites"
+      section-key="favorites"
+      :is-expanded="isSectionExpanded('favorites')"
+      :badge="favoritesSummary || undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('favorites')"
+      <FavoritesFilter
+        :filter-by-artists="filterByFavoriteArtists"
+        :filter-by-venues="filterByFavoriteVenues"
+        :filter-by-genres="filterByFavoriteGenres"
+        :artist-count="favorites.artists.length"
+        :venue-count="favorites.venues.length"
+        :genre-count="favorites.genres.length"
+        @update:filter-by-artists="val => { filterByFavoriteArtists = val; applyFilters() }"
+        @update:filter-by-venues="val => { filterByFavoriteVenues = val; applyFilters() }"
+        @update:filter-by-genres="val => { filterByFavoriteGenres = val; applyFilters() }"
+      />
+      <NuxtLink
+        to="/interests"
+        class="manage-favorites-link"
       >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-heart"
-            class="w-4 h-4"
-          />
-          My Favorites
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('favorites') && favoritesSummary"
-            class="section-summary"
-          >{{ favoritesSummary }}</span>
-          <span
-            v-else-if="!isSectionExpanded('favorites')"
-            class="section-summary muted"
-          >Off</span>
-          <UIcon
-            :name="isSectionExpanded('favorites') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('favorites')"
-        class="section-content"
-      >
-        <p class="text-xs text-gray-500 mb-2">
-          Show only events matching your favorites
-        </p>
-        <button
-          v-if="favorites.artists.length > 0"
-          class="checkbox-option"
-          :class="{ active: filterByFavoriteArtists }"
-          @click="toggleFavoriteArtists"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: filterByFavoriteArtists }"
-          />
-          <span class="option-label">Favorite Artists</span>
-          <span class="option-count">{{ favorites.artists.length }}</span>
-        </button>
-        <button
-          v-if="favorites.venues.length > 0"
-          class="checkbox-option"
-          :class="{ active: filterByFavoriteVenues }"
-          @click="toggleFavoriteVenues"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: filterByFavoriteVenues }"
-          />
-          <span class="option-label">Favorite Venues</span>
-          <span class="option-count">{{ favorites.venues.length }}</span>
-        </button>
-        <button
-          v-if="favorites.genres.length > 0"
-          class="checkbox-option"
-          :class="{ active: filterByFavoriteGenres }"
-          @click="toggleFavoriteGenres"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: filterByFavoriteGenres }"
-          />
-          <span class="option-label">Favorite Genres</span>
-          <span class="option-count">{{ favorites.genres.length }}</span>
-        </button>
-        <NuxtLink
-          to="/interests"
-          class="manage-favorites-link"
-        >
-          <UIcon
-            name="i-heroicons-cog-6-tooth"
-            class="w-3.5 h-3.5"
-          />
-          Manage Interests
-        </NuxtLink>
-      </div>
-    </div>
+        <UIcon
+          name="i-heroicons-cog-6-tooth"
+          class="w-3.5 h-3.5"
+        />
+        Manage Interests
+      </NuxtLink>
+    </FilterSection>
 
     <!-- My Events - show events user marked as interested/going -->
-    <div
+    <FilterSection
       v-if="loggedIn"
-      class="filter-section"
+      title="My Events"
+      section-key="myEvents"
+      :is-expanded="isSectionExpanded('myEvents')"
+      :badge="myEvents ? (myEvents === 'all' ? 'All' : myEvents === 'interested' ? 'Interested' : 'Going') : undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('myEvents')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-star"
-            class="w-4 h-4"
-          />
-          My Events
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('myEvents') && myEvents"
-            class="section-summary"
-          >{{ myEvents === 'all' ? 'All' : myEvents === 'interested' ? 'Interested' : 'Going' }}</span>
-          <span
-            v-else-if="!isSectionExpanded('myEvents')"
-            class="section-summary muted"
-          >Off</span>
-          <UIcon
-            :name="isSectionExpanded('myEvents') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('myEvents')"
-        class="section-content"
-      >
-        <p class="text-xs text-gray-500 mb-2">
-          Show only events you've marked
-        </p>
-        <button
-          class="checkbox-option"
-          :class="{ active: myEvents === 'all' }"
-          @click="setMyEvents(myEvents === 'all' ? null : 'all')"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: myEvents === 'all' }"
-          />
-          <span class="option-label">All My Events</span>
-        </button>
-        <button
-          class="checkbox-option"
-          :class="{ active: myEvents === 'interested' }"
-          @click="setMyEvents(myEvents === 'interested' ? null : 'interested')"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: myEvents === 'interested' }"
-          />
-          <span class="option-label">Interested</span>
-        </button>
-        <button
-          class="checkbox-option"
-          :class="{ active: myEvents === 'going' }"
-          @click="setMyEvents(myEvents === 'going' ? null : 'going')"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: myEvents === 'going' }"
-          />
-          <span class="option-label">Going</span>
-        </button>
-      </div>
-    </div>
+      <MyEventsFilter
+        :model-value="myEvents"
+        @update:model-value="val => { myEvents = val; applyFilters() }"
+      />
+    </FilterSection>
 
     <!-- Date Range -->
-    <div class="filter-section">
-      <button
-        class="section-header"
-        @click="toggleSection('date')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-calendar"
-            class="w-4 h-4"
-          />
-          Date
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('date')"
-            class="section-summary"
-          >{{ dateSummary }}</span>
-          <UIcon
-            :name="isSectionExpanded('date') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('date')"
-        class="section-content"
-      >
-        <button
-          v-for="preset in datePresets"
-          :key="preset.value"
-          class="radio-option"
-          :class="{ active: datePreset === preset.value }"
-          @click="selectDatePreset(preset.value)"
-        >
-          <span
-            class="radio-dot"
-            :class="{ checked: datePreset === preset.value }"
-          />
-          {{ preset.label }}
-        </button>
-        <button
-          class="radio-option"
-          :class="{ active: datePreset === 'custom' }"
-          @click="showCustomCalendar = !showCustomCalendar"
-        >
-          <span
-            class="radio-dot"
-            :class="{ checked: datePreset === 'custom' }"
-          />
-          Custom Range
-          <UIcon
-            :name="showCustomCalendar ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-3 h-3 ml-auto text-gray-500"
-          />
-        </button>
-        <div
-          v-if="showCustomCalendar"
-          class="calendar-wrapper"
-        >
-          <UCalendar
-            v-model="customDateRange"
-            range
-            :min-value="todayDate"
-            :number-of-months="1"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Venue - only show venues with events -->
-    <!-- Location (City → Venues hierarchical view) -->
-    <div
-      v-if="venuesByCity.length"
-      class="filter-section"
+    <FilterSection
+      title="Date"
+      section-key="date"
+      :is-expanded="isSectionExpanded('date')"
+      :badge="dateSummary !== 'All Upcoming' ? dateSummary : undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('location')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-map"
-            class="w-4 h-4"
-          />
-          Location
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('location') && venueSummary"
-            class="section-summary"
-          >{{ venueSummary }}</span>
-          <span
-            v-else-if="!isSectionExpanded('location')"
-            class="section-summary muted"
-          >All venues</span>
-          <UIcon
-            :name="isSectionExpanded('location') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('location')"
-        class="section-content"
-      >
-        <!-- Venue search autocomplete -->
-        <div class="venue-search-wrapper">
-          <div class="venue-search-input-container">
-            <UIcon
-              name="i-heroicons-magnifying-glass"
-              class="venue-search-icon"
-            />
-            <input
-              ref="venueSearchInput"
-              v-model="venueSearchQuery"
-              type="text"
-              placeholder="Search venues..."
-              class="venue-search-input"
-              @focus="onVenueSearchFocus"
-              @blur="onVenueSearchBlur"
-            >
-          </div>
-          <!-- Autocomplete dropdown -->
-          <div
-            v-if="showVenueDropdown && venueSearchResults.length > 0"
-            class="venue-dropdown"
-          >
-            <button
-              v-for="venue in venueSearchResults"
-              :key="venue.id"
-              class="venue-dropdown-item"
-              @mousedown.prevent="selectVenueFromSearch(venue.id)"
-            >
-              <span class="venue-dropdown-name">{{ venue.name }}</span>
-              <span
-                v-if="getVenueCount(venue.id)"
-                class="option-count"
-              >
-                {{ getVenueCount(venue.id) }}
-              </span>
-            </button>
-          </div>
-          <div
-            v-else-if="showVenueDropdown && venueSearchQuery.trim() && venueSearchResults.length === 0"
-            class="venue-dropdown"
-          >
-            <div class="venue-dropdown-empty">
-              No venues found
-            </div>
-          </div>
-        </div>
+      <DateRangeFilter
+        :model-value="datePreset"
+        :custom-range="customDateRange"
+        @update:model-value="val => { datePreset = val; applyFilters() }"
+        @update:custom-range="val => { customDateRange = val }"
+      />
+    </FilterSection>
 
-        <!-- Selected venue chips -->
-        <div
-          v-if="selectedVenueObjects.length > 0"
-          class="venue-chips"
-        >
-          <TransitionGroup
-            name="filter-list"
-            tag="div"
-            class="venue-chips-list"
-          >
-            <span
-              v-for="venue in selectedVenueObjects"
-              :key="venue.id"
-              class="venue-chip"
-            >
-              {{ venue.name }}
-              <button
-                class="venue-chip-remove"
-                @click="removeVenue(venue.id)"
-              >
-                <UIcon
-                  name="i-heroicons-x-mark"
-                  class="w-3 h-3"
-                />
-              </button>
-            </span>
-          </TransitionGroup>
-        </div>
-
-        <!-- Hierarchical Region → City → Venues -->
-        <div class="location-hierarchy">
-          <!-- Show region grouping only when there are multiple regions -->
-          <template v-if="venuesByRegion.length > 1">
-            <div
-              v-for="{ region, regionName, cities, totalEvents } in venuesByRegion"
-              :key="region"
-              class="region-group"
-            >
-              <!-- Region header -->
-              <div class="region-header-row">
-                <button
-                  class="region-header"
-                  @click="toggleRegion(region)"
-                >
-                  <UIcon
-                    :name="expandedRegions.has(region) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
-                    class="w-4 h-4 text-gray-600"
-                  />
-                  <span class="region-name">{{ regionName }}</span>
-                  <span class="option-count">{{ totalEvents }}</span>
-                </button>
-                <button
-                  class="region-checkbox-btn"
-                  :class="{
-                    'active': isRegionFullySelected(region),
-                    'partial': isRegionPartiallySelected(region)
-                  }"
-                  @click.stop="toggleRegionSelection(region)"
-                >
-                  <span
-                    class="checkbox"
-                    :class="{
-                      'checked': isRegionFullySelected(region),
-                      'partial': isRegionPartiallySelected(region)
-                    }"
-                  />
-                </button>
-              </div>
-
-              <!-- Cities in this region -->
-              <div
-                v-if="expandedRegions.has(region)"
-                class="region-cities"
-              >
-                <div
-                  v-for="{ city, venues: cityVenues, totalEvents: cityTotal } in cities"
-                  :key="city"
-                  class="city-group"
-                >
-                  <!-- City header -->
-                  <div class="city-header-row">
-                    <button
-                      class="city-header"
-                      @click="toggleCity(city)"
-                    >
-                      <UIcon
-                        :name="expandedCities.has(city) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
-                        class="w-3.5 h-3.5 text-gray-500"
-                      />
-                      <span class="city-name">{{ city }}</span>
-                      <span class="option-count">{{ cityTotal }}</span>
-                    </button>
-                    <button
-                      class="city-checkbox-btn"
-                      :class="{
-                        'active': isCityFullySelected(city),
-                        'partial': isCityPartiallySelected(city)
-                      }"
-                      @click.stop="toggleCitySelection(city)"
-                    >
-                      <span
-                        class="checkbox"
-                        :class="{
-                          'checked': isCityFullySelected(city),
-                          'partial': isCityPartiallySelected(city)
-                        }"
-                      />
-                    </button>
-                  </div>
-
-                  <!-- Venues under this city -->
-                  <TransitionGroup
-                    v-if="expandedCities.has(city)"
-                    name="filter-list"
-                    tag="div"
-                    class="venue-list"
-                  >
-                    <button
-                      v-for="venue in cityVenues"
-                      :key="venue.id"
-                      class="checkbox-option venue-option"
-                      :class="{ active: selectedVenueIds.includes(venue.id) }"
-                      @click="toggleVenue(venue.id)"
-                    >
-                      <span
-                        class="checkbox"
-                        :class="{ checked: selectedVenueIds.includes(venue.id) }"
-                      />
-                      <span class="option-label">{{ venue.name }}</span>
-                      <span
-                        v-if="getVenueCount(venue.id)"
-                        class="option-count"
-                      >
-                        {{ getVenueCount(venue.id) }}
-                      </span>
-                    </button>
-                  </TransitionGroup>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Single region: show cities directly without region grouping -->
-          <template v-else>
-            <div
-              v-for="{ city, venues: cityVenues, totalEvents } in venuesByCity"
-              :key="city"
-              class="city-group"
-            >
-              <!-- City header -->
-              <div class="city-header-row">
-                <button
-                  class="city-header"
-                  @click="toggleCity(city)"
-                >
-                  <UIcon
-                    :name="expandedCities.has(city) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
-                    class="w-3.5 h-3.5 text-gray-500"
-                  />
-                  <span class="city-name">{{ city }}</span>
-                  <span class="option-count">{{ totalEvents }}</span>
-                </button>
-                <button
-                  class="city-checkbox-btn"
-                  :class="{
-                    'active': isCityFullySelected(city),
-                    'partial': isCityPartiallySelected(city)
-                  }"
-                  @click.stop="toggleCitySelection(city)"
-                >
-                  <span
-                    class="checkbox"
-                    :class="{
-                      'checked': isCityFullySelected(city),
-                      'partial': isCityPartiallySelected(city)
-                    }"
-                  />
-                </button>
-              </div>
-
-              <!-- Venues under this city -->
-              <TransitionGroup
-                v-if="expandedCities.has(city)"
-                name="filter-list"
-                tag="div"
-                class="venue-list"
-              >
-                <button
-                  v-for="venue in cityVenues"
-                  :key="venue.id"
-                  class="checkbox-option venue-option"
-                  :class="{ active: selectedVenueIds.includes(venue.id) }"
-                  @click="toggleVenue(venue.id)"
-                >
-                  <span
-                    class="checkbox"
-                    :class="{ checked: selectedVenueIds.includes(venue.id) }"
-                  />
-                  <span class="option-label">{{ venue.name }}</span>
-                  <span
-                    v-if="getVenueCount(venue.id)"
-                    class="option-count"
-                  >
-                    {{ getVenueCount(venue.id) }}
-                  </span>
-                </button>
-              </TransitionGroup>
-            </div>
-          </template>
-        </div>
-      </div>
-    </div>
+    <!-- Location (City → Venues hierarchical view) -->
+    <FilterSection
+      v-if="venuesByCity.length"
+      title="Location"
+      section-key="location"
+      :is-expanded="isSectionExpanded('location')"
+      :badge="venueSummary || undefined"
+      @toggle="toggleSection"
+    >
+      <LocationFilter
+        :venues-by-region="venuesByRegion"
+        :venues-by-city="venuesByCity"
+        :all-venues="props.venues"
+        :selected-regions="selectedRegions"
+        :selected-cities="selectedCities"
+        :selected-venue-ids="selectedVenueIds"
+        :selected-venue-objects="selectedVenueObjects"
+        :expanded-regions="expandedRegions"
+        :expanded-cities="expandedCities"
+        :is-region-fully-selected="isRegionFullySelected"
+        :is-region-partially-selected="isRegionPartiallySelected"
+        :is-city-fully-selected="isCityFullySelected"
+        :is-city-partially-selected="isCityPartiallySelected"
+        :facets="facets"
+        :show-venues="true"
+        :show-search="true"
+        @toggle-region="toggleRegion"
+        @toggle-region-selection="toggleRegionSelection"
+        @toggle-city="toggleCity"
+        @toggle-city-selection="toggleCitySelection"
+        @toggle-venue="toggleVenue"
+        @select-venue="selectVenueFromSearch"
+        @remove-venue="removeVenue"
+      />
+    </FilterSection>
 
     <!-- Event Type -->
-    <div
+    <FilterSection
       v-if="showEventTypeSection"
-      class="filter-section"
+      title="Event Type"
+      section-key="type"
+      :is-expanded="isSectionExpanded('type')"
+      :badge="typeSummary !== 'All Events' ? typeSummary : undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('type')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-sparkles"
-            class="w-4 h-4"
-          />
-          Event Type
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('type')"
-            class="section-summary"
-          >{{ typeSummary }}</span>
-          <UIcon
-            :name="isSectionExpanded('type') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('type')"
-        class="section-content"
-      >
-        <button
-          v-if="showAllEvents"
-          class="checkbox-option"
-          :class="{ active: selectedEventTypes.includes('ALL_EVENTS') }"
-          @click="toggleEventType('ALL_EVENTS')"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: selectedEventTypes.includes('ALL_EVENTS') }"
-          />
-          <span class="option-label">All Events</span>
-          <span
-            v-if="facets"
-            class="option-count"
-          >{{ facets.musicCount + facets.nonMusicCount }}</span>
-        </button>
-        <button
-          v-if="showAllMusic"
-          class="checkbox-option"
-          :class="{ active: selectedEventTypes.includes('ALL_MUSIC') }"
-          @click="toggleEventType('ALL_MUSIC')"
-        >
-          <span
-            class="checkbox"
-            :class="{ checked: selectedEventTypes.includes('ALL_MUSIC') }"
-          />
-          <span class="option-label">All Music</span>
-          <span
-            v-if="facets?.musicCount"
-            class="option-count"
-          >{{ facets.musicCount }}</span>
-        </button>
-        <div
-          v-if="musicEventTypes.length"
-          class="sub-options"
-        >
-          <TransitionGroup
-            name="filter-list"
-            tag="div"
-          >
-            <button
-              v-for="type in musicEventTypes"
-              :key="type.value"
-              class="checkbox-option small"
-              :class="{ active: selectedEventTypes.includes(type.value) }"
-              @click="toggleEventType(type.value)"
-            >
-              <span
-                class="checkbox small"
-                :class="{ checked: selectedEventTypes.includes(type.value) }"
-              />
-              <span class="option-label">{{ type.label }}</span>
-              <span
-                v-if="getTypeCount(type.value)"
-                class="option-count"
-              >{{ getTypeCount(type.value) }}</span>
-            </button>
-          </TransitionGroup>
-        </div>
-        <div
-          v-if="nonMusicEventTypes.length"
-          class="pt-1"
-        >
-          <TransitionGroup
-            name="filter-list"
-            tag="div"
-          >
-            <button
-              v-for="type in nonMusicEventTypes"
-              :key="type.value"
-              class="checkbox-option"
-              :class="{ active: selectedEventTypes.includes(type.value) }"
-              @click="toggleEventType(type.value)"
-            >
-              <span
-                class="checkbox"
-                :class="{ checked: selectedEventTypes.includes(type.value) }"
-              />
-              <span class="option-label">{{ type.label }}</span>
-              <span
-                v-if="getTypeCount(type.value)"
-                class="option-count"
-              >{{ getTypeCount(type.value) }}</span>
-            </button>
-          </TransitionGroup>
-        </div>
-      </div>
-    </div>
+      <EventTypeFilter
+        :model-value="selectedEventTypes"
+        :facets="facets"
+        @update:model-value="val => { selectedEventTypes = val; applyFilters() }"
+      />
+    </FilterSection>
 
     <!-- Genre - only show when music type is selected and genres available -->
-    <div
+    <FilterSection
       v-if="availableGenres.length && hasMusicTypeSelected"
-      class="filter-section"
+      title="Genre"
+      section-key="genre"
+      :is-expanded="isSectionExpanded('genre')"
+      :badge="genreSummary || undefined"
+      @toggle="toggleSection"
     >
-      <button
-        class="section-header"
-        @click="toggleSection('genre')"
-      >
-        <span class="section-title">
-          <UIcon
-            name="i-heroicons-musical-note"
-            class="w-4 h-4"
-          />
-          Genre
-        </span>
-        <span class="section-meta">
-          <span
-            v-if="!isSectionExpanded('genre') && genreSummary"
-            class="section-summary"
-          >{{ genreSummary }}</span>
-          <span
-            v-else-if="!isSectionExpanded('genre')"
-            class="section-summary muted"
-          >All genres</span>
-          <UIcon
-            :name="isSectionExpanded('genre') ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4 text-gray-500"
-          />
-        </span>
-      </button>
-      <div
-        v-if="isSectionExpanded('genre')"
-        class="section-content"
-      >
-        <TransitionGroup
-          name="filter-list"
-          tag="div"
-        >
-          <button
-            v-for="genre in visibleGenres"
-            :key="genre"
-            class="checkbox-option"
-            :class="{ active: selectedGenres.includes(genre) }"
-            @click="toggleGenre(genre)"
-          >
-            <span
-              class="checkbox"
-              :class="{ checked: selectedGenres.includes(genre) }"
-            />
-            <span class="option-label">
-              {{ genreLabels?.[genre] || genre.charAt(0).toUpperCase() + genre.slice(1) }}
-            </span>
-            <span
-              v-if="facets?.genreCounts?.[genre]"
-              class="option-count"
-            >
-              {{ facets.genreCounts[genre] }}
-            </span>
-          </button>
-        </TransitionGroup>
-        <button
-          v-if="hasMoreGenres"
-          class="show-more-btn"
-          @click="showAllGenres = !showAllGenres"
-        >
-          {{ showAllGenres ? 'Show less' : `+ ${availableGenres.length - INITIAL_GENRE_COUNT} more` }}
-        </button>
-      </div>
-    </div>
+      <GenreFilter
+        :model-value="selectedGenres"
+        :genres="genres"
+        :genre-labels="genreLabels"
+        :facets="facets"
+        @update:model-value="val => { selectedGenres = val; applyFilters() }"
+      />
+    </FilterSection>
 
     <!-- Map Filter - opens in modal -->
     <div
