@@ -427,13 +427,16 @@ useSeoMeta({
   // Open Graph
   ogTitle: () => event.value?.title,
   ogDescription: () => seoDescription.value,
-  ogImage: () => event.value?.imageUrl,
+  ogImage: () => event.value?.imageUrl || `${config.public.siteUrl}/og-image.png`,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
   ogUrl: () => canonicalUrl.value,
   ogType: 'website',
   // Twitter
+  twitterCard: 'summary_large_image',
   twitterTitle: () => event.value?.title,
   twitterDescription: () => seoDescription.value,
-  twitterImage: () => event.value?.imageUrl,
+  twitterImage: () => event.value?.imageUrl || `${config.public.siteUrl}/og-image.png`,
 })
 
 // Add canonical link
