@@ -31,19 +31,32 @@ export default defineEventHandler(async (event) => {
   const favoriteArtistIds = query.favoriteArtistIds ? (query.favoriteArtistIds as string).split(',') : undefined
   const favoriteVenueIds = query.favoriteVenueIds ? (query.favoriteVenueIds as string).split(',') : undefined
   const favoriteGenres = query.favoriteGenres ? (query.favoriteGenres as string).split(',') : undefined
-  // Parse date strings as local dates in the default timezone (Eastern)
-  // This ensures "today" means today in Eastern time, not UTC
+
+  // Look up region timezone if regionId is provided
+  let timezone = DEFAULT_TIMEZONE
+  if (regionId) {
+    const region = await prisma.region.findUnique({
+      where: { id: regionId },
+      select: { timezone: true },
+    })
+    if (region?.timezone) {
+      timezone = region.timezone
+    }
+  }
+
+  // Parse date strings as local dates in the region's timezone
+  // This ensures "today" means today in the region's time, not UTC
   const startDate = query.startDate
-    ? fromZonedTime(`${query.startDate}T00:00:00`, DEFAULT_TIMEZONE)
+    ? fromZonedTime(`${query.startDate}T00:00:00`, timezone)
     : (() => {
-        // Get current date in Eastern timezone
+        // Get current date in region's timezone
         const now = new Date()
-        const easternDate = now.toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE }) // YYYY-MM-DD format
-        return fromZonedTime(`${easternDate}T00:00:00`, DEFAULT_TIMEZONE)
+        const localDate = now.toLocaleDateString('en-CA', { timeZone: timezone }) // YYYY-MM-DD format
+        return fromZonedTime(`${localDate}T00:00:00`, timezone)
       })()
-  // Set endDate to end of day in Eastern timezone to include all events on that date
+  // Set endDate to end of day in region's timezone to include all events on that date
   const endDate = query.endDate
-    ? fromZonedTime(`${query.endDate}T23:59:59.999`, DEFAULT_TIMEZONE)
+    ? fromZonedTime(`${query.endDate}T23:59:59.999`, timezone)
     : undefined
   const genres = query.genres ? (query.genres as string).split(',') : undefined
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
