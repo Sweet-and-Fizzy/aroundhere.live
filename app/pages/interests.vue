@@ -430,8 +430,11 @@ useSeoMeta({
           <h2 class="text-xl font-semibold text-gray-900 mb-2">
             Get Started
           </h2>
-          <p class="text-gray-600">
-            Tell us what you're into below. You can also favorite artists and venues as you browse events.
+          <p class="text-gray-600 mb-3">
+            Tell us what you're into below to get personalized recommendations.
+          </p>
+          <p class="text-gray-500 text-sm">
+            You can also mark events as "interested" or "going" as you browse, or save favorite artists and venues from their profile pages.
           </p>
         </div>
 
@@ -811,7 +814,7 @@ useSeoMeta({
         <div class="sticky top-4">
           <UCard v-if="hasFavorites || hasTasteProfile">
             <template #header>
-              <div class="flex items-center justify-between">
+              <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
                   <UIcon
                     name="i-heroicons-light-bulb"

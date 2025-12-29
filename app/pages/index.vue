@@ -387,7 +387,7 @@ useHead({
                 Add Interests
               </NuxtLink>
               <span class="text-gray-400 text-sm self-center">
-                or browse events below and tap the heart icon
+                takes less than a minute
               </span>
             </div>
           </template>
