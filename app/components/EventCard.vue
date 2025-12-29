@@ -116,11 +116,14 @@ const eventTypeLabel = computed(() => {
           v-if="spotifyArtist"
           :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
           target="_blank"
-          class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors bg-white/90 backdrop-blur-sm rounded-full"
-          title="Listen on Spotify"
+          class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors bg-white/90 backdrop-blur-sm rounded-full focus:outline-none focus:ring-2 focus:ring-[#1DB954]"
+          :aria-label="`Listen to ${spotifyArtist.name} on Spotify`"
           @click.stop
         >
-          <SpotifyIcon class="w-5 h-5" />
+          <SpotifyIcon
+            class="w-5 h-5"
+            aria-hidden="true"
+          />
         </a>
       </div>
       <!-- Image - Full width edge-to-edge on mobile, fixed width on desktop -->
@@ -332,7 +335,8 @@ const eventTypeLabel = computed(() => {
           <!-- eslint-enable vue/no-v-html -->
           <button
             v-if="hasMoreContent"
-            class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1"
+            class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+            :aria-expanded="expanded"
             @click="expanded = !expanded"
           >
             {{ expanded ? 'Show less' : 'Show more' }}

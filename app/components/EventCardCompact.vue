@@ -204,6 +204,7 @@ const eventTypeLabel = computed(() => {
           <UIcon
             name="i-heroicons-map-pin"
             class="w-3.5 h-3.5 inline mr-1"
+            aria-hidden="true"
           />
           {{ event.venue?.name || 'TBA' }}
         </div>

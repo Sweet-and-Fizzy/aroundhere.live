@@ -136,7 +136,8 @@ const truncatedAccessibility = computed(() => {
           </p>
           <button
             v-if="hasLongAccessibility"
-            class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1"
+            class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+            :aria-expanded="accessibilityExpanded"
             @click="accessibilityExpanded = !accessibilityExpanded"
           >
             {{ accessibilityExpanded ? 'Show less' : 'Show more' }}
@@ -174,11 +175,12 @@ const truncatedAccessibility = computed(() => {
             :href="isMobile ? mapsAppUrl : googleMapsUrl"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <UIcon
               name="i-heroicons-map-pin"
               class="w-4 h-4"
+              aria-hidden="true"
             />
             <span>Open in Maps</span>
           </a>
@@ -199,6 +201,7 @@ const truncatedAccessibility = computed(() => {
             <UIcon
               name="i-heroicons-map-pin"
               class="w-5 h-5 mt-0.5 flex-shrink-0"
+              aria-hidden="true"
             />
             <span>{{ fullAddress }}</span>
           </a>
@@ -213,6 +216,7 @@ const truncatedAccessibility = computed(() => {
             <UIcon
               name="i-heroicons-globe-alt"
               class="w-5 h-5 flex-shrink-0"
+              aria-hidden="true"
             />
             <span class="truncate">Website</span>
           </a>
@@ -225,6 +229,7 @@ const truncatedAccessibility = computed(() => {
             <UIcon
               name="i-heroicons-phone"
               class="w-5 h-5 flex-shrink-0"
+              aria-hidden="true"
             />
             <span>{{ venue.phone }}</span>
           </a>
@@ -237,6 +242,7 @@ const truncatedAccessibility = computed(() => {
             <UIcon
               name="i-heroicons-envelope"
               class="w-5 h-5 flex-shrink-0"
+              aria-hidden="true"
             />
             <span class="truncate">{{ venue.email }}</span>
           </a>

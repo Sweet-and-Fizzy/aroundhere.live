@@ -1013,11 +1013,13 @@ defineExpose({
     >
       <button
         class="map-trigger-btn"
+        aria-label="Filter by map"
         @click="showMapModal = true"
       >
         <UIcon
           name="i-heroicons-map"
           class="w-4 h-4"
+          aria-hidden="true"
         />
         <span>Filter by Map</span>
         <span
@@ -1055,11 +1057,13 @@ defineExpose({
             </h3>
             <button
               class="map-modal-close"
+              aria-label="Close map"
               @click="showMapModal = false"
             >
               <UIcon
                 name="i-heroicons-x-mark"
                 class="w-5 h-5"
+                aria-hidden="true"
               />
             </button>
           </div>
@@ -1201,6 +1205,7 @@ defineExpose({
         <UIcon
           name="i-heroicons-x-mark"
           class="w-4 h-4"
+          aria-hidden="true"
         />
         Reset All Filters
         <span class="count-badge">{{ activeFilterCount }}</span>

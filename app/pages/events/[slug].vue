@@ -852,12 +852,14 @@ useHead({
               <!-- eslint-enable vue/no-v-html -->
               <button
                 v-if="hasLongDescription"
-                class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1"
+                class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                :aria-expanded="descriptionExpanded"
                 @click="descriptionExpanded = !descriptionExpanded"
               >
                 <UIcon
                   :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
                   class="w-4 h-4"
+                  aria-hidden="true"
                 />
                 {{ descriptionExpanded ? 'Show less' : 'Show more' }}
               </button>
@@ -875,12 +877,14 @@ useHead({
               </template>
               <button
                 v-if="hasLongDescription"
-                class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1"
+                class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                :aria-expanded="descriptionExpanded"
                 @click="descriptionExpanded = !descriptionExpanded"
               >
                 <UIcon
                   :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
                   class="w-4 h-4"
+                  aria-hidden="true"
                 />
                 {{ descriptionExpanded ? 'Show less' : 'Show more' }}
               </button>

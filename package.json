@@ -87,6 +87,6 @@
   },
   "lint-staged": {
     "*.{js,ts,vue}": "eslint --fix",
-    "*.{ts,vue}": "bash -c 'npx vue-tsc --noEmit'"
+    "*.{ts,vue}": "bash -c 'npx nuxi typecheck'"
   }
 }

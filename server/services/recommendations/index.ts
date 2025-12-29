@@ -757,7 +757,7 @@ export async function findFavoriteArtistEvents(
         select: {
           artistId: true,
           artist: {
-            select: { name: true },
+            select: { id: true, name: true },
           },
         },
         orderBy: { order: 'asc' },
@@ -779,11 +779,11 @@ export async function findFavoriteArtistEvents(
         startsAt: e.startsAt,
         coverCharge: e.coverCharge,
         canonicalGenres: e.canonicalGenres,
-        eventType: e.eventType,
+        eventType: e.eventType as string | null,
         summary: e.summary,
         imageUrl: e.imageUrl,
         venue: e.venue,
-        artists: e.eventArtists.slice(0, 3).map((ea) => ({ name: ea.artist.name })),
+        artists: e.eventArtists.slice(0, 3).map((ea) => ({ id: ea.artist.id, name: ea.artist.name })),
       },
       matchedArtists: matchedArtistIds
         .map((id) => artistNameMap.get(id))

@@ -214,7 +214,11 @@ async function fetchRecommendations() {
     const data = await $fetch('/api/user/recommendations', {
       query: { limit: 10, days: recDays.value },
     })
-    recommendations.value = data.recommendations || []
+    // Map API response to match Event type (null -> undefined for optional fields)
+    recommendations.value = (data.recommendations || []).map((rec) => ({
+      ...rec,
+      summary: rec.summary ?? undefined,
+    })) as RecommendedEvent[]
     hasTasteProfile.value = data.hasTasteProfile ?? false
   } catch (e) {
     console.error('Failed to load recommendations:', e)
@@ -616,6 +620,7 @@ useSeoMeta({
                   v-model="artistSearchQuery"
                   type="text"
                   placeholder="Search artists..."
+                  aria-label="Search artists"
                   class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   @input="debouncedArtistSearch"
                   @focus="showArtistResults = true"
@@ -625,6 +630,7 @@ useSeoMeta({
                   v-if="artistSearchLoading"
                   name="i-heroicons-arrow-path"
                   class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400"
+                  aria-hidden="true"
                 />
 
                 <!-- Search Results Dropdown -->
@@ -725,6 +731,7 @@ useSeoMeta({
                   v-model="venueSearchQuery"
                   type="text"
                   placeholder="Search venues..."
+                  aria-label="Search venues"
                   class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   @input="debouncedVenueSearch"
                   @focus="showVenueResults = true"
@@ -734,6 +741,7 @@ useSeoMeta({
                   v-if="venueSearchLoading"
                   name="i-heroicons-arrow-path"
                   class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400"
+                  aria-hidden="true"
                 />
 
                 <!-- Search Results Dropdown -->
@@ -826,6 +834,7 @@ useSeoMeta({
                   <!-- Date range selector -->
                   <select
                     v-model="recDays"
+                    aria-label="Recommendation time range"
                     class="text-xs border-gray-300 rounded-md py-1 pl-2 pr-6 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option
@@ -837,37 +846,45 @@ useSeoMeta({
                     </option>
                   </select>
                   <!-- View mode toggle -->
-                  <div class="flex items-center bg-gray-100 rounded-md p-0.5">
+                  <div
+                    class="flex items-center bg-gray-100 rounded-md p-0.5"
+                    role="group"
+                    aria-label="View mode"
+                  >
                     <button
                       type="button"
                       :class="[
-                        'p-1 rounded transition-colors',
+                        'p-1 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
                         recViewMode === 'card'
                           ? 'bg-white shadow-sm text-primary-600'
                           : 'text-gray-600 hover:text-gray-800'
                       ]"
-                      title="Card view"
+                      aria-label="Card view"
+                      :aria-pressed="recViewMode === 'card'"
                       @click="recViewMode = 'card'"
                     >
                       <UIcon
                         name="i-heroicons-squares-2x2"
                         class="w-3.5 h-3.5"
+                        aria-hidden="true"
                       />
                     </button>
                     <button
                       type="button"
                       :class="[
-                        'p-1 rounded transition-colors',
+                        'p-1 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
                         recViewMode === 'compact'
                           ? 'bg-white shadow-sm text-primary-600'
                           : 'text-gray-600 hover:text-gray-800'
                       ]"
-                      title="Compact view"
+                      aria-label="Compact view"
+                      :aria-pressed="recViewMode === 'compact'"
                       @click="recViewMode = 'compact'"
                     >
                       <UIcon
                         name="i-heroicons-bars-3"
                         class="w-3.5 h-3.5"
+                        aria-hidden="true"
                       />
                     </button>
                   </div>

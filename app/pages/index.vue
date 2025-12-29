@@ -422,10 +422,12 @@ useHead({
                 type="submit"
                 class="px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors flex items-center justify-center"
                 :disabled="!heroChatInput.trim()"
+                aria-label="Send message"
               >
                 <UIcon
                   name="i-heroicons-arrow-right"
                   class="w-5 h-5 text-white"
+                  aria-hidden="true"
                 />
               </button>
             </form>
@@ -485,26 +487,28 @@ useHead({
           <!-- Collapse Button - sticks out from left edge -->
           <button
             v-show="!sidebarCollapsed"
-            class="absolute left-0 top-32 -translate-x-full bg-white border border-gray-200 border-r-0 rounded-l-md py-4 px-1.5 shadow-sm hover:bg-gray-50 transition-colors"
-            :title="'Collapse sidebar'"
+            class="absolute left-0 top-32 -translate-x-full bg-white border border-gray-200 border-r-0 rounded-l-md py-4 px-1.5 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+            aria-label="Collapse sidebar"
             @click="sidebarCollapsed = !sidebarCollapsed"
           >
             <UIcon
               name="i-heroicons-chevron-left"
               class="w-3.5 h-3.5 text-gray-600"
+              aria-hidden="true"
             />
           </button>
 
           <!-- Expand Button - shows as a vertical tab when collapsed -->
           <button
             v-show="sidebarCollapsed"
-            class="absolute -left-6 top-32 z-30 bg-white border border-gray-200 border-l-0 rounded-r-md py-4 px-1.5 shadow-sm hover:bg-gray-50 transition-colors"
-            :title="'Expand sidebar'"
+            class="absolute -left-6 top-32 z-30 bg-white border border-gray-200 border-l-0 rounded-r-md py-4 px-1.5 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+            aria-label="Expand sidebar"
             @click="sidebarCollapsed = !sidebarCollapsed"
           >
             <UIcon
               name="i-heroicons-chevron-right"
               class="w-3.5 h-3.5 text-gray-600"
+              aria-hidden="true"
             />
           </button>
         </div>
@@ -539,13 +543,14 @@ useHead({
             >whatsup@aroundhere.live</a></span>
           </div>
           <button
-            class="text-gray-500 hover:text-gray-700 p-1"
-            title="Dismiss"
+            class="text-gray-500 hover:text-gray-700 p-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+            aria-label="Dismiss banner"
             @click="dismissPlaylistBanner"
           >
             <UIcon
               name="i-heroicons-x-mark"
               class="w-4 h-4"
+              aria-hidden="true"
             />
           </button>
         </div>
@@ -564,35 +569,43 @@ useHead({
             </h2>
 
             <!-- View Toggle Buttons -->
-            <div class="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <div
+              class="flex gap-1 bg-gray-100 rounded-lg p-1"
+              role="group"
+              aria-label="View mode"
+            >
               <button
                 :class="[
-                  'p-1.5 rounded transition-colors',
+                  'p-1.5 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
                   viewMode === 'card'
                     ? 'bg-white shadow-sm text-primary-600'
                     : 'text-gray-600 hover:text-gray-800'
                 ]"
-                title="Card view"
+                aria-label="Card view"
+                :aria-pressed="viewMode === 'card'"
                 @click="viewMode = 'card'"
               >
                 <UIcon
                   name="i-heroicons-squares-2x2"
                   class="w-4 h-4 sm:w-5 sm:h-5"
+                  aria-hidden="true"
                 />
               </button>
               <button
                 :class="[
-                  'p-1.5 rounded transition-colors',
+                  'p-1.5 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
                   viewMode === 'compact'
                     ? 'bg-white shadow-sm text-primary-600'
                     : 'text-gray-600 hover:text-gray-800'
                 ]"
-                title="Compact view"
+                aria-label="Compact view"
+                :aria-pressed="viewMode === 'compact'"
                 @click="viewMode = 'compact'"
               >
                 <UIcon
                   name="i-heroicons-bars-3"
                   class="w-4 h-4 sm:w-5 sm:h-5"
+                  aria-hidden="true"
                 />
               </button>
             </div>

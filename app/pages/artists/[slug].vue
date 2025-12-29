@@ -326,35 +326,41 @@ useHead({
           <div
             v-if="upcomingEvents.length > 0"
             class="flex gap-1 bg-gray-100 rounded-lg p-1"
+            role="group"
+            aria-label="View mode"
           >
             <button
               :class="[
-                'p-1.5 rounded transition-colors',
+                'p-1.5 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
                 viewMode === 'card'
                   ? 'bg-white shadow-sm text-primary-600'
                   : 'text-gray-600 hover:text-gray-800'
               ]"
-              title="Card view"
+              aria-label="Card view"
+              :aria-pressed="viewMode === 'card'"
               @click="viewMode = 'card'"
             >
               <UIcon
                 name="i-heroicons-squares-2x2"
                 class="w-4 h-4 sm:w-5 sm:h-5"
+                aria-hidden="true"
               />
             </button>
             <button
               :class="[
-                'p-1.5 rounded transition-colors',
+                'p-1.5 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
                 viewMode === 'compact'
                   ? 'bg-white shadow-sm text-primary-600'
                   : 'text-gray-600 hover:text-gray-800'
               ]"
-              title="Compact view"
+              aria-label="Compact view"
+              :aria-pressed="viewMode === 'compact'"
               @click="viewMode = 'compact'"
             >
               <UIcon
                 name="i-heroicons-bars-3"
                 class="w-4 h-4 sm:w-5 sm:h-5"
+                aria-hidden="true"
               />
             </button>
           </div>

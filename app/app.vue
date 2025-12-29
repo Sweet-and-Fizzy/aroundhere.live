@@ -87,6 +87,13 @@ const userMenuItems = computed(() => {
 
 <template>
   <UApp>
+    <!-- Skip link for keyboard navigation -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded"
+    >
+      Skip to main content
+    </a>
     <div class="min-h-screen flex flex-col bg-gray-50">
       <!-- Navigation -->
       <nav class="bg-gray-900 text-white">
@@ -174,6 +181,8 @@ const userMenuItems = computed(() => {
             <!-- Mobile Menu Button -->
             <button
               class="md:hidden p-2 -mr-2 text-gray-300 hover:text-white transition-colors"
+              :aria-label="mobileMenuOpen ? 'Close menu' : 'Open menu'"
+              :aria-expanded="mobileMenuOpen"
               @click="mobileMenuOpen = !mobileMenuOpen"
             >
               <UIcon
@@ -369,7 +378,10 @@ const userMenuItems = computed(() => {
       </nav>
 
       <!-- Main Content -->
-      <main class="flex-1 max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      <main
+        id="main-content"
+        class="flex-1 max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6"
+      >
         <NuxtRouteAnnouncer />
         <NuxtPage />
       </main>
