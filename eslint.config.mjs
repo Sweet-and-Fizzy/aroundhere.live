@@ -127,6 +127,7 @@ export default [
       '.output/**',
       'dist/**',
       '.git/**',
+      'scripts/scrapers/**', // Scraper code runs in sandboxed environment with injected globals
     ],
   },
   // TypeScript files
