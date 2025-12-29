@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, toRef } from 'vue'
 import type { DateRange } from 'reka-ui'
+import { CalendarDate } from '@internationalized/date'
 
 // Import filter sub-components
 import FilterSection from '~/components/filters/FilterSection.vue'
@@ -54,15 +55,22 @@ const STORAGE_KEY = 'eventFilters'
 
 // Valid event types for URL validation
 const validEventTypes = ['ALL_MUSIC', 'ALL_EVENTS', 'MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE', 'COMEDY', 'THEATER', 'TRIVIA']
-const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'all']
+const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'all', 'custom']
 
 // Valid myEvents options
 const validMyEventsOptions = ['interested', 'going', 'all']
 
+// Parse date from YYYY-MM-DD format
+function parseDateParam(dateStr: string): Date | null {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+  return new Date(parseInt(match[1]!), parseInt(match[2]!) - 1, parseInt(match[3]!))
+}
+
 // Load filters from URL params (takes priority over localStorage)
 function loadFiltersFromUrl() {
   const query = route.query
-  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities || query.regions || query.myEvents || query.recommended
+  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities || query.regions || query.myEvents || query.recommended || query.dateStart || query.dateEnd
 
   if (!hasUrlFilters) return null
 
@@ -72,7 +80,23 @@ function loadFiltersFromUrl() {
 
   // Validate date preset
   const urlDate = query.date as string
-  const validatedDate = validDatePresets.includes(urlDate) ? urlDate : 'all'
+  let validatedDate = validDatePresets.includes(urlDate) ? urlDate : 'all'
+
+  // Parse custom date range from URL
+  let customRange: CalendarDateRange | undefined
+  const dateStart = query.dateStart as string
+  const dateEnd = query.dateEnd as string
+  if (dateStart && dateEnd) {
+    const startDate = parseDateParam(dateStart)
+    const endDate = parseDateParam(dateEnd)
+    if (startDate && endDate) {
+      customRange = {
+        start: new CalendarDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate()),
+        end: new CalendarDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()),
+      }
+      validatedDate = 'custom'
+    }
+  }
 
   // Validate myEvents (attendance only - interested/going/all)
   const urlMyEvents = query.myEvents as string
@@ -88,6 +112,7 @@ function loadFiltersFromUrl() {
     selectedGenres: query.genres ? (query.genres as string).split(',') : [],
     selectedEventTypes: validatedTypes.length > 0 ? validatedTypes : ['ALL_MUSIC'],
     datePreset: validatedDate,
+    customDateRange: customRange,
     selectedRegions: query.regions ? (query.regions as string).split(',') : [],
     selectedCities: query.cities ? (query.cities as string).split(',') : [],
     myEvents: validatedMyEvents,
@@ -105,7 +130,19 @@ function loadSavedFilters() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
-        return JSON.parse(saved)
+        const filters = JSON.parse(saved)
+        // Parse custom date range from localStorage
+        if (filters.customDateRangeData?.startDate && filters.customDateRangeData?.endDate) {
+          const startDate = parseDateParam(filters.customDateRangeData.startDate)
+          const endDate = parseDateParam(filters.customDateRangeData.endDate)
+          if (startDate && endDate) {
+            filters.customDateRange = {
+              start: new CalendarDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate()),
+              end: new CalendarDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()),
+            }
+          }
+        }
+        return filters
       }
     } catch {
       // Ignore parse errors
@@ -117,8 +154,21 @@ function loadSavedFilters() {
 // Save filters to localStorage
 function saveFilters() {
   if (import.meta.client) {
+    // Serialize custom date range to simple object for JSON storage
+    // Use CalendarDate properties directly to avoid any timezone issues
+    let customDateRangeData = null
+    if (customDateRange.value?.start && customDateRange.value?.end) {
+      const start = customDateRange.value.start
+      const end = customDateRange.value.end
+      customDateRangeData = {
+        startDate: `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`,
+        endDate: `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`,
+      }
+    }
+
     const filters = {
       datePreset: datePreset.value,
+      customDateRangeData,
       selectedVenueIds: selectedVenueIds.value,
       selectedRegions: selectedRegions.value,
       selectedCities: selectedCities.value,
@@ -182,6 +232,15 @@ function updateUrl() {
     query.date = datePreset.value
   }
 
+  // Custom date range (when preset is 'custom')
+  // Use CalendarDate properties directly to avoid any timezone issues
+  if (datePreset.value === 'custom' && customDateRange.value?.start && customDateRange.value?.end) {
+    const start = customDateRange.value.start
+    const end = customDateRange.value.end
+    query.dateStart = `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`
+    query.dateEnd = `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`
+  }
+
   // My Events filter (attendance)
   if (myEvents.value) {
     query.myEvents = myEvents.value
@@ -221,7 +280,7 @@ function isSectionExpanded(section: string) {
 
 // Date range state - default to 'all' since we have pagination
 const datePreset = ref(savedFilters?.datePreset || 'all')
-const customDateRange = ref<CalendarDateRange | undefined>(undefined)
+const customDateRange = ref<CalendarDateRange | undefined>(savedFilters?.customDateRange || undefined)
 const showCustomCalendar = ref(false)
 
 // Track if we have pending URL venue slugs to resolve
@@ -530,6 +589,15 @@ const datePresets = [
 
 // Section summaries for collapsed state
 const dateSummary = computed(() => {
+  // Show custom date range if selected
+  if (datePreset.value === 'custom' && customDateRange.value?.start && customDateRange.value?.end) {
+    const start = customDateRange.value.start
+    const end = customDateRange.value.end
+    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+    const startDate = new Date(start.year, start.month - 1, start.day)
+    const endDate = new Date(end.year, end.month - 1, end.day)
+    return `${formatter.format(startDate)} - ${formatter.format(endDate)}`
+  }
   const preset = datePresets.find(p => p.value === datePreset.value)
   return preset?.label || 'All Upcoming'
 })

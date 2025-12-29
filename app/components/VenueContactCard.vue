@@ -58,6 +58,18 @@ const isMobile = ref(false)
 onMounted(() => {
   isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 })
+
+// Accessibility section expand/collapse
+const ACCESSIBILITY_THRESHOLD = 150
+const accessibilityExpanded = ref(false)
+const hasLongAccessibility = computed(() => {
+  return (props.venue.accessibilityInfo?.length ?? 0) > ACCESSIBILITY_THRESHOLD
+})
+const truncatedAccessibility = computed(() => {
+  if (!props.venue.accessibilityInfo) return ''
+  if (!hasLongAccessibility.value) return props.venue.accessibilityInfo
+  return props.venue.accessibilityInfo.slice(0, ACCESSIBILITY_THRESHOLD) + '...'
+})
 </script>
 
 <template>
@@ -120,8 +132,15 @@ onMounted(() => {
             Accessibility
           </h3>
           <p class="text-sm text-gray-700 whitespace-pre-line">
-            {{ venue.accessibilityInfo }}
+            {{ accessibilityExpanded ? venue.accessibilityInfo : truncatedAccessibility }}
           </p>
+          <button
+            v-if="hasLongAccessibility"
+            class="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1"
+            @click="accessibilityExpanded = !accessibilityExpanded"
+          >
+            {{ accessibilityExpanded ? 'Show less' : 'Show more' }}
+          </button>
         </div>
       </div>
 

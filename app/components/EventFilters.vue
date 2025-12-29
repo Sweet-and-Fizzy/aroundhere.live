@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, toRef } from 'vue'
 import type { DateRange } from 'reka-ui'
+import { CalendarDate } from '@internationalized/date'
 
 // Import filter sub-components
 import ForYouFilter from '~/components/filters/ForYouFilter.vue'
@@ -47,6 +48,13 @@ const props = defineProps<{
 // LocalStorage key for persisting filters
 const STORAGE_KEY = 'eventFilters'
 
+// Parse date from YYYY-MM-DD format
+function parseDateParam(dateStr: string): Date | null {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+  return new Date(parseInt(match[1]!), parseInt(match[2]!) - 1, parseInt(match[3]!))
+}
+
 // Load filters from URL parameters first, fall back to localStorage
 function loadSavedFilters() {
   if (import.meta.client) {
@@ -80,6 +88,20 @@ function loadSavedFilters() {
       if (urlParams.myEvents && typeof urlParams.myEvents === 'string') {
         filters.myEvents = urlParams.myEvents
       }
+      // Parse custom date range from URL
+      if (urlParams.dateStart && urlParams.dateEnd) {
+        const startDate = parseDateParam(urlParams.dateStart as string)
+        const endDate = parseDateParam(urlParams.dateEnd as string)
+        if (startDate && endDate) {
+          filters.customDateRange = {
+            start: new CalendarDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate()),
+            end: new CalendarDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()),
+          }
+          filters.datePreset = 'custom'
+        }
+      } else if (urlParams.date && typeof urlParams.date === 'string') {
+        filters.datePreset = urlParams.date
+      }
 
       // Only return if we found actual filter values
       if (Object.keys(filters).length > 0) {
@@ -102,6 +124,17 @@ function loadSavedFilters() {
             filters.selectedEventTypes = [{ label: 'All Music', value: 'ALL_MUSIC' }]
           }
         }
+        // Parse custom date range from localStorage
+        if (filters.customDateRangeData?.startDate && filters.customDateRangeData?.endDate) {
+          const startDate = parseDateParam(filters.customDateRangeData.startDate)
+          const endDate = parseDateParam(filters.customDateRangeData.endDate)
+          if (startDate && endDate) {
+            filters.customDateRange = {
+              start: new CalendarDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate()),
+              end: new CalendarDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()),
+            }
+          }
+        }
         return filters
       }
     } catch {
@@ -114,8 +147,21 @@ function loadSavedFilters() {
 // Save filters to localStorage
 function saveFilters() {
   if (import.meta.client) {
+    // Serialize custom date range to simple object for JSON storage
+    // Use CalendarDate properties directly to avoid any timezone issues
+    let customDateRangeData = null
+    if (customDateRange.value?.start && customDateRange.value?.end) {
+      const start = customDateRange.value.start
+      const end = customDateRange.value.end
+      customDateRangeData = {
+        startDate: `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`,
+        endDate: `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`,
+      }
+    }
+
     const filters = {
       datePreset: datePreset.value,
+      customDateRangeData,
       selectedRegions: selectedRegions.value,
       selectedCities: selectedCities.value,
       selectedVenueIds: selectedVenueIds.value,
@@ -137,7 +183,7 @@ const savedFilters = loadSavedFilters()
 
 // Date range state - default to 'all' for all upcoming events
 const datePreset = ref(savedFilters?.datePreset || 'all')
-const customDateRange = ref<CalendarDateRange | undefined>(undefined)
+const customDateRange = ref<CalendarDateRange | undefined>(savedFilters?.customDateRange || undefined)
 
 // Location filter - now tracks selections at Region, City, and Venue levels separately
 const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
@@ -408,9 +454,10 @@ const dateDisplayLabel = computed(() => {
     const start = customDateRange.value.start
     const end = customDateRange.value.end
     if (start && end) {
-      const startStr = `${start.month}/${start.day}`
-      const endStr = `${end.month}/${end.day}`
-      return `${startStr} - ${endStr}`
+      const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+      const startDate = new Date(start.year, start.month - 1, start.day)
+      const endDate = new Date(end.year, end.month - 1, end.day)
+      return `${formatter.format(startDate)} - ${formatter.format(endDate)}`
     }
   }
   return datePresetLabels[datePreset.value] || 'Select Date'
@@ -580,9 +627,21 @@ function updateUrlFromFilters(filters: Record<string, any>) {
   if (filters.genres?.length) query.genres = filters.genres.join(',')
   if (filters.eventTypes?.length) query.eventTypes = filters.eventTypes.join(',')
   if (filters.q) query.q = filters.q
-  if (filters.startDate) query.startDate = filters.startDate
-  if (filters.endDate) query.endDate = filters.endDate
   if (filters.myEvents) query.myEvents = filters.myEvents
+
+  // Date preset (only if not default)
+  if (datePreset.value !== 'all') {
+    query.date = datePreset.value
+  }
+
+  // Custom date range (when preset is 'custom')
+  // Use CalendarDate properties directly to avoid any timezone issues
+  if (datePreset.value === 'custom' && customDateRange.value?.start && customDateRange.value?.end) {
+    const start = customDateRange.value.start
+    const end = customDateRange.value.end
+    query.dateStart = `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`
+    query.dateEnd = `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`
+  }
 
   // Only update if query changed
   const currentQuery = router.currentRoute.value.query

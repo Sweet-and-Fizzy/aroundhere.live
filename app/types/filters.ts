@@ -70,10 +70,17 @@ export type CanonicalGenre =
   | 'reggae'
   | 'ska'
 
+// Custom date range (start and end dates as YYYY-MM-DD strings)
+export interface CustomDateRange {
+  start: string // YYYY-MM-DD
+  end: string   // YYYY-MM-DD
+}
+
 // Filter state (for useFilterState composable)
 export interface FilterState {
   searchQuery: string
   datePreset: DatePreset | string
+  customDateRange?: CustomDateRange | null
   selectedRegions: string[]
   selectedCities: string[]
   selectedVenueIds: string[]
@@ -158,6 +165,7 @@ export interface FilterChangeEvent {
 export const DEFAULT_FILTER_STATE: FilterState = {
   searchQuery: '',
   datePreset: 'all',
+  customDateRange: null,
   selectedRegions: [],
   selectedCities: [],
   selectedVenueIds: [],
