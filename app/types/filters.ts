@@ -36,8 +36,8 @@ export type DatePreset = 'today' | 'tomorrow' | 'weekend' | 'week' | 'month' | '
 export const DATE_PRESETS: DatePreset[] = ['today', 'tomorrow', 'weekend', 'week', 'month', 'all']
 
 // My Events filter options
-export type MyEventsOption = 'interested' | 'going' | 'all'
-export const MY_EVENTS_OPTIONS: MyEventsOption[] = ['interested', 'going', 'all']
+export type MyEventsOption = 'interested' | 'going' | 'all' | 'recommended'
+export const MY_EVENTS_OPTIONS: MyEventsOption[] = ['interested', 'going', 'all', 'recommended']
 
 // Genre type (canonical genre from our system)
 export type CanonicalGenre =

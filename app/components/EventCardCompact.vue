@@ -6,7 +6,12 @@ const props = defineProps<{
   hideDate?: boolean
   hideVenue?: boolean
   hideEventType?: boolean
+  recommendationReason?: string
+  recommendationScore?: number
 }>()
+
+// Show "Good Match" badge for better recommendations (score >= 20 on 0-100 scale)
+const isGoodMatch = computed(() => props.recommendationScore && props.recommendationScore >= 20)
 
 const { getGenreLabel, getGenreColor } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeColor } = useEventTypeLabels()
@@ -159,6 +164,29 @@ const eventTypeLabel = computed(() => {
               {{ getGenreLabel(primaryGenre) }}
             </span>
           </div>
+        </div>
+        <!-- Recommendation reason -->
+        <div
+          v-if="recommendationReason"
+          class="flex items-start gap-1 text-xs text-primary-600 mt-0.5"
+        >
+          <UIcon
+            name="i-heroicons-light-bulb"
+            class="w-3 h-3 flex-shrink-0 mt-0.5"
+          />
+          <span class="flex items-center gap-1.5">
+            <span
+              v-if="isGoodMatch"
+              class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm"
+            >
+              <UIcon
+                name="i-heroicons-check-circle-solid"
+                class="w-2.5 h-2.5"
+              />
+              Good Match
+            </span>
+            {{ recommendationReason }}
+          </span>
         </div>
       </NuxtLink>
     </td>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 useSeoMeta({
   title: 'How It Works',
-  description: 'Learn how to get the most out of AroundHere - follow artists, get notified about shows, and discover new music.',
+  description: 'Learn how to get the most out of AroundHere - discover local events, get personalized recommendations, and never miss a show.',
 })
 
 const { loggedIn, ready } = useUserSession()
@@ -20,11 +20,49 @@ const { loggedIn, ready } = useUserSession()
         How It Works
       </h1>
       <p class="text-lg text-gray-600">
-        AroundHere pulls live music listings from local venues so you can find what's happening nearby. Sign in to get more out of it.
+        AroundHere aggregates event listings from local venues so you can discover what's happening nearby — live music, comedy, open mics, theater, and more.
       </p>
     </div>
 
     <div class="space-y-10">
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-magnifying-glass"
+              class="w-5 h-5 text-blue-600"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Browse & Filter Events
+            </h2>
+            <p class="text-gray-600">
+              Search by keyword, filter by date range, genre, venue, or event type. Switch to map view to explore what's happening near you. Every event links to ticket pages, venue details, and artist profiles.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-chat-bubble-left-right"
+              class="w-5 h-5 text-amber-600"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Ask Questions
+            </h2>
+            <p class="text-gray-600">
+              Use the chat to ask in plain English — "What's happening this weekend?", "Find me some jazz", or "Recommend something for me". It knows about all upcoming events and can filter based on your preferences.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section>
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -35,29 +73,17 @@ const { loggedIn, ready } = useUserSession()
           </div>
           <div>
             <h2 class="text-xl font-semibold text-gray-900 mb-2">
-              Follow What You Love
+              Save Favorites & Get Notified
             </h2>
             <p class="text-gray-600">
-              Favorite artists, venues, and genres with one click from any event page. Build a profile of what you're into.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="flex items-start gap-4">
-          <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <UIcon
-              name="i-heroicons-bell"
-              class="w-5 h-5 text-blue-500"
-            />
-          </div>
-          <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">
-              Get Notified
-            </h2>
-            <p class="text-gray-600">
-              Get daily or weekly emails when your favorite artists or venues have upcoming shows. Enabled by default when you sign up.
+              Tap the heart on any event to save artists and venues you like. We'll email you when they have upcoming shows — enabled by default, adjustable anytime in settings. You can also describe your taste on your
+              <NuxtLink
+                to="/interests"
+                class="text-primary-600 hover:text-primary-700 font-medium underline"
+              >
+                interests page
+              </NuxtLink>
+              to power personalized recommendations.
             </p>
           </div>
         </div>
@@ -67,16 +93,16 @@ const { loggedIn, ready } = useUserSession()
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
             <UIcon
-              name="i-heroicons-sparkles"
+              name="i-heroicons-user"
               class="w-5 h-5 text-purple-500"
             />
           </div>
           <div>
             <h2 class="text-xl font-semibold text-gray-900 mb-2">
-              Discover New Music
+              Artist & Venue Profiles
             </h2>
             <p class="text-gray-600">
-              Opt in to weekly recommendations curated for your taste. Tell us what you're into and we'll surface shows you might have missed.
+              Tap any artist or venue to see their full profile. Artist pages include bios, genres, social links, and an embedded Spotify player. Venue pages show location, contact info, and all upcoming events at that spot.
             </p>
           </div>
         </div>
@@ -85,23 +111,21 @@ const { loggedIn, ready } = useUserSession()
       <section>
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-            <UIcon
-              name="i-heroicons-musical-note"
-              class="w-5 h-5 text-green-500"
-            />
+            <SpotifyIcon class="w-5 h-5 text-[#1DB954]" />
           </div>
           <div>
             <h2 class="text-xl font-semibold text-gray-900 mb-2">
-              Preview on Spotify
+              Preview Artists on Spotify
             </h2>
             <p class="text-gray-600">
-              Check out our <NuxtLink
+              Our
+              <NuxtLink
                 to="/playlist"
                 class="text-primary-600 hover:text-primary-700 font-medium underline"
               >
                 Spotify playlist
               </NuxtLink>
-              to preview music from artists playing local shows. It updates daily with tracks from upcoming performances, so you can discover what you might like before the show.
+              features artists with upcoming local shows. It updates daily — artists playing sooner appear first, and tracks are removed after their show passes.
             </p>
           </div>
         </div>

@@ -325,6 +325,193 @@ async function fixHutghisSourceEventId() {
   }
 }
 
+// Incandescent Brewing - extract times from Google Calendar links
+const incandescentCode = `async function scrapeEvents(url, timezone = 'America/New_York') {
+  const browser = await chromium.launch({ headless: true })
+  const page = await browser.newPage()
+
+  try {
+    await page.goto(url, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(3000)
+
+    const html = await page.content()
+    const $ = cheerio.load(html)
+
+    var events = []
+
+    $('.eventlist-event--upcoming').each((index, element) => {
+      const $event = $(element)
+
+      const title = $event.find('.eventlist-title-link').text().trim()
+      if (!title) return
+
+      const eventUrl = $event.find('.eventlist-title-link').attr('href')
+      const sourceUrl = eventUrl ? \`https://www.incandescentbrewing.com\${eventUrl}\` : url
+
+      // Try to get datetime from Google Calendar link first (most reliable)
+      const googleCalUrl = $event.find('a[href*="google.com/calendar"]').attr('href')
+      let startsAt, endsAt
+
+      if (googleCalUrl) {
+        const datesMatch = googleCalUrl.match(/dates=(\\d{8}T\\d{6}Z)\\/(\\d{8}T\\d{6}Z)/)
+        if (datesMatch) {
+          // Parse UTC timestamps from Google Calendar URL
+          const startUtc = datesMatch[1]
+          const endUtc = datesMatch[2]
+
+          // Parse format: 20251231T210000Z
+          const parseGoogleDate = (dateStr) => {
+            const year = dateStr.substring(0, 4)
+            const month = dateStr.substring(4, 6)
+            const day = dateStr.substring(6, 8)
+            const hour = dateStr.substring(9, 11)
+            const minute = dateStr.substring(11, 13)
+            const second = dateStr.substring(13, 15)
+            return new Date(\`\${year}-\${month}-\${day}T\${hour}:\${minute}:\${second}Z\`)
+          }
+
+          startsAt = parseGoogleDate(startUtc)
+          endsAt = parseGoogleDate(endUtc)
+        }
+      }
+
+      // Fallback to datetime attributes if Google Calendar parsing failed
+      if (!startsAt) {
+        const dateTimeStr = $event.find('.event-date').attr('datetime')
+        const startTimeStr = $event.find('.event-time-localized-start').attr('datetime')
+        const endTimeStr = $event.find('.event-time-localized-end').attr('datetime')
+
+        if (dateTimeStr) {
+          if (startTimeStr && startTimeStr !== dateTimeStr) {
+            startsAt = fromZonedTime(new Date(startTimeStr), timezone)
+          } else {
+            const startTimeText = $event.find('.event-time-localized-start').text().trim()
+            if (startTimeText) {
+              const dateOnly = dateTimeStr.split('T')[0]
+              const timeMatch = startTimeText.match(/(\\d{1,2}):(\\d{2})\\s*(AM|PM)/i)
+              if (timeMatch) {
+                let hours = parseInt(timeMatch[1])
+                const minutes = parseInt(timeMatch[2])
+                const ampm = timeMatch[3].toUpperCase()
+
+                if (ampm === 'PM' && hours !== 12) hours += 12
+                if (ampm === 'AM' && hours === 12) hours = 0
+
+                const localDateTime = \`\${dateOnly}T\${String(hours).padStart(2, '0')}:\${String(minutes).padStart(2, '0')}:00\`
+                startsAt = fromZonedTime(new Date(localDateTime), timezone)
+              }
+            }
+          }
+
+          if (endTimeStr && endTimeStr !== dateTimeStr) {
+            endsAt = fromZonedTime(new Date(endTimeStr), timezone)
+          } else {
+            const endTimeText = $event.find('.event-time-localized-end').text().trim()
+            if (endTimeText) {
+              const dateOnly = dateTimeStr.split('T')[0]
+              const timeMatch = endTimeText.match(/(\\d{1,2}):(\\d{2})\\s*(AM|PM)/i)
+              if (timeMatch) {
+                let hours = parseInt(timeMatch[1])
+                const minutes = parseInt(timeMatch[2])
+                const ampm = timeMatch[3].toUpperCase()
+
+                if (ampm === 'PM' && hours !== 12) hours += 12
+                if (ampm === 'AM' && hours === 12) hours = 0
+
+                const localDateTime = \`\${dateOnly}T\${String(hours).padStart(2, '0')}:\${String(minutes).padStart(2, '0')}:00\`
+                endsAt = fromZonedTime(new Date(localDateTime), timezone)
+              }
+            }
+          }
+
+          // Last resort: use date only
+          if (!startsAt) {
+            startsAt = fromZonedTime(new Date(dateTimeStr), timezone)
+          }
+        }
+      }
+
+      if (!startsAt) return // Skip if we couldn't determine any date
+
+      const imageUrl = $event.find('.eventlist-column-thumbnail img').attr('data-src') ||
+                      $event.find('.eventlist-column-thumbnail img').attr('src')
+
+      // Extract description - both plain text and HTML
+      let description = ''
+      let descriptionHtml = ''
+      const excerptText = $event.find('.eventlist-excerpt').text().trim()
+      const descriptionEl = $event.find('.eventlist-description')
+
+      if (descriptionEl.length) {
+        // Get the raw HTML for rich content display
+        descriptionHtml = descriptionEl.html()
+
+        // Extract clean plain text with paragraph breaks
+        const paragraphs = descriptionEl.find('p')
+        if (paragraphs.length) {
+          description = paragraphs.map((i, p) => $(p).text().trim()).get().join('\\n\\n')
+        } else {
+          description = descriptionEl.text().trim()
+        }
+      } else if (excerptText) {
+        description = excerptText
+      }
+
+      const event = {
+        title: title,
+        startsAt: startsAt,
+        sourceUrl: sourceUrl
+      }
+
+      if (description) event.description = description
+      if (descriptionHtml) event.descriptionHtml = descriptionHtml
+      if (imageUrl) event.imageUrl = imageUrl
+      if (endsAt) event.endsAt = endsAt
+
+      events.push(event)
+    })
+
+    await browser.close()
+    return events
+  } catch (error) {
+    await browser.close()
+    throw error
+  }
+}`
+
+async function fixIncandescentBrewing() {
+  const source = await prisma.source.findFirst({
+    where: { name: { contains: 'incandescent', mode: 'insensitive' } }
+  })
+
+  if (!source) {
+    console.log('⚠️  Incandescent Brewing source not found')
+    return false
+  }
+
+  const config = source.config as Record<string, unknown>
+
+  // Check if already has all fixes: Google Calendar parsing, clean descriptions, AND descriptionHtml
+  const currentCode = config.generatedCode as string
+  if (currentCode?.includes('google.com/calendar') && currentCode?.includes('paragraphs.map') && currentCode?.includes('event.descriptionHtml')) {
+    console.log('✓  Incandescent Brewing: Already has all fixes (time extraction, clean descriptions, HTML)')
+    return true
+  }
+
+  await prisma.source.update({
+    where: { id: source.id },
+    data: {
+      config: {
+        ...config,
+        generatedCode: incandescentCode
+      }
+    }
+  })
+
+  console.log('✓  Incandescent Brewing: Updated to extract times from Google Calendar links')
+  return true
+}
+
 async function main() {
   console.log('Applying scraper fixes...\n')
   console.log('Database:', process.env.DATABASE_URL?.slice(0, 30) + '...\n')
@@ -332,6 +519,7 @@ async function main() {
   await fixButtonBallBarn()
   await fixHopeCenterYearInference()
   await fixHutghisSourceEventId()
+  await fixIncandescentBrewing()
 
   console.log('\nDone!')
 

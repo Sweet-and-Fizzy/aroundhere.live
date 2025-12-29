@@ -372,6 +372,7 @@ model User {
   favoriteVenues        UserFavoriteVenue[]
   favoriteGenres        UserFavoriteGenre[]
   favoriteEventTypes    UserFavoriteEventType[]
+  favoriteCities        UserFavoriteCity[]
   eventAttendance       UserEventAttendance[]
   recommendationLogs    RecommendationLog[]
 
@@ -436,6 +437,20 @@ model UserFavoriteEventType {
   @@unique([userId, eventType])
   @@index([userId])
   @@map("user_favorite_event_types")
+}
+
+// User's preferred cities/towns for events
+model UserFavoriteCity {
+  id        String   @id @default(cuid())
+  userId    String
+  city      String   // city name (e.g., "Northampton", "Brattleboro")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, city])
+  @@index([userId])
+  @@map("user_favorite_cities")
 }
 
 // User's event attendance status (interested/going)

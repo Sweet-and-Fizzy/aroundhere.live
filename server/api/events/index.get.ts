@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { setCacheHeaders } from '../../utils/cache'
 import { fromZonedTime } from 'date-fns-tz'
+import { getUserProfile, findCandidateEvents, scoreEventsForUser } from '../../services/recommendations'
 
 const DEFAULT_TIMEZONE = 'America/New_York'
 
@@ -78,6 +79,82 @@ export default defineEventHandler(async (event) => {
   const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
 
   console.log('[Events API] myEvents filter:', myEvents, 'userId:', userId)
+
+  // Handle "recommended" filter - uses recommendation service instead of direct query
+  if (myEvents === 'recommended' && userId) {
+    const userProfile = await getUserProfile(userId)
+    if (!userProfile) {
+      console.log('[Events API] No user profile found for recommendations')
+      return { events: [], pagination: { total: 0, limit, offset, hasMore: false } }
+    }
+
+    // Minimum score threshold for browsing recommendations
+    const minScoreThreshold = 0.15
+
+    // Calculate end date for recommendations (default 30 days if not specified)
+    const recommendEndDate = endDate || new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    // Find candidate events (respects date range and region)
+    const candidateEvents = await findCandidateEvents(
+      startDate,
+      recommendEndDate,
+      [], // no excluded events
+      100, // limit (not really used)
+      userProfile.regionId
+    )
+
+    console.log('[Events API] Found', candidateEvents.length, 'candidate events for recommendations')
+
+    // Score events against user profile
+    const scoredEvents = await scoreEventsForUser(candidateEvents, userProfile)
+
+    console.log('[Events API] Scored', scoredEvents.length, 'events')
+
+    // Filter by score threshold and sort by date (for consistency with home page)
+    const recommended = scoredEvents
+      .filter(e => e.score >= minScoreThreshold)
+      .sort((a, b) => new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime())
+
+    console.log('[Events API] After filtering by score:', recommended.length, 'events')
+
+    // Apply pagination
+    const paginatedEvents = recommended.slice(offset, offset + limit)
+
+    // Map to the expected format with recommendation reasons
+    // Include all fields that the Event type expects
+    const events = paginatedEvents.map(r => ({
+      id: r.event.id,
+      title: r.event.title,
+      slug: r.event.slug,
+      startsAt: r.event.startsAt,
+      coverCharge: r.event.coverCharge,
+      canonicalGenres: r.event.canonicalGenres,
+      eventType: r.event.eventType,
+      imageUrl: r.event.imageUrl,
+      summary: r.event.summary,
+      ageRestriction: 'ALL_AGES', // Default since we don't have this in scored events
+      venue: r.event.venue,
+      eventArtists: r.event.artists.map(a => ({ artist: a })),
+      recommendationReasons: r.reasons,
+      recommendationScore: Math.round(r.score * 100), // Convert to 0-100 scale to match interests page
+    }))
+
+    // Log score distribution for debugging
+    const allScores = recommended.map(e => Math.round(e.score * 100))
+    const maxScore = Math.max(...allScores)
+    const returnedScores = events.map(e => e.recommendationScore).slice(0, 10)
+    console.log('[Events API] Returning', events.length, 'of', recommended.length, 'recommended events. Max score:', maxScore, 'First 10 returned:', returnedScores)
+
+    return {
+      events,
+      pagination: {
+        total: recommended.length,
+        limit: events.length,
+        offset,
+        hasMore: offset + events.length < recommended.length,
+      },
+    }
+  }
 
   // If regions are specified, look up region IDs from region slugs
   let regionIds: string[] | undefined

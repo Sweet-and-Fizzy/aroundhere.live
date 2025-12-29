@@ -32,7 +32,6 @@ function onAttendanceUpdate(counts: { interestedCount: number; goingCount: numbe
 
 // Constants
 const DESCRIPTION_THRESHOLD = 400
-const DESCRIPTION_HTML_TRUNCATE_MULTIPLIER = 2
 const DEFAULT_EVENT_DURATION_MS = 3 * 60 * 60 * 1000 // 3 hours
 const CALENDAR_DESCRIPTION_MAX_LENGTH = 1000
 
@@ -225,13 +224,12 @@ const truncatedDescription = computed(() => {
   return event.value.description.slice(0, DESCRIPTION_THRESHOLD) + '...'
 })
 
-const truncatedHtml = computed(() => {
-  if (!sanitizedDescriptionHtml.value) return ''
-  if (!hasLongDescription.value) return sanitizedDescriptionHtml.value
-  // Simple truncation: show first N characters worth of HTML
-  if (descriptionTextContent.value.length <= DESCRIPTION_THRESHOLD) return sanitizedDescriptionHtml.value
-  // Return first ~threshold characters of HTML content
-  return sanitizedDescriptionHtml.value.substring(0, DESCRIPTION_THRESHOLD * DESCRIPTION_HTML_TRUNCATE_MULTIPLIER) + '...'
+// Use plain text when collapsed (safe to truncate), HTML when expanded
+const shouldUseHtml = computed(() => {
+  // Only use HTML if expanded, or if there's no plain text fallback
+  if (descriptionExpanded.value) return true
+  if (!event.value?.description) return true
+  return false
 })
 
 // Collect all artist reviews from event artists
@@ -840,20 +838,14 @@ useHead({
               </div>
             </template>
 
-            <!-- Rich HTML description with images/videos -->
+            <!-- Show HTML only when expanded (to avoid truncation breaking tags) -->
             <!-- Note: HTML content is sanitized to remove dangerous elements (see sanitizedDescriptionHtml computed property) -->
             <!-- eslint-disable vue/no-v-html -->
             <div
-              v-if="sanitizedDescriptionHtml"
+              v-if="sanitizedDescriptionHtml && shouldUseHtml"
               class="prose prose-gray max-w-none"
             >
               <div
-                v-if="!descriptionExpanded"
-                class="html-content-container"
-                v-html="truncatedHtml"
-              />
-              <div
-                v-else
                 class="html-content-container"
                 v-html="sanitizedDescriptionHtml"
               />
@@ -870,23 +862,17 @@ useHead({
                 {{ descriptionExpanded ? 'Show less' : 'Show more' }}
               </button>
             </div>
-            <!-- Fallback to plain text description -->
+            <!-- Use plain text when collapsed (safe to truncate) or when no HTML -->
             <div
               v-else
-              class="text-gray-700"
+              class="text-gray-700 whitespace-pre-line leading-relaxed"
             >
-              <p
-                v-if="!descriptionExpanded"
-                class="whitespace-pre-line"
-              >
+              <template v-if="!descriptionExpanded">
                 {{ truncatedDescription }}
-              </p>
-              <p
-                v-else
-                class="whitespace-pre-line"
-              >
+              </template>
+              <template v-else>
                 {{ event.description }}
-              </p>
+              </template>
               <button
                 v-if="hasLongDescription"
                 class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1"
@@ -1176,6 +1162,28 @@ useHead({
 .html-content-container :deep(*[style*="position: absolute"]),
 .html-content-container :deep(*[style*="position:absolute"]) {
   position: relative !important;
+}
+
+/* Fix Squarespace aspect ratio hack that causes extra whitespace */
+.html-content-container :deep(.has-aspect-ratio),
+.html-content-container :deep([style*="padding-bottom"]) {
+  padding-bottom: 0 !important;
+  height: auto !important;
+}
+
+.html-content-container :deep(.sqs-image-shape-container-element) {
+  position: static !important;
+  padding-bottom: 0 !important;
+}
+
+.html-content-container :deep(.image-block-wrapper) {
+  position: static !important;
+}
+
+.html-content-container :deep(figure img) {
+  position: static !important;
+  height: auto !important;
+  max-height: 24rem;
 }
 
 /* Styles for rich HTML content - using native CSS for Tailwind v4 compatibility */

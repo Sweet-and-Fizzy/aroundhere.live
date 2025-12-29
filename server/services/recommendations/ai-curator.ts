@@ -12,7 +12,6 @@ export interface CuratedEvent {
   event: ScoredEvent['event']
   explanation: string
   score: number
-  confidence: number
 }
 
 export interface CurationResult {
@@ -73,7 +72,6 @@ export async function curateEvents(
         event: c.event,
         explanation: c.reasons.join('. ') || 'Matches your interests',
         score: c.score,
-        confidence: c.confidence,
       })),
       tokensUsed: 0,
     }
@@ -146,7 +144,7 @@ function buildUserPrompt(candidates: ScoredEvent[], maxPicks: number): string {
    Venue: ${venue}
    Date: ${date}
    Genres: ${genres}
-   Score: ${c.score.toFixed(2)} | Confidence: ${c.confidence.toFixed(2)}
+   Score: ${c.score.toFixed(2)}
    Why it might fit: ${reasons || 'General interest match'}
    ${c.event.summary ? `Summary: ${c.event.summary.slice(0, 200)}...` : ''}`
     })
@@ -197,7 +195,6 @@ function parseAIResponse(
           event: candidate.event,
           explanation: (item.explanation || '').slice(0, 150), // Enforce max length
           score: candidate.score,
-          confidence: candidate.confidence,
         }
       })
   } catch (error) {
@@ -209,7 +206,6 @@ function parseAIResponse(
       event: c.event,
       explanation: c.reasons.join('. ') || 'Matches your interests',
       score: c.score,
-      confidence: c.confidence,
     }))
   }
 }

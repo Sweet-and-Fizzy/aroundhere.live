@@ -12,7 +12,7 @@
 
 import { verifyCronAuth } from '../../utils/cron-auth'
 import { prisma } from '../../utils/prisma'
-import { buildUserTasteProfile } from '../../services/artist-profile'
+import { buildUserTasteProfileImmediate } from '../../services/artist-profile'
 
 export default defineEventHandler(async (event) => {
   verifyCronAuth(event)
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
       }
 
       try {
-        const result = await buildUserTasteProfile(user.id)
+        const result = await buildUserTasteProfileImmediate(user.id)
 
         if (result.success) {
           results.profilesUpdated++

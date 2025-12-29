@@ -78,6 +78,9 @@ export interface Event {
     }
     order: number
   }[]
+  // Recommendation fields (only present for recommended events)
+  recommendationReasons?: string[]
+  recommendationScore?: number
 }
 
 export function useEvents() {

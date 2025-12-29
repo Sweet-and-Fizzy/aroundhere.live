@@ -16,9 +16,13 @@
 import { prisma } from '../../utils/prisma'
 import { generateEmbedding } from '../embeddings'
 
-// Weights for blending user taste profile
-const ARTIST_EMBEDDING_WEIGHT = 0.7
-const INTEREST_EMBEDDING_WEIGHT = 0.3
+// Weights for blending user taste profile components
+// Artists carry the most weight since they represent specific taste
+// Preferences (genres + event types) are explicit signals
+// Interest description is free-form text with helpful context
+const ARTIST_EMBEDDING_WEIGHT = 0.5
+const PREFERENCES_EMBEDDING_WEIGHT = 0.3
+const INTEREST_EMBEDDING_WEIGHT = 0.2
 
 export interface ArtistProfileData {
   id: string
@@ -172,17 +176,58 @@ export async function generateArtistProfileEmbeddings(limit = 50): Promise<{
   return { processed, generated, errors }
 }
 
+// Track pending taste profile builds to debounce rapid changes
+const pendingBuilds = new Map<string, NodeJS.Timeout>()
+const DEBOUNCE_MS = 2000 // Wait 2 seconds after last change before building
+
 /**
- * Build and save a user's taste profile embedding
- * Combines embeddings from favorite artists with interest description
+ * Build and save a user's taste profile embedding (debounced)
+ *
+ * Combines embeddings from multiple sources:
+ * - Favorite artists (their profile embeddings averaged)
+ * - Favorite genres and event types (as text, embedded)
+ * - Interest description (free-form text, embedded)
+ *
+ * The final embedding captures the user's full taste profile for
+ * semantic similarity matching against events.
+ *
+ * This function is debounced - if called multiple times rapidly for the
+ * same user, only the last call will actually build the profile.
  */
-export async function buildUserTasteProfile(userId: string): Promise<{
+export function buildUserTasteProfile(userId: string): Promise<{
+  success: boolean
+  artistCount?: number
+  error?: string
+}> {
+  return new Promise((resolve) => {
+    // Clear any pending build for this user
+    const existing = pendingBuilds.get(userId)
+    if (existing) {
+      clearTimeout(existing)
+    }
+
+    // Schedule a new build after debounce period
+    const timeout = setTimeout(async () => {
+      pendingBuilds.delete(userId)
+      const result = await buildUserTasteProfileImmediate(userId)
+      resolve(result)
+    }, DEBOUNCE_MS)
+
+    pendingBuilds.set(userId, timeout)
+  })
+}
+
+/**
+ * Build taste profile immediately (no debounce)
+ * Used by cron jobs and when immediate rebuild is needed
+ */
+export async function buildUserTasteProfileImmediate(userId: string): Promise<{
   success: boolean
   artistCount?: number
   error?: string
 }> {
   try {
-    // Get user with favorites and interest description
+    // Get user with all favorites and interest description
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -193,6 +238,16 @@ export async function buildUserTasteProfile(userId: string): Promise<{
             artistId: true,
           },
         },
+        favoriteGenres: {
+          select: {
+            genre: true,
+          },
+        },
+        favoriteEventTypes: {
+          select: {
+            eventType: true,
+          },
+        },
       },
     })
 
@@ -201,15 +256,21 @@ export async function buildUserTasteProfile(userId: string): Promise<{
     }
 
     const artistIds = user.favoriteArtists.map((f) => f.artistId)
+    const genres = user.favoriteGenres.map((f) => f.genre)
+    const eventTypes = user.favoriteEventTypes.map((f) => f.eventType)
 
-    if (artistIds.length === 0 && !user.interestDescription) {
+    const hasArtists = artistIds.length > 0
+    const hasPreferences = genres.length > 0 || eventTypes.length > 0
+    const hasInterest = !!user.interestDescription
+
+    if (!hasArtists && !hasPreferences && !hasInterest) {
       // Nothing to build a profile from
       return { success: true, artistCount: 0 }
     }
 
     // Get artist embeddings
     let artistEmbeddings: number[][] = []
-    if (artistIds.length > 0) {
+    if (hasArtists) {
       const artists = await prisma.$queryRaw<Array<{ embedding: string }>>`
         SELECT "profileEmbedding"::text as embedding
         FROM artists
@@ -229,10 +290,17 @@ export async function buildUserTasteProfile(userId: string): Promise<{
         .filter((e): e is number[] => e !== null)
     }
 
+    // Generate preferences embedding (genres + event types as text)
+    let preferencesEmbedding: number[] | null = null
+    if (hasPreferences) {
+      const preferencesText = buildPreferencesText(genres, eventTypes)
+      preferencesEmbedding = await generateEmbedding(preferencesText)
+    }
+
     // Generate interest description embedding if available
     let interestEmbedding: number[] | null = null
-    if (user.interestDescription) {
-      interestEmbedding = await generateEmbedding(user.interestDescription)
+    if (hasInterest) {
+      interestEmbedding = await generateEmbedding(user.interestDescription!)
 
       // Save interest embedding
       const interestEmbeddingStr = `[${interestEmbedding.join(',')}]`
@@ -245,25 +313,12 @@ export async function buildUserTasteProfile(userId: string): Promise<{
       )
     }
 
-    // Compute taste profile
-    let tasteProfile: number[] | null = null
-
-    if (artistEmbeddings.length > 0 && interestEmbedding) {
-      // Blend artist average with interest description
-      const artistAvg = averageEmbeddings(artistEmbeddings)
-      tasteProfile = blendEmbeddings(
-        artistAvg,
-        interestEmbedding,
-        ARTIST_EMBEDDING_WEIGHT,
-        INTEREST_EMBEDDING_WEIGHT
-      )
-    } else if (artistEmbeddings.length > 0) {
-      // Just use artist average
-      tasteProfile = averageEmbeddings(artistEmbeddings)
-    } else if (interestEmbedding) {
-      // Just use interest description
-      tasteProfile = interestEmbedding
-    }
+    // Compute taste profile by blending available embeddings
+    const tasteProfile = blendTasteProfile(
+      artistEmbeddings.length > 0 ? averageEmbeddings(artistEmbeddings) : null,
+      preferencesEmbedding,
+      interestEmbedding
+    )
 
     if (tasteProfile) {
       const tasteProfileStr = `[${tasteProfile.join(',')}]`
@@ -288,6 +343,109 @@ export async function buildUserTasteProfile(userId: string): Promise<{
 }
 
 /**
+ * Build text representation of user's genre and event type preferences
+ * for embedding. Uses descriptive language to capture the semantic meaning.
+ */
+function buildPreferencesText(genres: string[], eventTypes: string[]): string {
+  const parts: string[] = []
+
+  if (genres.length > 0) {
+    // Map genre slugs to readable names
+    const genreLabels: Record<string, string> = {
+      'rock': 'rock music',
+      'indie': 'indie and alternative music',
+      'folk': 'folk and acoustic music',
+      'jazz': 'jazz music',
+      'blues': 'blues music',
+      'country': 'country music',
+      'electronic': 'electronic and dance music',
+      'hip-hop': 'hip-hop and rap music',
+      'r-and-b': 'R&B and soul music',
+      'funk': 'funk music',
+      'punk': 'punk rock',
+      'metal': 'metal and heavy music',
+      'classical': 'classical music',
+      'world': 'world music',
+      'latin': 'latin music',
+      'reggae': 'reggae music',
+      'jam': 'jam bands and improvisation',
+      'americana': 'americana and roots music',
+      'singer-songwriter': 'singer-songwriter',
+      'experimental': 'experimental and avant-garde music',
+    }
+    const genreNames = genres.map(g => genreLabels[g] || g)
+    parts.push(`Interested in: ${genreNames.join(', ')}`)
+  }
+
+  if (eventTypes.length > 0) {
+    // Map event type codes to readable descriptions
+    const eventTypeLabels: Record<string, string> = {
+      'MUSIC': 'live music concerts and performances',
+      'DJ': 'DJ sets and dance parties',
+      'OPEN_MIC': 'open mic nights',
+      'COMEDY': 'comedy shows and stand-up',
+      'THEATER': 'theater and stage performances',
+      'DANCE': 'dance performances',
+      'KARAOKE': 'karaoke nights',
+      'TRIVIA': 'trivia nights',
+      'FILM': 'film screenings',
+      'ART': 'art shows and exhibitions',
+      'WORKSHOP': 'workshops and classes',
+      'LITERARY': 'literary events and readings',
+    }
+    const eventTypeNames = eventTypes.map(t => eventTypeLabels[t] || t)
+    parts.push(`Enjoys: ${eventTypeNames.join(', ')}`)
+  }
+
+  return parts.join('. ')
+}
+
+/**
+ * Blend multiple embeddings into a single taste profile.
+ * Handles cases where some embeddings may be missing.
+ */
+function blendTasteProfile(
+  artistEmb: number[] | null,
+  preferencesEmb: number[] | null,
+  interestEmb: number[] | null
+): number[] | null {
+  const embeddings: Array<{ emb: number[]; weight: number }> = []
+
+  if (artistEmb) {
+    embeddings.push({ emb: artistEmb, weight: ARTIST_EMBEDDING_WEIGHT })
+  }
+  if (preferencesEmb) {
+    embeddings.push({ emb: preferencesEmb, weight: PREFERENCES_EMBEDDING_WEIGHT })
+  }
+  if (interestEmb) {
+    embeddings.push({ emb: interestEmb, weight: INTEREST_EMBEDDING_WEIGHT })
+  }
+
+  if (embeddings.length === 0) {
+    return null
+  }
+
+  if (embeddings.length === 1) {
+    return embeddings[0]!.emb
+  }
+
+  // Normalize weights to sum to 1
+  const totalWeight = embeddings.reduce((sum, e) => sum + e.weight, 0)
+
+  const dim = embeddings[0]!.emb.length
+  const result = new Array(dim).fill(0) as number[]
+
+  for (const { emb, weight } of embeddings) {
+    const normalizedWeight = weight / totalWeight
+    for (let i = 0; i < dim; i++) {
+      result[i]! += emb[i]! * normalizedWeight
+    }
+  }
+
+  return result
+}
+
+/**
  * Average multiple embedding vectors
  */
 function averageEmbeddings(embeddings: number[][]): number[] {
@@ -309,22 +467,6 @@ function averageEmbeddings(embeddings: number[][]): number[] {
   }
 
   return avg
-}
-
-/**
- * Blend two embeddings with given weights
- */
-function blendEmbeddings(
-  emb1: number[],
-  emb2: number[],
-  weight1: number,
-  weight2: number
-): number[] {
-  const total = weight1 + weight2
-  const w1 = weight1 / total
-  const w2 = weight2 / total
-
-  return emb1.map((v, i) => v * w1 + emb2[i]! * w2)
 }
 
 function sleep(ms: number): Promise<void> {

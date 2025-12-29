@@ -4,22 +4,61 @@ const { favorites, loading: favoritesLoading } = useFavorites()
 const { events, loading, pagination, searchTotalCount, fetchEvents, searchEvents } = useEvents()
 const { attendance } = useEventAttendance()
 
-// Computed state for hero section - wait for session and favorites to load
+// Fetch user preferences to check for taste profile
+const hasTasteProfile = ref(false)
+const preferencesLoading = ref(false)
+
+async function fetchUserPreferences() {
+  if (!loggedIn.value) {
+    hasTasteProfile.value = false
+    return
+  }
+  preferencesLoading.value = true
+  try {
+    const prefs = await $fetch('/api/user/preferences')
+    hasTasteProfile.value = prefs.hasTasteProfile ?? false
+  } catch {
+    hasTasteProfile.value = false
+  } finally {
+    preferencesLoading.value = false
+  }
+}
+
+// Fetch on mount and when login changes
+onMounted(() => {
+  if (loggedIn.value) {
+    fetchUserPreferences()
+  }
+})
+
+watch(loggedIn, (isLoggedIn) => {
+  if (isLoggedIn) {
+    fetchUserPreferences()
+  } else {
+    hasTasteProfile.value = false
+  }
+})
+
+// Computed state for hero section - wait for session, favorites, and preferences to load
 const heroReady = computed(() => {
   // If session isn't ready yet, we're loading
   if (!sessionReady.value) return false
   // If not logged in, we're ready (no favorites to load)
   if (!loggedIn.value) return true
-  // If logged in but favorites still loading, not ready
-  if (favoritesLoading.value) return false
+  // If logged in but favorites or preferences still loading, not ready
+  if (favoritesLoading.value || preferencesLoading.value) return false
   return true
 })
 
-// Determine hero state based on user status
+// Determine hero state - user has set up interests if they have a taste profile OR favorites
 const hasFavorites = computed(() => {
+  // If user has a taste profile, they've set up interests
+  if (hasTasteProfile.value) return true
+  // Also check traditional favorites
   return favorites.value.artists.length > 0 ||
     favorites.value.venues.length > 0 ||
-    favorites.value.genres.length > 0
+    favorites.value.genres.length > 0 ||
+    favorites.value.eventTypes.length > 0
 })
 
 // Fetch venues and genres for filters
@@ -69,7 +108,6 @@ const heroChatInputRef = ref<HTMLInputElement | null>(null)
 const heroSuggestions = [
   { icon: '✨', text: 'Recommend something for me' },
   { icon: '⭐', text: "What's happening this weekend?" },
-  { icon: '🎵', text: 'When can I hear Jazz?' },
 ]
 
 function focusHeroInput() {
@@ -139,6 +177,34 @@ const isSearching = computed(() => !!currentFilters.value.q)
 const moreResultsOutsideFilters = computed(() => {
   if (!isSearching.value) return 0
   return searchTotalCount.value - events.value.length
+})
+
+// Build recommendation reasons map from events that have them (for "Recommended" filter)
+const recommendationReasons = computed(() => {
+  const map: Record<string, string[]> = {}
+  for (const event of events.value) {
+    if (event.recommendationReasons && event.recommendationReasons.length > 0) {
+      map[event.id] = event.recommendationReasons
+    }
+  }
+  return map
+})
+
+// Build recommendation scores map from events that have them (for "Top Pick" badges)
+const recommendationScores = computed(() => {
+  const map: Record<string, number> = {}
+  for (const event of events.value) {
+    if (event.recommendationScore !== undefined) {
+      map[event.id] = event.recommendationScore
+    }
+  }
+  // Debug: log when we have scores
+  if (Object.keys(map).length > 0) {
+    const scores = Object.values(map)
+    const maxScore = Math.max(...scores)
+    console.log('[Index] Recommendation scores:', scores.length, 'events, max:', maxScore, 'first 10:', scores.slice(0, 10))
+  }
+  return map
 })
 
 // Fetch facet counts based on current filters (including search query)
@@ -364,8 +430,8 @@ useHead({
               </button>
             </form>
 
-            <!-- Suggestion Chips -->
-            <div class="flex flex-wrap gap-2 justify-center md:justify-start">
+            <!-- Suggestion Chips + Playlist Link -->
+            <div class="flex flex-wrap items-center gap-2 justify-center md:justify-start">
               <button
                 v-for="suggestion in heroSuggestions"
                 :key="suggestion.text"
@@ -375,6 +441,16 @@ useHead({
                 <span class="brightness-200 contrast-125">{{ suggestion.icon }}</span>
                 {{ suggestion.text }}
               </button>
+              <span class="text-gray-500 hidden md:inline">|</span>
+              <span class="text-gray-400 text-sm hidden md:inline">Preview artists on</span>
+              <NuxtLink
+                to="/playlist"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1DB954] hover:bg-[#1ed760] rounded-full text-sm text-white font-medium transition-colors"
+              >
+                <SpotifyIcon class="w-4 h-4" />
+                <span class="hidden md:inline">Our Playlist</span>
+                <span class="md:hidden">Preview Artists</span>
+              </NuxtLink>
             </div>
           </template>
         </div>
@@ -563,6 +639,8 @@ useHead({
           :loading="loading"
           :view-mode="viewMode"
           :active-event-types="currentFilters.eventTypes"
+          :recommendation-reasons="recommendationReasons"
+          :recommendation-scores="recommendationScores"
         />
 
         <!-- Load More / Pagination -->

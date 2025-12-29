@@ -7,7 +7,7 @@ import FilterSection from '~/components/filters/FilterSection.vue'
 import DateRangeFilter from '~/components/filters/DateRangeFilter.vue'
 import EventTypeFilter from '~/components/filters/EventTypeFilter.vue'
 import GenreFilter from '~/components/filters/GenreFilter.vue'
-import FavoritesFilter from '~/components/filters/FavoritesFilter.vue'
+import ForYouFilter from '~/components/filters/ForYouFilter.vue'
 import MyEventsFilter from '~/components/filters/MyEventsFilter.vue'
 import LocationFilter from '~/components/filters/LocationFilter.vue'
 
@@ -56,10 +56,13 @@ const STORAGE_KEY = 'eventFilters'
 const validEventTypes = ['ALL_MUSIC', 'ALL_EVENTS', 'MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE', 'COMEDY', 'THEATER', 'TRIVIA']
 const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'all']
 
+// Valid myEvents options
+const validMyEventsOptions = ['interested', 'going', 'all']
+
 // Load filters from URL params (takes priority over localStorage)
 function loadFiltersFromUrl() {
   const query = route.query
-  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities || query.regions
+  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities || query.regions || query.myEvents || query.recommended
 
   if (!hasUrlFilters) return null
 
@@ -71,6 +74,13 @@ function loadFiltersFromUrl() {
   const urlDate = query.date as string
   const validatedDate = validDatePresets.includes(urlDate) ? urlDate : 'all'
 
+  // Validate myEvents (attendance only - interested/going/all)
+  const urlMyEvents = query.myEvents as string
+  const validatedMyEvents = validMyEventsOptions.includes(urlMyEvents) ? urlMyEvents : null
+
+  // Handle recommended filter (can come from ?recommended=true or legacy ?myEvents=recommended)
+  const isRecommended = query.recommended === 'true' || urlMyEvents === 'recommended'
+
   return {
     searchQuery: (query.q as string) || '',
     // Venues are stored by slug in URL, we'll need to map them to IDs later
@@ -80,6 +90,8 @@ function loadFiltersFromUrl() {
     datePreset: validatedDate,
     selectedRegions: query.regions ? (query.regions as string).split(',') : [],
     selectedCities: query.cities ? (query.cities as string).split(',') : [],
+    myEvents: validatedMyEvents,
+    recommended: isRecommended,
   }
 }
 
@@ -118,6 +130,7 @@ function saveFilters() {
       filterByFavoriteVenues: filterByFavoriteVenues.value,
       filterByFavoriteGenres: filterByFavoriteGenres.value,
       myEvents: myEvents.value,
+      recommended: recommended.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
   }
@@ -167,6 +180,16 @@ function updateUrl() {
   // Date preset (only if not default)
   if (datePreset.value !== 'all') {
     query.date = datePreset.value
+  }
+
+  // My Events filter (attendance)
+  if (myEvents.value) {
+    query.myEvents = myEvents.value
+  }
+
+  // Recommended filter
+  if (recommended.value) {
+    query.recommended = 'true'
   }
 
   // Use History API directly to avoid Vue Router navigation which resets scroll
@@ -230,6 +253,9 @@ const filterByFavoriteGenres = ref(savedFilters?.filterByFavoriteGenres || false
 
 // My Events filter - 'interested', 'going', 'all', or null (disabled)
 const myEvents = ref<string | null>(savedFilters?.myEvents || null)
+
+// Recommended filter (part of "For You" section)
+const recommended = ref(savedFilters?.recommended || false)
 
 // Use location filter composable for hierarchical filtering
 const {
@@ -381,6 +407,7 @@ const hasActiveFilters = computed(() => {
     filterByFavoriteArtists.value ||
     filterByFavoriteVenues.value ||
     filterByFavoriteGenres.value ||
+    recommended.value ||
     myEvents.value !== null
   )
 })
@@ -396,7 +423,7 @@ const activeFilterCount = computed(() => {
   if (mapFilteredVenueIds.value !== null) count++
   if (selectedRegions.value.length > 0) count++
   if (selectedCities.value.length > 0) count++
-  if (filterByFavoriteArtists.value || filterByFavoriteVenues.value || filterByFavoriteGenres.value) count++
+  if (filterByFavoriteArtists.value || filterByFavoriteVenues.value || filterByFavoriteGenres.value || recommended.value) count++
   if (myEvents.value !== null) count++
   return count
 })
@@ -417,6 +444,7 @@ function resetFilters() {
   filterByFavoriteArtists.value = false
   filterByFavoriteVenues.value = false
   filterByFavoriteGenres.value = false
+  recommended.value = false
   myEvents.value = null
   if (import.meta.client) {
     localStorage.removeItem(STORAGE_KEY)
@@ -536,21 +564,15 @@ const genreSummary = computed(() => {
   return `${labels[0]} +${labels.length - 1} more`
 })
 
-// Summary for favorites section
-const favoritesSummary = computed(() => {
+// Summary for "For You" section
+const forYouSummary = computed(() => {
   const parts: string[] = []
+  if (recommended.value) parts.push('Recommended')
   if (filterByFavoriteArtists.value) parts.push('Artists')
   if (filterByFavoriteVenues.value) parts.push('Venues')
   if (filterByFavoriteGenres.value) parts.push('Genres')
   if (parts.length === 0) return null
   return parts.join(', ')
-})
-
-// Check if user has any favorites
-const hasFavorites = computed(() => {
-  return favorites.value.artists.length > 0 ||
-         favorites.value.venues.length > 0 ||
-         favorites.value.genres.length > 0
 })
 
 // Use venuesByRegion and venuesByCity from composable
@@ -748,8 +770,8 @@ function applyFilters() {
     favoriteArtistIds,
     favoriteVenueIds,
     favoriteGenres: favoriteGenreSlugs,
-    // My Events filter
-    myEvents: myEvents.value || undefined,
+    // My Events filter - 'recommended' if recommended is active, otherwise attendance status
+    myEvents: recommended.value ? 'recommended' : (myEvents.value || undefined),
   }
   emit('filter', filters)
 
@@ -864,53 +886,6 @@ defineExpose({
       />
     </div>
 
-    <!-- My Favorites - only show when logged in and has favorites -->
-    <FilterSection
-      v-if="loggedIn && hasFavorites"
-      title="My Favorites"
-      section-key="favorites"
-      :is-expanded="isSectionExpanded('favorites')"
-      :badge="favoritesSummary || undefined"
-      @toggle="toggleSection"
-    >
-      <FavoritesFilter
-        :filter-by-artists="filterByFavoriteArtists"
-        :filter-by-venues="filterByFavoriteVenues"
-        :filter-by-genres="filterByFavoriteGenres"
-        :artist-count="favorites.artists.length"
-        :venue-count="favorites.venues.length"
-        :genre-count="favorites.genres.length"
-        @update:filter-by-artists="val => { filterByFavoriteArtists = val; applyFilters() }"
-        @update:filter-by-venues="val => { filterByFavoriteVenues = val; applyFilters() }"
-        @update:filter-by-genres="val => { filterByFavoriteGenres = val; applyFilters() }"
-      />
-      <NuxtLink
-        to="/interests"
-        class="manage-favorites-link"
-      >
-        <UIcon
-          name="i-heroicons-cog-6-tooth"
-          class="w-3.5 h-3.5"
-        />
-        Manage Interests
-      </NuxtLink>
-    </FilterSection>
-
-    <!-- My Events - show events user marked as interested/going -->
-    <FilterSection
-      v-if="loggedIn"
-      title="My Events"
-      section-key="myEvents"
-      :is-expanded="isSectionExpanded('myEvents')"
-      :badge="myEvents ? (myEvents === 'all' ? 'All' : myEvents === 'interested' ? 'Interested' : 'Going') : undefined"
-      @toggle="toggleSection"
-    >
-      <MyEventsFilter
-        :model-value="myEvents"
-        @update:model-value="val => { myEvents = val; applyFilters() }"
-      />
-    </FilterSection>
-
     <!-- Date Range -->
     <FilterSection
       title="Date"
@@ -960,40 +935,6 @@ defineExpose({
         @toggle-venue="toggleVenue"
         @select-venue="selectVenueFromSearch"
         @remove-venue="removeVenue"
-      />
-    </FilterSection>
-
-    <!-- Event Type -->
-    <FilterSection
-      v-if="showEventTypeSection"
-      title="Event Type"
-      section-key="type"
-      :is-expanded="isSectionExpanded('type')"
-      :badge="typeSummary !== 'All Events' ? typeSummary : undefined"
-      @toggle="toggleSection"
-    >
-      <EventTypeFilter
-        :model-value="selectedEventTypes"
-        :facets="facets"
-        @update:model-value="val => { selectedEventTypes = val; applyFilters() }"
-      />
-    </FilterSection>
-
-    <!-- Genre - only show when music type is selected and genres available -->
-    <FilterSection
-      v-if="availableGenres.length && hasMusicTypeSelected"
-      title="Genre"
-      section-key="genre"
-      :is-expanded="isSectionExpanded('genre')"
-      :badge="genreSummary || undefined"
-      @toggle="toggleSection"
-    >
-      <GenreFilter
-        :model-value="selectedGenres"
-        :genres="genres"
-        :genre-labels="genreLabels"
-        :facets="facets"
-        @update:model-value="val => { selectedGenres = val; applyFilters() }"
       />
     </FilterSection>
 
@@ -1096,6 +1037,89 @@ defineExpose({
         </div>
       </div>
     </Teleport>
+
+    <!-- Event Type -->
+    <FilterSection
+      v-if="showEventTypeSection"
+      title="Event Type"
+      section-key="type"
+      :is-expanded="isSectionExpanded('type')"
+      :badge="typeSummary !== 'All Events' ? typeSummary : undefined"
+      @toggle="toggleSection"
+    >
+      <EventTypeFilter
+        :model-value="selectedEventTypes"
+        :facets="facets"
+        @update:model-value="val => { selectedEventTypes = val; applyFilters() }"
+      />
+    </FilterSection>
+
+    <!-- Genre - only show when music type is selected and genres available -->
+    <FilterSection
+      v-if="availableGenres.length && hasMusicTypeSelected"
+      title="Genre"
+      section-key="genre"
+      :is-expanded="isSectionExpanded('genre')"
+      :badge="genreSummary || undefined"
+      @toggle="toggleSection"
+    >
+      <GenreFilter
+        :model-value="selectedGenres"
+        :genres="genres"
+        :genre-labels="genreLabels"
+        :facets="facets"
+        @update:model-value="val => { selectedGenres = val; applyFilters() }"
+      />
+    </FilterSection>
+
+    <!-- For You - recommended and favorites matching -->
+    <FilterSection
+      v-if="loggedIn"
+      title="For You"
+      section-key="forYou"
+      :is-expanded="isSectionExpanded('forYou')"
+      :badge="forYouSummary || undefined"
+      @toggle="toggleSection"
+    >
+      <ForYouFilter
+        :recommended="recommended"
+        :filter-by-artists="filterByFavoriteArtists"
+        :filter-by-venues="filterByFavoriteVenues"
+        :filter-by-genres="filterByFavoriteGenres"
+        :artist-count="favorites.artists.length"
+        :venue-count="favorites.venues.length"
+        :genre-count="favorites.genres.length"
+        @update:recommended="val => { recommended = val; applyFilters() }"
+        @update:filter-by-artists="val => { filterByFavoriteArtists = val; applyFilters() }"
+        @update:filter-by-venues="val => { filterByFavoriteVenues = val; applyFilters() }"
+        @update:filter-by-genres="val => { filterByFavoriteGenres = val; applyFilters() }"
+      />
+      <NuxtLink
+        to="/interests"
+        class="manage-favorites-link"
+      >
+        <UIcon
+          name="i-heroicons-cog-6-tooth"
+          class="w-3.5 h-3.5"
+        />
+        Manage Interests
+      </NuxtLink>
+    </FilterSection>
+
+    <!-- Saved Events - events user marked as interested/going -->
+    <FilterSection
+      v-if="loggedIn"
+      title="Saved Events"
+      section-key="myEvents"
+      :is-expanded="isSectionExpanded('myEvents')"
+      :badge="myEvents ? (myEvents === 'all' ? 'All Saved' : myEvents === 'interested' ? 'Interested' : 'Going') : undefined"
+      @toggle="toggleSection"
+    >
+      <MyEventsFilter
+        :model-value="myEvents"
+        @update:model-value="val => { myEvents = val; applyFilters() }"
+      />
+    </FilterSection>
 
     <!-- Reset Button -->
     <div

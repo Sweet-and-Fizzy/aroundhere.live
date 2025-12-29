@@ -7,6 +7,12 @@ const props = defineProps<{
   viewMode?: 'card' | 'compact'
   hideVenue?: boolean
   activeEventTypes?: string[]
+  // Map of event ID to recommendation reasons for displaying why an event was recommended
+  recommendationReasons?: Record<string, string[]>
+  // Map of event ID to recommendation scores (0-1) for displaying badges
+  recommendationScores?: Record<string, number>
+  // Force mobile/stacked layout for EventCards (useful for narrow containers)
+  forceStackedLayout?: boolean
 }>()
 
 // Fetch attendance status for displayed events
@@ -69,6 +75,14 @@ const eventsByDate = computed(() => {
     events: events.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
   }))
 })
+
+// Get recommendation reasons for an event, joined together
+function getRecommendationReason(eventId: string): string | undefined {
+  const reasons = props.recommendationReasons?.[eventId]
+  if (!reasons || reasons.length === 0) return undefined
+  // Join multiple reasons with bullet separator
+  return reasons.join(' · ')
+}
 
 function formatDateHeader(date: Date): string {
   const today = new Date()
@@ -183,6 +197,8 @@ function formatDateHeader(date: Date): string {
             v-for="event in dateGroup.events"
             :key="event.id"
             :event="event"
+            :recommendation-reason="getRecommendationReason(event.id)"
+            :force-stacked-layout="forceStackedLayout"
           />
         </TransitionGroup>
       </div>
@@ -242,6 +258,8 @@ function formatDateHeader(date: Date): string {
               :hide-date="true"
               :hide-venue="hideVenue"
               :hide-event-type="activeEventTypes?.length === 1"
+              :recommendation-reason="getRecommendationReason(event.id)"
+              :recommendation-score="recommendationScores?.[event.id]"
             />
           </tbody>
         </table>

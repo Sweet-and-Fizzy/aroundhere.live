@@ -465,7 +465,8 @@ export function createChatTools(userId?: string) {
       const hasTasteProfile = !!userProfile.tasteProfileEmbedding
       const hasFavorites = userProfile.favoriteArtistIds.length > 0 ||
         userProfile.favoriteVenueIds.length > 0 ||
-        userProfile.favoriteGenres.length > 0
+        userProfile.favoriteGenres.length > 0 ||
+        userProfile.favoriteEventTypes.length > 0
 
       if (!hasTasteProfile && !hasFavorites) {
         return {
@@ -522,6 +523,7 @@ export function createChatTools(userId?: string) {
           favoriteArtistCount: userProfile.favoriteArtistIds.length,
           favoriteVenueCount: userProfile.favoriteVenueIds.length,
           favoriteGenreCount: userProfile.favoriteGenres.length,
+          favoriteEventTypeCount: userProfile.favoriteEventTypes.length,
           interestDescription: userProfile.interestDescription,
         },
       }

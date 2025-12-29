@@ -423,7 +423,7 @@ export default defineEventHandler(async (event) => {
                 userId: user.id,
                 eventId: pick.event.id,
                 recommendationType: 'AI_WEEKEND_PICK',
-                confidenceScore: pick.confidence,
+                confidenceScore: pick.score,
                 matchReason: pick.explanation,
               })
             }
@@ -433,7 +433,7 @@ export default defineEventHandler(async (event) => {
                 userId: user.id,
                 eventId: pick.event.id,
                 recommendationType: 'AI_COMING_UP',
-                confidenceScore: pick.confidence,
+                confidenceScore: pick.score,
                 matchReason: pick.explanation,
               })
             }

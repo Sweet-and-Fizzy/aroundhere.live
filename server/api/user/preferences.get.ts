@@ -12,6 +12,13 @@ export default defineEventHandler(async (event) => {
 
   const userId = session.user.id as string
 
+  // Check if user has a taste profile embedding (not accessible via Prisma due to vector type)
+  const profileCheck = await prisma.$queryRaw<Array<{ has_profile: boolean }>>`
+    SELECT "tasteProfileEmbedding" IS NOT NULL as has_profile
+    FROM users WHERE id = ${userId}
+  `
+  const hasTasteProfile = profileCheck[0]?.has_profile ?? false
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -56,6 +63,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     ...user,
+    hasTasteProfile,
     availableRegions: regions,
   }
 })

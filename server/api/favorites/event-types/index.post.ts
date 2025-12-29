@@ -1,4 +1,5 @@
 import prisma from '../../../utils/prisma'
+import { buildUserTasteProfile } from '../../../services/artist-profile'
 
 // Valid event types from the EventType enum
 const VALID_EVENT_TYPES = [
@@ -50,6 +51,11 @@ export default defineEventHandler(async (event) => {
       userId,
       eventType,
     },
+  })
+
+  // Rebuild taste profile in background (don't await)
+  buildUserTasteProfile(userId).catch(err => {
+    console.error('Failed to rebuild taste profile after adding event type:', err)
   })
 
   return { success: true, eventType }

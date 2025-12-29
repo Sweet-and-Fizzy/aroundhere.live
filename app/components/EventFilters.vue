@@ -3,7 +3,7 @@ import { nextTick, toRef } from 'vue'
 import type { DateRange } from 'reka-ui'
 
 // Import filter sub-components
-import FavoritesFilter from '~/components/filters/FavoritesFilter.vue'
+import ForYouFilter from '~/components/filters/ForYouFilter.vue'
 import MyEventsFilter from '~/components/filters/MyEventsFilter.vue'
 import LocationFilter from '~/components/filters/LocationFilter.vue'
 import DateRangeFilter from '~/components/filters/DateRangeFilter.vue'
@@ -124,6 +124,7 @@ function saveFilters() {
       selectedEventTypes: selectedEventTypes.value,
       searchQuery: searchQuery.value,
       myEvents: myEvents.value,
+      recommended: recommended.value,
       filterByFavoriteArtists: filterByFavoriteArtists.value,
       filterByFavoriteVenues: filterByFavoriteVenues.value,
       filterByFavoriteGenres: filterByFavoriteGenres.value,
@@ -155,6 +156,9 @@ const selectedEventTypes = ref<string[]>(
 // My Events filter - 'interested', 'going', 'all', or null (disabled)
 const myEvents = ref<string | null>(savedFilters?.myEvents || null)
 
+// Recommended filter (part of "For You" section)
+const recommended = ref(savedFilters?.recommended || false)
+
 // Favorites filters - separate toggles for artists, venues, and genres
 const filterByFavoriteArtists = ref(savedFilters?.filterByFavoriteArtists || false)
 const filterByFavoriteVenues = ref(savedFilters?.filterByFavoriteVenues || false)
@@ -167,19 +171,27 @@ const hasFavorites = computed(() => {
     favorites.value.genres.length > 0
 })
 
-// Check if any favorites filter is active
-const hasActiveFavoritesFilter = computed(() => {
-  return filterByFavoriteArtists.value || filterByFavoriteVenues.value || filterByFavoriteGenres.value
+// Check if any "For You" filter is active (recommended or favorites)
+const hasActiveForYouFilter = computed(() => {
+  return recommended.value || filterByFavoriteArtists.value || filterByFavoriteVenues.value || filterByFavoriteGenres.value
 })
 
-// Summary for favorites filter button
-const favoritesSummary = computed(() => {
+// Summary for "For You" filter button
+const forYouSummary = computed(() => {
   const parts: string[] = []
+  if (recommended.value) parts.push('Recommended')
   if (filterByFavoriteArtists.value) parts.push('Artists')
   if (filterByFavoriteVenues.value) parts.push('Venues')
   if (filterByFavoriteGenres.value) parts.push('Genres')
-  return parts.length > 0 ? parts.join(', ') : 'Favorites'
+  return parts.length > 0 ? parts.join(', ') : null
 })
+
+// Labels for saved events filter
+const savedEventsLabels: Record<string, string> = {
+  all: 'All Saved',
+  interested: 'Interested',
+  going: 'Going',
+}
 
 // Use the location filter composable for hierarchical Region → City → Venue selection
 const {
@@ -306,7 +318,7 @@ const hasActiveFilters = computed(() => {
     datePreset.value !== 'all' ||
     mapFilteredVenueIds.value !== null ||
     myEvents.value !== null ||
-    hasActiveFavoritesFilter.value
+    hasActiveForYouFilter.value
   )
 })
 
@@ -323,6 +335,7 @@ function resetFilters() {
   customDateRange.value = undefined
   mapFilteredVenueIds.value = null
   myEvents.value = null
+  recommended.value = false
   filterByFavoriteArtists.value = false
   filterByFavoriteVenues.value = false
   filterByFavoriteGenres.value = false
@@ -344,12 +357,6 @@ const datePresetLabels: Record<string, string> = {
   custom: 'Custom',
 }
 
-// My Events filter options (for button label)
-const myEventsLabels: Record<string, string> = {
-  all: 'All My Events',
-  interested: 'Interested',
-  going: 'Going',
-}
 
 // Custom labels for multi-selects
 const locationLabel = computed(() => {
@@ -543,7 +550,8 @@ function applyFilters() {
     eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
     musicOnly,
     nonMusicOnly,
-    myEvents: myEvents.value || undefined,
+    // My Events filter - 'recommended' if recommended is active, otherwise attendance status
+    myEvents: recommended.value ? 'recommended' : (myEvents.value || undefined),
     favoriteArtistIds,
     favoriteVenueIds,
     favoriteGenres: favoriteGenreSlugs,
@@ -601,7 +609,7 @@ watch(customDateRange, (newRange) => {
 
 
 // Auto-apply on changes
-watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes, myEvents, filterByFavoriteArtists, filterByFavoriteVenues, filterByFavoriteGenres], () => {
+watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes, myEvents, recommended, filterByFavoriteArtists, filterByFavoriteVenues, filterByFavoriteGenres], () => {
   applyFilters()
 }, { deep: true })
 
@@ -674,7 +682,146 @@ watch(regionLoaded, (loaded) => {
         </UInput>
       </div>
 
-      <!-- Row 2: Type + Genre -->
+      <!-- Row 2: Date + Location -->
+      <div class="flex gap-2">
+        <!-- Date Filter -->
+        <UPopover class="flex-1">
+          <UButton
+            color="neutral"
+            :variant="datePreset !== 'all' ? 'soft' : 'outline'"
+            class="w-full justify-between"
+            trailing-icon="i-lucide-chevron-down"
+          >
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+              <UIcon
+                name="i-lucide-calendar"
+                class="w-4 h-4 flex-shrink-0"
+              />
+              <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
+            </div>
+          </UButton>
+
+          <template #content>
+            <div class="p-3 w-[calc(100vw-2rem)] max-w-80">
+              <DateRangeFilter
+                :model-value="datePreset"
+                :custom-range="customDateRange"
+                @update:model-value="datePreset = $event; applyFilters()"
+                @update:custom-range="customDateRange = $event"
+              />
+            </div>
+          </template>
+        </UPopover>
+
+        <!-- Location Filter -->
+        <div
+          v-if="venuesByRegion.length || venuesByCity.length"
+          class="flex-1 min-w-0"
+        >
+          <UPopover v-model:open="locationPopoverOpen">
+            <UButton
+              color="neutral"
+              :variant="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0 ? 'soft' : 'outline'"
+              class="w-full justify-between"
+              trailing-icon="i-lucide-chevron-down"
+            >
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <UIcon
+                  name="i-lucide-map-pin"
+                  class="w-4 h-4 flex-shrink-0"
+                />
+                <span class="truncate">{{ locationLabel }}</span>
+                <UButton
+                  v-if="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0"
+                  icon="i-lucide-x"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  class="ml-auto flex-shrink-0"
+                  @click.stop="selectedRegions = []; selectedCities = []; selectedVenueIds = []"
+                />
+              </div>
+            </UButton>
+
+            <template #content>
+              <div class="p-2 w-80">
+                <LocationFilter
+                  :venues-by-region="venuesByRegion"
+                  :venues-by-city="venuesByCity"
+                  :all-venues="props.venues"
+                  :selected-regions="selectedRegions"
+                  :selected-cities="selectedCities"
+                  :selected-venue-ids="selectedVenueIds"
+                  :expanded-regions="expandedRegions"
+                  :expanded-cities="expandedCities"
+                  :is-region-fully-selected="isRegionFullySelected"
+                  :is-region-partially-selected="isRegionPartiallySelected"
+                  :is-city-fully-selected="isCityFullySelected"
+                  :is-city-partially-selected="isCityPartiallySelected"
+                  :facets="props.facets"
+                  :show-venues="true"
+                  :show-search="true"
+                  @toggle-region="region => expandedRegions.has(region) ? expandedRegions.delete(region) : expandedRegions.add(region)"
+                  @toggle-region-selection="toggleRegionSelection"
+                  @toggle-city="city => expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
+                  @toggle-city-selection="toggleCitySelection"
+                  @toggle-venue="venueId => selectedVenueIds.includes(venueId) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venueId), 1) : selectedVenueIds.push(venueId)"
+                  @select-venue="venueId => { if (!selectedVenueIds.includes(venueId)) selectedVenueIds.push(venueId) }"
+                  @remove-venue="venueId => selectedVenueIds.splice(selectedVenueIds.indexOf(venueId), 1)"
+                />
+              </div>
+            </template>
+          </UPopover>
+        </div>
+      </div>
+
+      <!-- Row 3: Map Filter (Accordion) -->
+      <UAccordion
+        v-if="venues?.length"
+        v-model="mapAccordionOpen"
+        :items="[{ label: 'Filter by Map', slot: 'map' }]"
+        class="map-accordion"
+      >
+        <template #leading>
+          <UIcon
+            name="i-lucide-map"
+            class="w-4 h-4"
+          />
+        </template>
+        <template #map>
+          <div class="p-2">
+            <ClientOnly>
+              <VenueMap
+                :venues="venuesWithCoords"
+                :persist-key="MAP_BOUNDS_KEY"
+                :show-controls="true"
+                @visible-venues="onMapVisibleVenues"
+                @center-changed="onMapCenterChanged"
+              />
+            </ClientOnly>
+            <div class="flex items-center justify-between mt-2">
+              <p
+                v-if="mapFilteredVenueIds !== null"
+                class="text-xs text-gray-600"
+              >
+                Showing events from {{ mapFilteredVenueIds.length }} venue{{ mapFilteredVenueIds.length === 1 ? '' : 's' }} in view
+              </p>
+              <span v-else />
+              <UButton
+                v-if="mapFilteredVenueIds !== null || mapHasCustomCenter"
+                size="xs"
+                color="neutral"
+                variant="outline"
+                @click="resetMap"
+              >
+                Reset Map
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UAccordion>
+
+      <!-- Row 4: Type + Genre -->
       <div class="flex gap-2 justify-end">
         <!-- Event Type Filter -->
         <div class="flex-1 min-w-0">
@@ -740,12 +887,12 @@ watch(regionLoaded, (loaded) => {
         </div>
       </div>
 
-      <!-- Row 3: My Favorites + My Events (only when logged in) -->
+      <!-- Row 5: For You + Saved Events (only when logged in) -->
       <div
         v-if="loggedIn"
         class="flex gap-2 justify-end"
       >
-        <!-- My Favorites Filter -->
+        <!-- For You Filter -->
         <div
           v-if="hasFavorites"
           class="flex-1 min-w-0"
@@ -753,27 +900,29 @@ watch(regionLoaded, (loaded) => {
           <UPopover>
             <UButton
               color="neutral"
-              :variant="hasActiveFavoritesFilter ? 'soft' : 'outline'"
+              :variant="hasActiveForYouFilter ? 'soft' : 'outline'"
               trailing-icon="i-lucide-chevron-down"
               class="w-full justify-between"
             >
               <div class="flex items-center gap-2 flex-1 min-w-0">
                 <UIcon
-                  name="i-lucide-heart"
+                  name="i-lucide-sparkles"
                   class="w-4 h-4 flex-shrink-0"
                 />
-                <span class="truncate">{{ favoritesSummary }}</span>
+                <span class="truncate">{{ forYouSummary || 'For You' }}</span>
               </div>
             </UButton>
             <template #content>
-              <div class="p-2 w-48">
-                <FavoritesFilter
+              <div class="p-2 w-56">
+                <ForYouFilter
+                  :recommended="recommended"
                   :filter-by-artists="filterByFavoriteArtists"
                   :filter-by-venues="filterByFavoriteVenues"
                   :filter-by-genres="filterByFavoriteGenres"
                   :artist-count="favorites.artists.length"
                   :venue-count="favorites.venues.length"
                   :genre-count="favorites.genres.length"
+                  @update:recommended="recommended = $event"
                   @update:filter-by-artists="filterByFavoriteArtists = $event"
                   @update:filter-by-venues="filterByFavoriteVenues = $event"
                   @update:filter-by-genres="filterByFavoriteGenres = $event"
@@ -783,7 +932,7 @@ watch(regionLoaded, (loaded) => {
           </UPopover>
         </div>
 
-        <!-- My Events Filter -->
+        <!-- Saved Events Filter -->
         <div class="flex-1 min-w-0">
           <UPopover>
             <UButton
@@ -794,10 +943,10 @@ watch(regionLoaded, (loaded) => {
             >
               <div class="flex items-center gap-2 flex-1 min-w-0">
                 <UIcon
-                  name="i-lucide-star"
+                  name="i-lucide-bookmark"
                   class="w-4 h-4 flex-shrink-0"
                 />
-                <span class="truncate">{{ myEvents ? myEventsLabels[myEvents] || 'My Events' : 'My Events' }}</span>
+                <span class="truncate">{{ myEvents ? savedEventsLabels[myEvents] || 'Saved' : 'Saved' }}</span>
               </div>
             </UButton>
             <template #content>
@@ -811,144 +960,6 @@ watch(regionLoaded, (loaded) => {
           </UPopover>
         </div>
       </div>
-
-      <!-- Row 4: Location (Full Width) -->
-      <div
-        v-if="venuesByRegion.length || venuesByCity.length"
-        class="location-row"
-      >
-        <UPopover v-model:open="locationPopoverOpen">
-          <UButton
-            color="neutral"
-            :variant="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0 ? 'soft' : 'outline'"
-            class="w-full justify-between"
-            trailing-icon="i-lucide-chevron-down"
-          >
-            <div class="flex items-center gap-2 flex-1 min-w-0">
-              <UIcon
-                name="i-lucide-map-pin"
-                class="w-4 h-4 flex-shrink-0"
-              />
-              <span class="truncate">{{ locationLabel }}</span>
-              <UButton
-                v-if="selectedRegions.length > 0 || selectedCities.length > 0 || selectedVenueIds.length > 0"
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                class="ml-auto flex-shrink-0"
-                @click.stop="selectedRegions = []; selectedCities = []; selectedVenueIds = []"
-              />
-            </div>
-          </UButton>
-
-          <template #content>
-            <div class="p-2 w-80">
-              <LocationFilter
-                :venues-by-region="venuesByRegion"
-                :venues-by-city="venuesByCity"
-                :all-venues="props.venues"
-                :selected-regions="selectedRegions"
-                :selected-cities="selectedCities"
-                :selected-venue-ids="selectedVenueIds"
-                :expanded-regions="expandedRegions"
-                :expanded-cities="expandedCities"
-                :is-region-fully-selected="isRegionFullySelected"
-                :is-region-partially-selected="isRegionPartiallySelected"
-                :is-city-fully-selected="isCityFullySelected"
-                :is-city-partially-selected="isCityPartiallySelected"
-                :facets="props.facets"
-                :show-venues="true"
-                :show-search="true"
-                @toggle-region="region => expandedRegions.has(region) ? expandedRegions.delete(region) : expandedRegions.add(region)"
-                @toggle-region-selection="toggleRegionSelection"
-                @toggle-city="city => expandedCities.has(city) ? expandedCities.delete(city) : expandedCities.add(city)"
-                @toggle-city-selection="toggleCitySelection"
-                @toggle-venue="venueId => selectedVenueIds.includes(venueId) ? selectedVenueIds.splice(selectedVenueIds.indexOf(venueId), 1) : selectedVenueIds.push(venueId)"
-                @select-venue="venueId => { if (!selectedVenueIds.includes(venueId)) selectedVenueIds.push(venueId) }"
-                @remove-venue="venueId => selectedVenueIds.splice(selectedVenueIds.indexOf(venueId), 1)"
-              />
-            </div>
-          </template>
-        </UPopover>
-      </div>
-
-      <!-- Row 5: Date Filter -->
-      <div class="flex gap-2">
-        <UPopover class="flex-1">
-          <UButton
-            color="neutral"
-            :variant="datePreset !== 'all' ? 'soft' : 'outline'"
-            class="w-full justify-between"
-            trailing-icon="i-lucide-chevron-down"
-          >
-            <div class="flex items-center gap-2 flex-1 min-w-0">
-              <UIcon
-                name="i-lucide-calendar"
-                class="w-4 h-4 flex-shrink-0"
-              />
-              <span class="truncate text-sm">{{ dateDisplayLabel }}</span>
-            </div>
-          </UButton>
-
-          <template #content>
-            <div class="p-3 w-[calc(100vw-2rem)] max-w-80">
-              <DateRangeFilter
-                :model-value="datePreset"
-                :custom-range="customDateRange"
-                @update:model-value="datePreset = $event; applyFilters()"
-                @update:custom-range="customDateRange = $event"
-              />
-            </div>
-          </template>
-        </UPopover>
-      </div>
-
-      <!-- Row 4: Map Filter (Accordion) -->
-      <UAccordion
-        v-if="venues?.length"
-        v-model="mapAccordionOpen"
-        :items="[{ label: 'Filter by Map', slot: 'map' }]"
-        class="map-accordion"
-      >
-        <template #leading>
-          <UIcon
-            name="i-lucide-map"
-            class="w-4 h-4"
-          />
-        </template>
-        <template #map>
-          <div class="p-2">
-            <ClientOnly>
-              <VenueMap
-                :venues="venuesWithCoords"
-                :persist-key="MAP_BOUNDS_KEY"
-                :show-controls="true"
-                @visible-venues="onMapVisibleVenues"
-                @center-changed="onMapCenterChanged"
-              />
-            </ClientOnly>
-            <div class="flex items-center justify-between mt-2">
-              <p
-                v-if="mapFilteredVenueIds !== null"
-                class="text-xs text-gray-600"
-              >
-                Showing events from {{ mapFilteredVenueIds.length }} venue{{ mapFilteredVenueIds.length === 1 ? '' : 's' }} in view
-              </p>
-              <span v-else />
-              <UButton
-                v-if="mapFilteredVenueIds !== null || mapHasCustomCenter"
-                size="xs"
-                color="neutral"
-                variant="outline"
-                @click="resetMap"
-              >
-                Reset Map
-              </UButton>
-            </div>
-          </div>
-        </template>
-      </UAccordion>
 
       <!-- Reset All Button -->
       <div

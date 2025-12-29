@@ -3,6 +3,9 @@ import type { Event } from '~/composables/useEvents'
 
 const props = defineProps<{
   event: Event
+  recommendationReason?: string
+  // Force mobile/stacked layout even on larger screens (useful for narrow containers)
+  forceStackedLayout?: boolean
 }>()
 
 const expanded = ref(false)
@@ -99,10 +102,16 @@ const eventTypeLabel = computed(() => {
     class="hover:shadow-lg transition-all duration-200 border-l-4 border-l-black overflow-hidden"
     :ui="{ body: 'p-0 sm:p-0' }"
   >
-    <!-- Mobile-first: Stacked layout, horizontal on md+ -->
-    <div class="flex flex-col md:flex-row relative">
+    <!-- Mobile-first: Stacked layout, horizontal on md+ (unless forceStackedLayout) -->
+    <div
+      class="flex flex-col relative"
+      :class="{ 'md:flex-row': !forceStackedLayout }"
+    >
       <!-- Spotify button - top right corner (desktop only, over image) -->
-      <div class="hidden md:flex absolute top-2 right-2 z-10 items-center gap-1">
+      <div
+        class="absolute top-2 right-2 z-10 items-center gap-1"
+        :class="forceStackedLayout ? 'hidden' : 'hidden md:flex'"
+      >
         <a
           v-if="spotifyArtist"
           :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
@@ -119,7 +128,8 @@ const eventTypeLabel = computed(() => {
       <NuxtLink
         v-if="event.imageUrl"
         :to="`/events/${event.slug}`"
-        class="flex-shrink-0 w-full md:w-56 lg:w-64 overflow-hidden bg-gray-900 flex items-center justify-center aspect-video md:aspect-square relative"
+        class="flex-shrink-0 w-full overflow-hidden bg-gray-900 flex items-center justify-center aspect-video relative"
+        :class="forceStackedLayout ? '' : 'md:w-56 lg:w-64 md:aspect-square'"
       >
         <!-- Placeholder shown only while loading -->
         <div
@@ -140,7 +150,8 @@ const eventTypeLabel = computed(() => {
       <NuxtLink
         v-else
         :to="`/events/${event.slug}`"
-        class="flex-shrink-0 w-full md:w-56 lg:w-64 aspect-video md:aspect-square bg-black flex items-center justify-center p-4"
+        class="flex-shrink-0 w-full aspect-video bg-black flex items-center justify-center p-4"
+        :class="forceStackedLayout ? '' : 'md:w-56 lg:w-64 md:aspect-square'"
       >
         <div class="text-center">
           <div class="text-white font-bold text-xl sm:text-2xl leading-tight line-clamp-3">
@@ -195,7 +206,8 @@ const eventTypeLabel = computed(() => {
             v-if="spotifyArtist"
             :href="`https://open.spotify.com/artist/${spotifyArtist.spotifyId}`"
             target="_blank"
-            class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors md:hidden flex-shrink-0"
+            class="p-1.5 text-[#1DB954] hover:text-[#1ed760] transition-colors flex-shrink-0"
+            :class="forceStackedLayout ? '' : 'md:hidden'"
             title="Listen on Spotify"
             @click.stop
           >
@@ -225,6 +237,18 @@ const eventTypeLabel = computed(() => {
           >
             {{ event.venue.city }}
           </span>
+        </div>
+
+        <!-- Recommendation reason -->
+        <div
+          v-if="recommendationReason"
+          class="mt-1 flex items-start gap-1 text-xs text-primary-600"
+        >
+          <UIcon
+            name="i-heroicons-light-bulb"
+            class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"
+          />
+          <span>{{ recommendationReason }}</span>
         </div>
 
         <!-- Badges - Order: Event Type, Genres, Ticket Price, Age Restriction -->
@@ -315,8 +339,11 @@ const eventTypeLabel = computed(() => {
           </button>
         </div>
 
-        <!-- Action buttons - Inline on mobile, separate column on lg+ -->
-        <div class="flex flex-wrap items-center justify-between gap-2 mt-2 lg:hidden">
+        <!-- Action buttons - Inline on mobile, separate column on lg+ (unless forceStackedLayout) -->
+        <div
+          class="flex flex-wrap items-center justify-between gap-2 mt-2"
+          :class="forceStackedLayout ? '' : 'lg:hidden'"
+        >
           <div class="flex flex-wrap gap-2">
             <UButton
               v-if="event.ticketUrl"
@@ -346,8 +373,11 @@ const eventTypeLabel = computed(() => {
         </div>
       </div>
 
-      <!-- Actions - Desktop only (hidden on mobile, shown at lg+) -->
-      <div class="hidden lg:flex flex-shrink-0 flex-col items-end justify-center gap-2 p-3 pl-0">
+      <!-- Actions - Desktop only (hidden on mobile, shown at lg+, hidden when forceStackedLayout) -->
+      <div
+        class="flex-shrink-0 flex-col items-end justify-center gap-2 p-3 pl-0"
+        :class="forceStackedLayout ? 'hidden' : 'hidden lg:flex'"
+      >
         <UButton
           v-if="event.ticketUrl"
           :to="event.ticketUrl"

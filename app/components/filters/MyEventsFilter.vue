@@ -8,7 +8,7 @@ const emit = defineEmits<{
 }>()
 
 const options = [
-  { label: 'All My Events', value: 'all', icon: 'i-heroicons-calendar' },
+  { label: 'All Saved', value: 'all', icon: 'i-heroicons-calendar' },
   { label: 'Interested', value: 'interested', icon: 'i-heroicons-star' },
   { label: 'Going', value: 'going', icon: 'i-heroicons-check-circle' },
 ]
@@ -52,7 +52,7 @@ function toggle(value: string) {
     </button>
 
     <p class="text-xs text-gray-500 mt-2">
-      Shows events you've marked as interested or going.
+      Events you've marked as interested or going.
     </p>
   </div>
 </template>
