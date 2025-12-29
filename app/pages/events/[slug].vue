@@ -852,7 +852,7 @@ useHead({
               <!-- eslint-enable vue/no-v-html -->
               <button
                 v-if="hasLongDescription"
-                class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                class="text-primary-600 hover:text-primary-700 font-medium mt-3 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
                 :aria-expanded="descriptionExpanded"
                 @click="descriptionExpanded = !descriptionExpanded"
               >
@@ -877,7 +877,7 @@ useHead({
               </template>
               <button
                 v-if="hasLongDescription"
-                class="text-primary-600 hover:text-primary-700 font-medium mt-3 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                class="text-primary-600 hover:text-primary-700 font-medium mt-3 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
                 :aria-expanded="descriptionExpanded"
                 @click="descriptionExpanded = !descriptionExpanded"
               >
