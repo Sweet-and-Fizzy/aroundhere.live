@@ -8,6 +8,7 @@
  *   Run all scrapers daily at 4am: 0 4 * * * curl -sX POST "http://localhost:3000/api/cron/scrapers?token=$CRON_SECRET"
  */
 
+import { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { verifyCronAuth } from '../../utils/cron-auth'
 import { executeScraperCode } from '../../services/agent/executor'
@@ -191,20 +192,29 @@ export default defineEventHandler(async (event) => {
   const aiSources = await prisma.source.findMany({
     where: {
       isActive: true,
-      config: { not: undefined },
+      config: { not: Prisma.JsonNull },
     },
   })
 
+  console.log(`[Cron] Found ${aiSources.length} AI sources to process`)
+
   for (const source of aiSources) {
     const config = source.config as Record<string, unknown> | null
-    if (!config?.generatedCode || !config?.venueId) continue
+    if (!config?.generatedCode || !config?.venueId) {
+      console.log(`[Cron] Skipping AI source ${source.name}: missing generatedCode or venueId`)
+      continue
+    }
 
+    console.log(`[Cron] Running AI scraper: ${source.name}`)
     const scraperStart = Date.now()
     try {
       const venue = await prisma.venue.findUnique({
         where: { id: config.venueId as string },
       })
-      if (!venue) continue
+      if (!venue) {
+        console.log(`[Cron] Skipping AI source ${source.name}: venue not found`)
+        continue
+      }
 
       const result = await executeScraperCode(
         config.generatedCode as string,
