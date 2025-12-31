@@ -160,9 +160,16 @@ export class StoneChurchScraper extends PlaywrightScraper {
 
     console.log(`[${this.config.name}] Found ${eventRows.length} VenuePilot event rows`)
 
+    // Limit the number of events we process to avoid long-running scrapes
+    const maxEvents = 50
+    const eventsToProcess = eventRows.slice(0, maxEvents)
+    if (eventRows.length > maxEvents) {
+      console.log(`[${this.config.name}] Processing first ${maxEvents} of ${eventRows.length} events`)
+    }
+
     // Process each event by changing the hash to trigger VenuePilot's modal
-    for (let i = 0; i < eventRows.length; i++) {
-      const rowData = eventRows[i]
+    for (let i = 0; i < eventsToProcess.length; i++) {
+      const rowData = eventsToProcess[i]
 
       if (!rowData || !rowData.eventId) {
         console.log(`[${this.config.name}] Event ${i + 1} has no event ID, skipping`)
@@ -263,19 +270,25 @@ export class StoneChurchScraper extends PlaywrightScraper {
           }
         })
 
-        // Get ticket URL by clicking the button and intercepting the popup
+        // Get ticket URL from the button's href attribute (safer than opening popup)
         let ticketUrl: string | undefined
         try {
-          const ticketBtn = this.page.locator('.vp-event-listing .vp-btn-tickets')
-          if (await ticketBtn.count() > 0) {
-            const popupPromise = this.page.waitForEvent('popup', { timeout: 3000 })
-            await ticketBtn.click({ timeout: 2000 })
-            const popup = await popupPromise
-            ticketUrl = popup.url()
-            await popup.close()
-          }
+          ticketUrl = await this.page.evaluate(() => {
+            const ticketBtn = document.querySelector('.vp-event-listing .vp-btn-tickets') as HTMLAnchorElement
+            if (ticketBtn) {
+              // Try href first
+              if (ticketBtn.href) return ticketBtn.href
+              // Try onclick or data attributes
+              const onclick = ticketBtn.getAttribute('onclick')
+              if (onclick) {
+                const urlMatch = onclick.match(/window\.open\(['"]([^'"]+)['"]/)
+                if (urlMatch?.[1]) return urlMatch[1]
+              }
+            }
+            return null
+          }) || undefined
         } catch {
-          // Ticket button might not exist or popup didn't open - that's ok
+          // Ticket URL extraction failed - that's ok
         }
 
         // Close modal by clearing the hash
