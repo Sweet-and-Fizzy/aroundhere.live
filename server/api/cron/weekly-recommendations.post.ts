@@ -33,7 +33,6 @@ import {
   scoreEventsForUser,
   rankRecommendations,
   findFavoriteArtistEvents,
-  MIN_CONFIDENCE_THRESHOLD,
 } from '../../services/recommendations'
 import { curateMultipleSections, type CuratedEvent } from '../../services/recommendations/ai-curator'
 
@@ -188,7 +187,8 @@ export default defineEventHandler(async (event) => {
           )
 
           const scoredWeekend = await scoreEventsForUser(weekendCandidates, userProfile)
-          const rankedWeekend = rankRecommendations(scoredWeekend, MIN_CONFIDENCE_THRESHOLD, 15)
+          // Use default threshold (0.15) - AI curation will further filter weak matches
+          const rankedWeekend = rankRecommendations(scoredWeekend)
 
           // Add weekend picks to used set before getting coming up
           const weekendEventIds = rankedWeekend.map((e) => e.event.id)
@@ -204,7 +204,7 @@ export default defineEventHandler(async (event) => {
           )
 
           const scoredComingUp = await scoreEventsForUser(comingUpCandidates, userProfile)
-          const rankedComingUp = rankRecommendations(scoredComingUp, MIN_CONFIDENCE_THRESHOLD, 15)
+          const rankedComingUp = rankRecommendations(scoredComingUp)
 
           // AI curate both sections
           if (rankedWeekend.length > 0 || rankedComingUp.length > 0) {
