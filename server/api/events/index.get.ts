@@ -324,10 +324,16 @@ export default defineEventHandler(async (event) => {
     const lastEvent = events[events.length - 1]
     if (!lastEvent) throw createError({ statusCode: 500, message: 'No last event found' })
     const lastEventDate = new Date(lastEvent.startsAt)
-    // Get the start of the next day
-    const nextDay = new Date(lastEventDate)
-    nextDay.setHours(0, 0, 0, 0)
-    nextDay.setDate(nextDay.getDate() + 1)
+    // Get the start of the next day in the region's timezone
+    // Convert event time to local date string, then get next day at midnight
+    const localDateStr = lastEventDate.toLocaleDateString('en-CA', { timeZone: timezone })
+    const [year, month, day] = localDateStr.split('-').map(Number)
+    // Create next day at midnight in the region's timezone
+    const nextDayLocal = new Date(year!, month! - 1, day! + 1)
+    const nextDay = fromZonedTime(
+      `${nextDayLocal.toISOString().split('T')[0]}T00:00:00`,
+      timezone
+    )
 
     // Fetch any additional events from the same day
     const sameDayEvents = await prisma.event.findMany({
