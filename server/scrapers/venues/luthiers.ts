@@ -32,6 +32,8 @@ interface TribeEvent {
   excerpt?: string
   start_date: string
   end_date?: string
+  utc_start_date: string  // UTC time - use this for accurate timezone handling
+  utc_end_date?: string
   url: string
   image?: {
     url?: string
@@ -154,15 +156,18 @@ export class LuthiersScraper extends HttpScraper {
       // Clean up the title - remove time suffixes
       const name = this.cleanTitle(rawName)
 
-      // Parse start date
-      const startsAt = new Date(data.start_date)
+      // Parse start date - use UTC time from API for accurate timezone handling
+      // The API's utc_start_date is already in UTC (e.g., "2025-01-07 23:00:00")
+      const startsAt = new Date(data.utc_start_date.replace(' ', 'T') + 'Z')
       if (isNaN(startsAt.getTime())) return null
 
       // Skip past events
       if (startsAt < new Date()) return null
 
-      // Parse end date if available
-      const endsAt = data.end_date ? new Date(data.end_date) : undefined
+      // Parse end date if available - also use UTC
+      const endsAt = data.utc_end_date
+        ? new Date(data.utc_end_date.replace(' ', 'T') + 'Z')
+        : undefined
 
       // Get description
       let description = data.description || data.excerpt
