@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { format, addDays } from 'date-fns'
+import { toZonedTime } from 'date-fns-tz'
 import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
 import {
@@ -10,10 +11,14 @@ import {
   rankRecommendations,
 } from '../services/recommendations'
 
-// Helper to format date for display
-function formatEventDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return format(date, "EEE MMM d, h:mm a")
+// Default timezone for displaying dates to users
+const DEFAULT_TIMEZONE = 'America/New_York'
+
+// Helper to format date for display in user's timezone
+function formatEventDate(dateStr: string, timezone = DEFAULT_TIMEZONE): string {
+  const utcDate = new Date(dateStr)
+  const zonedDate = toZonedTime(utcDate, timezone)
+  return format(zonedDate, "EEE MMM d, h:mm a")
 }
 
 // Get base URL for internal API calls

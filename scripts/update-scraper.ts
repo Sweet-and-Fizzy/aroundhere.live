@@ -34,7 +34,19 @@ function hashCode(code: string): string {
   return crypto.createHash('sha256').update(code).digest('hex')
 }
 
-// Escape string for SQL
+// Escape string for SQL using dollar quoting to handle complex JS code
+function escapeSqlDollar(str: string): { quoted: string; tag: string } {
+  // Find a dollar quote tag that doesn't appear in the string
+  let tag = 'code'
+  let counter = 0
+  while (str.includes(`$${tag}$`)) {
+    tag = `code${counter}`
+    counter++
+  }
+  return { quoted: `$${tag}$${str}$${tag}$`, tag }
+}
+
+// Simple escape for regular strings
 function escapeSql(str: string): string {
   return str.replace(/'/g, "''")
 }
@@ -49,12 +61,12 @@ async function updateProduction(sourceSlug: string, code: string, description: s
   console.log('')
 
   const codeHash = hashCode(code)
-  const escapedCode = escapeSql(code)
+  const { quoted: quotedCode } = escapeSqlDollar(code)
   const escapedDesc = escapeSql(description)
 
-  // Build SQL commands using DO block
+  // Build SQL commands using DO block with dollar quoting for code
   const sql = `
-DO $$
+DO $block$
 DECLARE
   v_source_id TEXT;
   v_source_name TEXT;
@@ -89,7 +101,7 @@ BEGIN
     'manual_' || v_source_id || '_v' || v_next_version,
     v_source_id,
     v_next_version,
-    '${escapedCode}',
+    ${quotedCode},
     '${codeHash}',
     '${escapedDesc}',
     'MANUAL_EDIT',
@@ -102,12 +114,12 @@ BEGIN
   UPDATE sources SET config = jsonb_set(
     COALESCE(v_config, '{}'::jsonb),
     '{generatedCode}',
-    to_jsonb('${escapedCode}'::text)
+    to_jsonb(${quotedCode}::text)
   )
   WHERE id = v_source_id;
 
   RAISE NOTICE 'Version % created and activated', v_next_version;
-END $$;
+END $block$;
 `
 
   // Write SQL to temp file and pipe via SSH

@@ -210,16 +210,19 @@ export default defineEventHandler(async (event) => {
     try {
       const venue = await prisma.venue.findUnique({
         where: { id: config.venueId as string },
+        include: { region: { select: { timezone: true } } },
       })
       if (!venue) {
         console.log(`[Cron] Skipping AI source ${source.name}: venue not found`)
         continue
       }
 
+      const timezone = venue.region?.timezone || 'America/New_York'
+
       const result = await executeScraperCode(
         config.generatedCode as string,
         (source.website || config.url || '') as string,
-        'America/New_York',
+        timezone,
         180000
       )
 

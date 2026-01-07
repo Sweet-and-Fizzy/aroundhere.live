@@ -212,7 +212,7 @@ export default defineEventHandler(async (event) => {
               rankedWeekend,
               rankedComingUp,
               userProfile,
-              5
+              6
             )
 
             weekendPicks = curationResult.weekend

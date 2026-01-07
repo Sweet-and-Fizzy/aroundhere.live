@@ -19,6 +19,8 @@ import { MarigoldScraper } from '../../scrapers/venues/marigold'
 import { ProgressionBrewingScraper } from '../../scrapers/venues/progression-brewing'
 import { StoneChurchScraper } from '../../scrapers/venues/stone-church'
 import { MarigoldBrattleboroScraper } from '../../scrapers/venues/marigold-brattleboro'
+import { LuthiersScraper } from '../../scrapers/venues/luthiers'
+import { FameScraper } from '../../scrapers/venues/fame'
 
 // Map of venue slugs to scraper classes
 const scraperRegistry: Record<string, () => BaseScraper> = {
@@ -32,6 +34,8 @@ const scraperRegistry: Record<string, () => BaseScraper> = {
   'progression-brewing': () => new ProgressionBrewingScraper(),
   'stone-church': () => new StoneChurchScraper(),
   'marigold-brattleboro': () => new MarigoldBrattleboroScraper(),
+  'luthiers-coop': () => new LuthiersScraper(),
+  'fame': () => new FameScraper(),
 }
 
 // Export list of venue slugs that have hardcoded scrapers

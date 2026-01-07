@@ -83,12 +83,16 @@ export function useChat(options: {
 
     try {
       const { regionName } = useCurrentRegion()
+      // Get user's timezone from browser
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
       const response = await $fetch('/api/chat', {
         method: 'POST',
         body: {
           messages: messages.value.map(m => ({ role: m.role, content: m.content })),
           sessionId: sessionId.value,
           regionName: regionName.value,
+          timezone,
         },
         timeout: 30000, // 30 second timeout
       })

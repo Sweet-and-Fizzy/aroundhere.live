@@ -18,6 +18,7 @@ interface ChatRequest {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
   sessionId?: string
   regionName?: string
+  timezone?: string
 }
 
 // Chat thresholds for alerting
@@ -36,7 +37,7 @@ const THRESHOLDS = {
 export default defineEventHandler(async (event) => {
   // Use parsedBody from middleware if available (to avoid reading body twice)
   const body = event.context.parsedBody || await readBody<ChatRequest>(event)
-  const { messages, sessionId: providedSessionId, regionName } = body
+  const { messages, sessionId: providedSessionId, regionName, timezone } = body
 
   // Get IP address for rate limiting and logging
   const ipAddress = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
@@ -82,7 +83,7 @@ export default defineEventHandler(async (event) => {
     // AI SDK 5 uses stopWhen instead of maxSteps for multi-step tool calls
     const result = await generateText({
       model: anthropic(CHAT_MODEL),
-      system: getChatSystemPrompt(regionName, isLoggedIn),
+      system: getChatSystemPrompt(regionName, isLoggedIn, timezone),
       messages: cleanMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,

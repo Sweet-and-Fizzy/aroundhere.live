@@ -3,17 +3,19 @@
  * Includes strict guardrails to prevent misuse
  */
 
-export function getChatSystemPrompt(regionName = 'Western Massachusetts', isLoggedIn = false): string {
+export function getChatSystemPrompt(regionName = 'Western Massachusetts', isLoggedIn = false, timezone = 'America/New_York'): string {
   const now = new Date()
   const dateStr = now.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: timezone
   })
   const timeStr = now.toLocaleTimeString('en-US', {
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: timezone
   })
 
   const favoritesSection = isLoggedIn
