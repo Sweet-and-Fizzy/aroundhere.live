@@ -51,9 +51,10 @@ export function useLocationFilter(
     })
   })
 
-  // Get selected venue objects
+  // Get selected venue objects (look in all venues, not just filtered ones with events)
   const selectedVenueObjects = computed(() => {
-    return filteredVenues.value.filter(v => selectedVenueIds.value.includes(v.id))
+    const allVenuesList = venues.value || []
+    return allVenuesList.filter(v => selectedVenueIds.value.includes(v.id))
   })
 
   // Group venues by region → city → venues for hierarchical display
@@ -292,6 +293,7 @@ export function useLocationFilter(
 
     // Fall back to showing venue names
     const venueNames = selectedVenueObjects.value.map(v => v.name)
+    if (venueNames.length === 0) return `${venueCount} venue${venueCount === 1 ? '' : 's'}`
     if (venueNames.length === 1) return venueNames[0]
     if (venueNames.length === 2) return venueNames.join(' and ')
     return `${venueNames[0]} and ${venueNames.length - 1} more`
