@@ -226,7 +226,26 @@ useHead({
   padding: 0;
   margin: 0;
   display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .venue-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .venue-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .venue-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .venue-item {
@@ -253,13 +272,21 @@ useHead({
 }
 
 .venue-logo {
-  width: 100px;
-  height: 100px;
+  width: 140px;
+  height: 140px;
   object-fit: contain;
   background: #1a1a1a;
   border-radius: 0.5rem;
-  padding: 0.75rem;
+  padding: 1rem;
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .venue-logo {
+    width: 100px;
+    height: 100px;
+    padding: 0.75rem;
+  }
 }
 
 .venue-info {

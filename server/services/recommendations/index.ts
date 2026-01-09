@@ -333,6 +333,7 @@ export async function findCandidateEvents(
           name: true,
           slug: true,
           city: true,
+          region: { select: { timezone: true } },
         },
       },
       eventArtists: {
@@ -751,6 +752,7 @@ export async function findFavoriteArtistEvents(
           name: true,
           slug: true,
           city: true,
+          region: { select: { timezone: true } },
         },
       },
       eventArtists: {

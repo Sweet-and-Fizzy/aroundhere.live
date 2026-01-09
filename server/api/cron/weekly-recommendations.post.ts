@@ -249,6 +249,7 @@ export default defineEventHandler(async (event) => {
                   select: {
                     name: true,
                     city: true,
+                    region: { select: { timezone: true } },
                   },
                 },
               },

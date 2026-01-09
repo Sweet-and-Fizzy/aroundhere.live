@@ -531,14 +531,13 @@ function isVenueSelected(venueId: string): boolean {
 
 .region-header-row {
   display: flex;
-  align-items: stretch;
-  background: #f3f4f6;
-  border-bottom: 1px solid #d1d5db;
+  align-items: center;
+  border-radius: 0.25rem;
   transition: background 0.15s;
 }
 
 .region-header-row:hover {
-  background: #e5e7eb;
+  background: #f3f4f6;
 }
 
 .region-header {

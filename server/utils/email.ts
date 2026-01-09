@@ -2,6 +2,14 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Default timezone for formatting dates in emails (fallback if venue/region timezone not available)
+const DEFAULT_TIMEZONE = 'America/New_York'
+
+// Helper to get timezone from a venue, with fallback to default
+function getEventTimezone(venue: { region?: { timezone: string | null } | null } | null | undefined): string {
+  return venue?.region?.timezone || DEFAULT_TIMEZONE
+}
+
 /**
  * Shared email layout wrapper
  * Provides consistent header, content area, and footer across all emails
@@ -493,6 +501,7 @@ interface RecommendationEvent {
     venue: {
       name: string
       city: string | null
+      region?: { timezone: string | null } | null
     } | null
     artists: Array<{ name: string }>
   }
@@ -523,6 +532,7 @@ interface UpcomingAttendanceEvent {
   venue: {
     name: string
     city: string | null
+    region?: { timezone: string | null } | null
   } | null
   status: 'INTERESTED' | 'GOING'
 }
@@ -707,15 +717,18 @@ function renderEventCard(
   isFavoriteArtist: boolean
 ): string {
   const { event, explanation } = item
+  const timezone = getEventTimezone(event.venue)
 
   const date = new Date(event.startsAt).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    timeZone: timezone,
   })
   const time = new Date(event.startsAt).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: timezone,
   })
   const venue = event.venue?.name || 'TBA'
   const city = event.venue?.city ? `, ${event.venue.city}` : ''
@@ -789,14 +802,17 @@ function renderAttendanceCard(
   event: UpcomingAttendanceEvent,
   baseUrl: string
 ): string {
+  const timezone = getEventTimezone(event.venue)
   const date = new Date(event.startsAt).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    timeZone: timezone,
   })
   const time = new Date(event.startsAt).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: timezone,
   })
   const venue = event.venue?.name || 'TBA'
   const city = event.venue?.city ? `, ${event.venue.city}` : ''
