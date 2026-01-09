@@ -34,32 +34,13 @@ export const progressionBrewingConfig: ScraperConfig = {
   id: 'progression-brewing',
   name: 'Progression Brewing Company',
   venueSlug: 'progression-brewing',
-  url: 'https://progressionbrewing.com/taproom-events',
+  url: 'https://progressionbrewing.com/taproom-events/',
   enabled: true,
   schedule: '0 6,14 * * *',
   category: 'VENUE',
   priority: 10,
   timezone: 'America/New_York',
   defaultAgeRestriction: 'TWENTY_ONE_PLUS', // Brewery/bar venue
-}
-
-interface MECEvent {
-  ID: number
-  title: string
-  content?: string
-  excerpt?: string
-  date?: {
-    start?: { date: string; time?: string }
-    end?: { date: string; time?: string }
-  }
-  featured_image?: string
-  permalink?: string
-  meta?: {
-    mec_cost?: string
-    mec_date?: string
-    mec_start_time?: string
-    mec_end_time?: string
-  }
 }
 
 export class ProgressionBrewingScraper extends HttpScraper {
@@ -76,9 +57,11 @@ export class ProgressionBrewingScraper extends HttpScraper {
       // First, try the MEC REST API
       events = await this.fetchFromApi()
 
-      // If API didn't work, fall back to HTML scraping
+      // If API didn't work, fall back to MEC AJAX endpoint
       if (events.length === 0) {
-        console.log(`[${this.config.name}] API returned no events, falling back to HTML scraping`)
+        console.log(`[${this.config.name}] API returned no events, trying MEC AJAX`)
+
+        // Fetch initial page to get the MEC skin ID
         const response = await fetch(this.config.url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
@@ -87,7 +70,15 @@ export class ProgressionBrewingScraper extends HttpScraper {
 
         if (response.ok) {
           const html = await response.text()
-          events = await this.parseEvents(html)
+
+          // Use MEC AJAX to get all events (returns more than initial page)
+          events = await this.fetchMECAllEvents(html)
+
+          // If AJAX failed, fall back to parsing initial HTML
+          if (events.length === 0) {
+            console.log(`[${this.config.name}] MEC AJAX returned no events, parsing initial HTML`)
+            events = await this.parseEvents(html)
+          }
         }
       }
 
@@ -105,6 +96,66 @@ export class ProgressionBrewingScraper extends HttpScraper {
       scrapedAt: new Date(),
       duration: Date.now() - startTime,
     }
+  }
+
+  /**
+   * Fetch all events using MEC's AJAX endpoint
+   * The MEC AJAX endpoint returns more events than the initial page render
+   */
+  private async fetchMECAllEvents(initialHtml: string): Promise<ScrapedEvent[]> {
+    const $ = cheerio.load(initialHtml)
+
+    // Find the MEC skin container to extract the skin ID
+    const skinContainer = $('[id^="mec_skin_"]').first()
+    if (!skinContainer.length) {
+      console.log(`[${this.config.name}] No MEC skin container found`)
+      return []
+    }
+
+    // Extract skin ID from container id (e.g., "mec_skin_5249")
+    const skinId = skinContainer.attr('id')?.replace('mec_skin_', '')
+    if (!skinId) {
+      console.log(`[${this.config.name}] Could not extract MEC skin ID`)
+      return []
+    }
+
+    // MEC AJAX endpoint - using offset=1 returns all available events (up to 12)
+    const ajaxUrl = 'https://progressionbrewing.com/wp-admin/admin-ajax.php'
+
+    try {
+      const formData = new URLSearchParams()
+      formData.append('action', 'mec_grid_load_more')
+      formData.append('mec_skin', skinId)
+      formData.append('mec_offset', '1')
+
+      const response = await fetch(ajaxUrl, {
+        method: 'POST',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData.toString(),
+      })
+
+      if (!response.ok) {
+        console.log(`[${this.config.name}] MEC AJAX request failed: ${response.status}`)
+        return []
+      }
+
+      const data = await response.json()
+
+      // MEC returns {html: "...", end: true/false, ...}
+      if (data.html) {
+        const events = await this.parseEvents(data.html)
+        console.log(`[${this.config.name}] Loaded ${events.length} events from MEC AJAX`)
+        return events
+      }
+    } catch (error) {
+      console.log(`[${this.config.name}] Error fetching from MEC AJAX:`, error)
+    }
+
+    return []
   }
 
   private async fetchFromApi(): Promise<ScrapedEvent[]> {
@@ -212,69 +263,6 @@ export class ProgressionBrewingScraper extends HttpScraper {
       }
     } catch (error) {
       console.error(`[${this.config.name}] Error parsing Tribe event:`, error)
-      return null
-    }
-  }
-
-  // Legacy MEC parser (kept for backward compatibility)
-  private parseMECEvent(data: MECEvent): ScrapedEvent | null {
-    try {
-      const title = data.title
-      if (!title) return null
-
-      // Parse date
-      let startsAt: Date | null = null
-
-      if (data.date?.start?.date) {
-        const dateStr = data.date.start.date
-        const timeStr = data.date.start.time || '19:00'
-        startsAt = new Date(`${dateStr}T${timeStr}`)
-      } else if (data.meta?.mec_date) {
-        startsAt = new Date(data.meta.mec_date)
-        if (data.meta.mec_start_time) {
-          const parts = data.meta.mec_start_time.split(':').map(Number)
-          const hours = parts[0] ?? 19
-          const minutes = parts[1] ?? 0
-          startsAt.setHours(hours, minutes)
-        }
-      }
-
-      if (!startsAt || isNaN(startsAt.getTime())) return null
-
-      // Skip past events
-      if (startsAt < new Date()) return null
-
-      // Parse end time
-      let endsAt: Date | undefined
-      if (data.date?.end?.date) {
-        const dateStr = data.date.end.date
-        const timeStr = data.date.end.time || '22:00'
-        endsAt = new Date(`${dateStr}T${timeStr}`)
-      }
-
-      // Get description - strip HTML
-      let description = data.excerpt || data.content || ''
-      description = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
-
-      // Get price
-      const coverCharge = data.meta?.mec_cost ? `$${data.meta.mec_cost}` : undefined
-
-      // Generate stable ID
-      const dateStr = startsAt.toISOString().split('T')[0]
-      const sourceEventId = `progression-brewing-${dateStr}-${data.ID || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}`
-
-      return {
-        title,
-        description: description || undefined,
-        imageUrl: data.featured_image || undefined,
-        startsAt,
-        endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,
-        sourceUrl: data.permalink || this.config.url,
-        sourceEventId,
-        coverCharge,
-      }
-    } catch (error) {
-      console.error(`[${this.config.name}] Error parsing MEC event:`, error)
       return null
     }
   }
@@ -467,17 +455,39 @@ export class ProgressionBrewingScraper extends HttpScraper {
 
   private parseMECDate(dateStr: string, timeStr?: string): Date | null {
     try {
-      // Parse date like "22 November 2025"
-      const dateMatch = dateStr.match(/(\d+)\s+(\w+)\s+(\d{4})/)
-      if (!dateMatch) return null
-
-      const day = parseInt(dateMatch[1] ?? '1', 10)
-      const monthName = (dateMatch[2] ?? '').toLowerCase()
-      const year = parseInt(dateMatch[3] ?? '2025', 10)
-
       const months: Record<string, number> = {
         january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
         july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+      }
+
+      let day: number
+      let monthName: string
+      let year: number
+
+      // Try parsing with year: "22 November 2025"
+      const dateMatchWithYear = dateStr.match(/(\d+)\s+(\w+)\s+(\d{4})/)
+      if (dateMatchWithYear) {
+        day = parseInt(dateMatchWithYear[1] ?? '1', 10)
+        monthName = (dateMatchWithYear[2] ?? '').toLowerCase()
+        year = parseInt(dateMatchWithYear[3] ?? '2025', 10)
+      } else {
+        // Try parsing without year: "10 January" or "04 February"
+        const dateMatchNoYear = dateStr.match(/(\d+)\s+(\w+)/)
+        if (!dateMatchNoYear) return null
+
+        day = parseInt(dateMatchNoYear[1] ?? '1', 10)
+        monthName = (dateMatchNoYear[2] ?? '').toLowerCase()
+
+        // Infer year: if date appears to be in the past, use next year
+        const now = new Date()
+        const currentYear = now.getFullYear()
+        const month = months[monthName]
+
+        if (month === undefined) return null
+
+        // Check if this date has already passed this year
+        const testDate = new Date(currentYear, month, day)
+        year = testDate < now ? currentYear + 1 : currentYear
       }
 
       const month = months[monthName]
