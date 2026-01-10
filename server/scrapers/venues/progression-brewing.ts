@@ -3,31 +3,11 @@ import type { ScrapedEvent, ScraperConfig } from '../types'
 import * as cheerio from 'cheerio'
 import { fromZonedTime } from 'date-fns-tz'
 
-// Type for Tribe Events Calendar API response data
-interface TribeEventData {
-  title?: string
-  name?: string
-  start_date?: string
-  start_utc?: string
-  end_date?: string
-  end_utc?: string
-  description?: string
-  excerpt?: string
-  url?: string
-  permalink?: string
-  id?: string | number
-  image?: { url?: string }
-  featured_image?: string
-  cost?: string | number
-}
-
 /**
  * Scraper for Progression Brewing - WordPress with Modern Events Calendar (MEC)
  *
- * MEC is a popular WordPress events plugin that provides:
- * - REST API endpoints at /wp-json/mec/v1.0/events
- * - Structured data in event pages
- * - Calendar views with event listings
+ * Uses MEC's AJAX endpoint to fetch events, then fetches individual event pages
+ * to get images from the LD+JSON structured data.
  */
 
 export const progressionBrewingConfig: ScraperConfig = {
@@ -54,31 +34,23 @@ export class ProgressionBrewingScraper extends HttpScraper {
     let events: ScrapedEvent[] = []
 
     try {
-      // First, try the MEC REST API
-      events = await this.fetchFromApi()
+      // Fetch initial page to get the MEC skin ID
+      const response = await fetch(this.config.url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        },
+      })
 
-      // If API didn't work, fall back to MEC AJAX endpoint
-      if (events.length === 0) {
-        console.log(`[${this.config.name}] API returned no events, trying MEC AJAX`)
+      if (response.ok) {
+        const html = await response.text()
 
-        // Fetch initial page to get the MEC skin ID
-        const response = await fetch(this.config.url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          },
-        })
+        // Use MEC AJAX to get all events (returns more than initial page)
+        events = await this.fetchMECAllEvents(html)
 
-        if (response.ok) {
-          const html = await response.text()
-
-          // Use MEC AJAX to get all events (returns more than initial page)
-          events = await this.fetchMECAllEvents(html)
-
-          // If AJAX failed, fall back to parsing initial HTML
-          if (events.length === 0) {
-            console.log(`[${this.config.name}] MEC AJAX returned no events, parsing initial HTML`)
-            events = await this.parseEvents(html)
-          }
+        // If AJAX failed, fall back to parsing initial HTML
+        if (events.length === 0) {
+          console.log(`[${this.config.name}] MEC AJAX returned no events, parsing initial HTML`)
+          events = await this.parseEvents(html)
         }
       }
 
@@ -158,118 +130,10 @@ export class ProgressionBrewingScraper extends HttpScraper {
     return []
   }
 
-  private async fetchFromApi(): Promise<ScrapedEvent[]> {
-    const events: ScrapedEvent[] = []
-
-    // Progression Brewing uses The Events Calendar (Tribe Events)
-    // Use the Tribe Events REST API with proper date filtering
-    const today = new Date().toISOString().split('T')[0]
-    const nextYear = new Date()
-    nextYear.setFullYear(nextYear.getFullYear() + 1)
-    const endDate = nextYear.toISOString().split('T')[0]
-
-    const apiEndpoint = `https://progressionbrewing.com/wp-json/tribe/events/v1/events?start_date=${today}&end_date=${endDate}&per_page=50`
-
-    try {
-      const response = await fetch(apiEndpoint, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          Accept: 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Tribe Events API returns {events: [], total: 0, ...}
-        const eventList = Array.isArray(data.events) ? data.events : []
-
-        for (const item of eventList) {
-          const event = this.parseTribeEvent(item)
-          if (event) {
-            events.push(event)
-          }
-        }
-
-        if (events.length > 0) {
-          console.log(`[${this.config.name}] Found ${events.length} events from Tribe Events API`)
-          return events
-        }
-      }
-    } catch (error) {
-      console.error(`[${this.config.name}] Error fetching from API:`, error)
-    }
-
-    return events
-  }
-
-  private parseTribeEvent(data: TribeEventData): ScrapedEvent | null {
-    try {
-      const title = data.title || data.name
-      if (!title) return null
-
-      // Parse start date
-      let startsAt: Date | null = null
-      if (data.start_date) {
-        startsAt = new Date(data.start_date)
-      } else if (data.start_utc) {
-        startsAt = new Date(data.start_utc)
-      }
-
-      if (!startsAt || isNaN(startsAt.getTime())) return null
-
-      // Skip past events
-      if (startsAt < new Date()) return null
-
-      // Parse end date
-      let endsAt: Date | undefined
-      if (data.end_date) {
-        endsAt = new Date(data.end_date)
-      } else if (data.end_utc) {
-        endsAt = new Date(data.end_utc)
-      }
-
-      // Get description
-      let description = data.description || data.excerpt || ''
-      if (typeof description === 'string') {
-        description = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
-      }
-
-      // Get image
-      const imageUrl = data.image?.url || data.featured_image || undefined
-
-      // Get price
-      let coverCharge: string | undefined
-      if (data.cost) {
-        coverCharge = typeof data.cost === 'string' ? data.cost : `$${data.cost}`
-      }
-
-      // Generate stable ID
-      const dateStr = startsAt.toISOString().split('T')[0]
-      const titleSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .slice(0, 50)
-      const sourceEventId = `progression-brewing-${dateStr}-${titleSlug}`
-
-      return {
-        title,
-        description: description || undefined,
-        imageUrl,
-        startsAt,
-        endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,
-        sourceUrl: data.url || data.permalink || this.config.url,
-        sourceEventId,
-        coverCharge,
-      }
-    } catch (error) {
-      console.error(`[${this.config.name}] Error parsing Tribe event:`, error)
-      return null
-    }
-  }
-
   protected async parseEvents(html: string): Promise<ScrapedEvent[]> {
     const $ = cheerio.load(html)
     const events: ScrapedEvent[] = []
+    const eventsNeedingImages: ScrapedEvent[] = []
 
     // Try to extract from LD+JSON first
     $('script[type="application/ld+json"]').each((_, el) => {
@@ -292,12 +156,15 @@ export class ProgressionBrewingScraper extends HttpScraper {
     // Try MEC-specific selectors first
     $('.mec-event-article, .mec-event-list-item').each((_, el) => {
       const $el = $(el)
-      const event = this.parseMECEventElement($, $el)
-      if (event) {
+      const result = this.parseMECEventElement($, $el)
+      if (result) {
         // Check for duplicates
-        const isDupe = events.some((e) => e.sourceEventId === event.sourceEventId)
+        const isDupe = events.some((e) => e.sourceEventId === result.event.sourceEventId)
         if (!isDupe) {
-          events.push(event)
+          events.push(result.event)
+          if (result.needsImageFetch) {
+            eventsNeedingImages.push(result.event)
+          }
         }
       }
     })
@@ -322,6 +189,22 @@ export class ProgressionBrewingScraper extends HttpScraper {
         const event = this.parseEventElement($, $el)
         if (event) events.push(event)
       })
+    }
+
+    // Fetch details from individual event pages for events that need them
+    if (eventsNeedingImages.length > 0) {
+      console.log(`[${this.config.name}] Fetching details for ${eventsNeedingImages.length} events`)
+      await Promise.all(
+        eventsNeedingImages.map(async (event) => {
+          const details = await this.fetchEventDetails(event.sourceUrl)
+          if (details.imageUrl) {
+            event.imageUrl = details.imageUrl
+          }
+          if (details.description) {
+            event.description = details.description
+          }
+        })
+      )
     }
 
     return events
@@ -390,7 +273,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
   private parseMECEventElement(
     $: cheerio.CheerioAPI,
     $el: ReturnType<cheerio.CheerioAPI>
-  ): ScrapedEvent | null {
+  ): { event: ScrapedEvent; needsImageFetch: boolean } | null {
     try {
       // Get title from MEC event title link
       const titleLink = $el.find('.mec-event-title a').first()
@@ -428,7 +311,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
           : `https://progressionbrewing.com${link}`
         : this.config.url
 
-      // Get image
+      // Get image from list (usually not present)
       const imageUrl = $el.find('img').first().attr('src') || undefined
 
       // Generate stable ID
@@ -440,16 +323,79 @@ export class ProgressionBrewingScraper extends HttpScraper {
       const sourceEventId = `progression-brewing-${dateStr}-${titleSlug}`
 
       return {
-        title,
-        imageUrl,
-        startsAt,
-        endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,
-        sourceUrl,
-        sourceEventId,
+        event: {
+          title,
+          imageUrl,
+          startsAt,
+          endsAt: endsAt && !isNaN(endsAt.getTime()) ? endsAt : undefined,
+          sourceUrl,
+          sourceEventId,
+        },
+        needsImageFetch: !imageUrl && sourceUrl !== this.config.url,
       }
     } catch (error) {
       console.error(`[${this.config.name}] Error parsing MEC event element:`, error)
       return null
+    }
+  }
+
+  /**
+   * Fetch image and description from an event's detail page using LD+JSON
+   */
+  private async fetchEventDetails(eventUrl: string): Promise<{ imageUrl?: string; description?: string }> {
+    try {
+      const response = await fetch(eventUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        },
+      })
+
+      if (!response.ok) return {}
+
+      const html = await response.text()
+      const $ = cheerio.load(html)
+
+      let imageUrl: string | undefined
+      let description: string | undefined
+
+      $('script[type="application/ld+json"]').each((_, el) => {
+        if (imageUrl && description) return // Already found both
+
+        try {
+          const data = JSON.parse($(el).html() || '')
+
+          // Handle @graph structure
+          if (data['@graph']) {
+            for (const item of data['@graph']) {
+              if (item['@type'] === 'Article') {
+                if (!imageUrl && item.image) {
+                  imageUrl = item.image.url || item.image
+                }
+                if (!description && item.description) {
+                  description = item.description
+                }
+              }
+            }
+          }
+
+          // Handle direct Event type
+          if (data['@type'] === 'Event' || data['@type'] === 'MusicEvent') {
+            if (!imageUrl && data.image) {
+              imageUrl = typeof data.image === 'string' ? data.image : data.image.url
+            }
+            if (!description && data.description) {
+              description = data.description
+            }
+          }
+        } catch {
+          // JSON parse failed
+        }
+      })
+
+      return { imageUrl, description }
+    } catch (error) {
+      console.error(`[${this.config.name}] Error fetching event details from ${eventUrl}:`, error)
+      return {}
     }
   }
 
@@ -486,8 +432,10 @@ export class ProgressionBrewingScraper extends HttpScraper {
         if (month === undefined) return null
 
         // Check if this date has already passed this year
+        // Compare dates only (ignore time) so today's events don't get bumped to next year
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         const testDate = new Date(currentYear, month, day)
-        year = testDate < now ? currentYear + 1 : currentYear
+        year = testDate < today ? currentYear + 1 : currentYear
       }
 
       const month = months[monthName]

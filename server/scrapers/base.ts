@@ -304,8 +304,10 @@ export abstract class PlaywrightScraper implements BaseScraper {
           let year = now.getFullYear()
 
           // If the date has passed this year, use next year
+          // Compare dates only (ignore time) so today's events don't get bumped to next year
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
           const testDate = new Date(year, month, day)
-          if (testDate < now) {
+          if (testDate < today) {
             year++
           }
 
