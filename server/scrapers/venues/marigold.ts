@@ -46,12 +46,15 @@ export class MarigoldScraper extends PlaywrightScraper {
   protected override async waitForContent(): Promise<void> {
     if (!this.page) return
 
-    // Wait for WonderPlugin Grid Gallery to load (JS-rendered)
+    // Wait for WonderPlugin Grid Gallery to load
+    // The gallery container starts with display:none until JS initializes it,
+    // so we use state: 'attached' to wait for DOM presence, not visibility
     try {
-      await this.page.waitForSelector('.wonderplugin-gridgallery-item, .wonderplugin-gridgallery-list', {
+      await this.page.waitForSelector('.wonderplugin-gridgallery-item', {
+        state: 'attached',
         timeout: 10000,
       })
-      // Wait a bit more for gallery to fully initialize
+      // Wait for JS to initialize the gallery
       await this.page.waitForTimeout(2000)
     } catch {
       // If specific selectors don't appear, wait for general content
@@ -68,7 +71,7 @@ export class MarigoldScraper extends PlaywrightScraper {
     const events: ScrapedEvent[] = []
     
     // Wait for gallery to load and ensure "theater" category is selected
-    await this.page.waitForSelector('.wonderplugin-gridgallery-item', { timeout: 10000 })
+    await this.page.waitForSelector('.wonderplugin-gridgallery-item', { state: 'attached', timeout: 10000 })
     
     // Click on "Theater Events" category if not already selected
     try {
