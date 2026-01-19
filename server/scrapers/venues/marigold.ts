@@ -459,7 +459,8 @@ export class MarigoldScraper extends PlaywrightScraper {
 
           // Try to find description in common locations
           // Marigold uses h3 tags for content, not p tags
-          if (!finalDescription) {
+          // Always try to get a better description from the page (gallery descriptions are often truncated)
+          {
             const selectors = [
               '.entry-content h3',
               '.entry-content p',

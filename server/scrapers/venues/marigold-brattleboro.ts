@@ -196,15 +196,9 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
       }
 
       // 2. Check image URL for year (e.g., /2025/09/ in upload path)
-      if (!year && galleryEvent.imageUrl) {
-        const imageYearMatch = galleryEvent.imageUrl.match(/\/(\d{4})\//)
-        if (imageYearMatch?.[1]) {
-          const foundYear = parseInt(imageYearMatch[1], 10)
-          if (foundYear >= 2020 && foundYear <= 2030) {
-            year = foundYear
-          }
-        }
-      }
+      // NOTE: Image upload year doesn't always match event year! Skip this heuristic
+      // and rely on the default logic which is smarter about recent past events.
+      // if (!year && galleryEvent.imageUrl) { ... }
 
       // If no year found, use current year and apply logic
       const now = new Date()
@@ -420,20 +414,29 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
             }
           })
 
-          // Also look for standalone paragraphs that are descriptions
+          // Also look for standalone paragraphs/h3s that are descriptions
+          // Marigold uses h3 tags for body text content
           const descriptionParts: string[] = []
-          $('p').each((_, el) => {
+          $('h3, p').each((_, el) => {
             const text = $(el).text().trim()
-            // Skip emoji-prefixed lines and short text
-            if (text.length > 80 &&
+            // Stop if we hit footer/venue info (but not "🌙 Marigold Brattleboro🌙" header)
+            if (text.match(/^Marigold Theater|^84 Cottage|^157 Main Street|^\(413\)|^\(802\) 212|^Email:|^Booking:|^facebook\.com|^instagram\.com|^@marigold/i)) {
+              return false // break
+            }
+            // Skip emoji-prefixed lines (except the 🌙 header which we want), short text, and URLs
+            if (text.length > 30 &&
                 !text.startsWith('📅') &&
+                !text.startsWith('🗓️') &&
                 !text.startsWith('📍') &&
                 !text.startsWith('🍸') &&
                 !text.startsWith('☕') &&
                 !text.startsWith('🎶') &&
                 !text.startsWith('🎟') &&
-                !text.match(/^21\+|^18\+/)) {
-              // Check if this paragraph is already captured as artist description
+                !text.startsWith('🌙') &&
+                !text.match(/^https?:\/\//) &&
+                !text.match(/^21\+|^18\+/) &&
+                !text.match(/^(Doors|Music|Bar Open|FREE SHOW|Photo:)/i)) {
+              // Check if this text is already captured as artist description
               const isArtistDesc = artistDescriptions.some(ad => ad.includes(text.slice(0, 50)))
               if (!isArtistDesc) {
                 descriptionParts.push(text)
@@ -466,7 +469,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
           }
 
           if (descParts.length > 0) {
-            finalDescription = descParts.join('\n\n').substring(0, 1500)
+            finalDescription = descParts.join('\n\n').substring(0, 2000)
           }
 
           // Skip cancelled/postponed events
