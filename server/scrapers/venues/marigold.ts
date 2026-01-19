@@ -458,11 +458,14 @@ export class MarigoldScraper extends PlaywrightScraper {
           })
 
           // Try to find description in common locations
+          // Marigold uses h3 tags for content, not p tags
           if (!finalDescription) {
             const selectors = [
+              '.entry-content h3',
               '.entry-content p',
               '.event-description',
               '.wp-block-group p',
+              'article h3',
               'article p',
               'main p'
             ]
@@ -473,8 +476,15 @@ export class MarigoldScraper extends PlaywrightScraper {
               const elements = $(selector)
               for (let i = 0; i < elements.length; i++) {
                 const text = $(elements[i]).text().trim()
-                // Skip very short text, date-only text, or empty paragraphs
-                if (text.length > 50 && !text.match(/^(🗓️|📍|🍸|☕|&nbsp;)/) && text !== '&nbsp;') {
+                // Stop if we hit footer/venue info
+                if (text.match(/^Marigold Theater|^84 Cottage|^157 Main|^\(413\)|^\(802\)|^Email:|^Booking:|^facebook\.com|^instagram\.com/i)) {
+                  break
+                }
+                // Skip very short text, date-only text, metadata lines, or empty paragraphs
+                if (text.length > 30 &&
+                    !text.match(/^(🗓️|📍|🍸|☕|🎶|🎟️|&nbsp;|https?:\/\/)/) &&
+                    text !== '&nbsp;' &&
+                    !text.match(/^(Doors|Music|Bar Open|FREE SHOW|Photo:)/i)) {
                   descriptionParts.push(text)
                 }
               }
@@ -485,14 +495,14 @@ export class MarigoldScraper extends PlaywrightScraper {
             if (descriptionParts.length === 0) {
               $('p').each((_, el) => {
                 const text = $(el).text().trim()
-                if (text.length > 50 && !text.match(/^(🗓️|📍|🍸|☕)/)) {
+                if (text.length > 30 && !text.match(/^(🗓️|📍|🍸|☕|🎶|🎟️)/)) {
                   descriptionParts.push(text)
                 }
               })
             }
 
             if (descriptionParts.length > 0) {
-              finalDescription = descriptionParts.join(' ').substring(0, 1000) // Limit to 1000 chars
+              finalDescription = descriptionParts.join(' ').substring(0, 2000) // Limit to 2000 chars
             }
           }
         }
