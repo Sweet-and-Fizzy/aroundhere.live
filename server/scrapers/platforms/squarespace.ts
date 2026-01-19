@@ -1,4 +1,5 @@
 import { PlaywrightScraper } from '../base'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import type { ScrapedEvent, ScraperConfig } from '../types'
 
 /**
@@ -351,9 +352,18 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
       if (isPM && hours !== 12) hours += 12
       if (!isPM && hours === 12) hours = 0
 
-      const doorsAt = new Date(eventDate)
-      doorsAt.setHours(hours, minutes, 0, 0)
-      return doorsAt
+      // Convert eventDate to venue's local timezone to get the correct date
+      const timezone = this.config.timezone
+      const localEventDate = toZonedTime(eventDate, timezone)
+
+      // Build a local datetime string with the doors time
+      const year = localEventDate.getFullYear()
+      const month = String(localEventDate.getMonth() + 1).padStart(2, '0')
+      const day = String(localEventDate.getDate()).padStart(2, '0')
+      const localDoorsStr = `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+
+      // Convert from venue's local timezone to UTC
+      return fromZonedTime(localDoorsStr, timezone)
     } catch {
       return undefined
     }
