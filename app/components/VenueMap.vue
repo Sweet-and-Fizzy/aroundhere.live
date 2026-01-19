@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Map as LeafletMap, Circle as LeafletCircle } from 'leaflet'
+import type { Map as LeafletMap, Circle as LeafletCircle, Marker as LeafletMarker } from 'leaflet'
 
 interface Venue {
   id: string
@@ -43,11 +43,12 @@ const locationSearchRef = ref<{ setQuery: (q: string) => void; clearSearch: () =
 const searchRadius = ref<number | 'view'>(25) // miles, or 'view' for map extent
 const radiusCircle = ref<LeafletCircle | null>(null)
 const currentCenter = ref<{ lat: number; lng: number } | null>(null)
+const venueMarkers = ref<Map<string, LeafletMarker>>(new Map())
 
 function centerMapAt(lat: number, lng: number, name?: string) {
   if (!map.value) return
   currentCenter.value = { lat, lng }
-  map.value.setView([lat, lng], 11)
+  map.value.setView([lat, lng], 15)
   updateRadiusCircle()
   emitCenterChanged()
   if (name && locationSearchRef.value) {
@@ -57,6 +58,18 @@ function centerMapAt(lat: number, lng: number, name?: string) {
 
 function handleLocationSelect(result: { lat: number; lng: number; name: string }) {
   centerMapAt(result.lat, result.lng, result.name)
+
+  // If this is a venue (name starts with 📍), find and highlight it
+  if (result.name.startsWith('📍')) {
+    const venueName = result.name.replace('📍 ', '')
+    const venue = props.venues.find(v => v.name === venueName)
+    if (venue) {
+      const marker = venueMarkers.value.get(venue.id)
+      if (marker) {
+        marker.openPopup()
+      }
+    }
+  }
 }
 
 function handleLocate(coords: { lat: number; lng: number; name?: string }) {
@@ -212,9 +225,10 @@ onMounted(async () => {
   }).addTo(map.value as LeafletMap)
 
   // Add markers for each venue with tooltips
+  venueMarkers.value.clear()
   for (const venue of mappableVenues.value) {
     if (venue.latitude && venue.longitude) {
-      L.marker([venue.latitude, venue.longitude])
+      const marker = L.marker([venue.latitude, venue.longitude])
         .addTo(map.value as LeafletMap)
         .bindPopup(`
           <strong>${venue.name}</strong>
@@ -228,6 +242,7 @@ onMounted(async () => {
           offset: [0, -10],
           className: 'venue-label',
         })
+      venueMarkers.value.set(venue.id, marker)
     }
   }
 
@@ -413,7 +428,7 @@ onUnmounted(() => {
 <style scoped>
 .venue-map-container {
   border-radius: 0.5rem;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border-color, #e5e5e5);
   margin-bottom: 1.5rem;
   position: relative;
@@ -422,6 +437,8 @@ onUnmounted(() => {
 .venue-map {
   height: 400px;
   width: 100%;
+  border-radius: 0 0 0.5rem 0.5rem;
+  overflow: hidden;
 }
 
 /* Map Controls */
@@ -432,10 +449,13 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid var(--border-color, #e5e5e5);
   align-items: center;
+  position: relative;
+  z-index: 1000;
 }
 
 .search-container {
   flex: 1;
+  position: relative;
 }
 
 .radius-wrapper {
