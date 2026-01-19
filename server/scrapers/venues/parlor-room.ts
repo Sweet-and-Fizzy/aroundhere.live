@@ -30,6 +30,7 @@ interface ElfsightEvent {
   end?: { date?: string; time?: string }
   description?: string
   image?: string
+  buttonLink?: { value?: string }
 }
 
 /**
@@ -200,15 +201,16 @@ export class ParlorRoomScraper extends PlaywrightScraper {
     return undefined
   }
 
-  // Build the direct event URL using the Elfsight event ID
+  // Build the direct event URL - prefer Salesforce ticket URL, fall back to calendar
   private buildEventUrl(title: string, date?: Date): string {
     const event = this.getElfsightEvent(title, date)
 
-    if (event?.id) {
-      return `${this.config.url}#calendar-${PARLOR_ROOM_WIDGET_ID}-event-${event.id}`
+    // Prefer the Salesforce ticket URL from buttonLink.value
+    if (event?.buttonLink?.value) {
+      return event.buttonLink.value
     }
 
-    // Fallback to base calendar URL
+    // Fallback to base calendar URL for free events without ticket links
     return this.config.url
   }
 
