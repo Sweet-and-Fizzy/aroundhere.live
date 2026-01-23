@@ -19,6 +19,7 @@ const hardcodedScraperSlugs = new Set([
   'marigold-brattleboro',
   'fame',
   'luthiers',
+  'daily-operation',
 ])
 
 /**
