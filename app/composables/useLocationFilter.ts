@@ -101,9 +101,13 @@ export function useLocationFilter(
       })
     })
 
-    // Sort: current region first, then by event count
+    // Sort: current region first, then by event count, "Other" always last
     const currentRegion = currentRegionName.value?.toLowerCase() || ''
     return regions.sort((a, b) => {
+      // "Other" always goes last
+      if (a.region === 'other' && b.region !== 'other') return 1
+      if (a.region !== 'other' && b.region === 'other') return -1
+
       // Check if either is the current region (compare against display name)
       const aIsCurrent = currentRegion && currentRegion !== 'the area' && (
         a.regionName.toLowerCase().includes(currentRegion) ||
