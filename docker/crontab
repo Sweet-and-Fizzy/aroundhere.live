@@ -2,8 +2,8 @@
 # Runs inside the cron container, calls the app container via HTTP
 # Uses CRON_SECRET env var for authentication
 
-# Run all scrapers daily at 4am EST
-0 4 * * * curl -sX POST "http://app:3000/api/cron/scrapers?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+# Run all scrapers twice daily at 4am and 2pm EST
+0 4,14 * * * curl -sX POST "http://app:3000/api/cron/scrapers?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Match new artists to Spotify daily at 5am EST (after scrapers finish)
 0 5 * * * curl -sX POST "http://app:3000/api/cron/spotify?task=match&token=$CRON_SECRET" >> /var/log/cron.log 2>&1
@@ -25,5 +25,8 @@
 
 # Send weekly recommendations on Wednesday at 8am EST
 0 8 * * 3 curl -sX POST "http://app:3000/api/cron/weekly-recommendations?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+
+# Cluster venues into regions weekly on Monday at 3am EST
+0 3 * * 1 curl -sX POST "http://app:3000/api/cron/cluster-regions?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Empty line required at end
