@@ -11,8 +11,8 @@ const PRICING: Record<string, { input: number; output: number }> = {
     input: 3.0 / 1_000_000,
     output: 15.0 / 1_000_000,
   },
-  // Claude 3.5 Haiku (cheaper option)
-  'claude-3-5-haiku-20241022': {
+  // Claude 4.5 Haiku (cheaper option)
+  'claude-haiku-4-5-20251001': {
     input: 0.8 / 1_000_000, // $0.80 per 1M input tokens
     output: 4.0 / 1_000_000, // $4 per 1M output tokens
   },

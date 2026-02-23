@@ -155,7 +155,7 @@ Options:
 
 Environment variables:
   ANTHROPIC_API_KEY     Required for Claude API
-  CLASSIFIER_MODEL      Model to use (default: claude-3-5-haiku-20241022)
+  CLASSIFIER_MODEL      Model to use (default: claude-haiku-4-5-20251001)
   CLASSIFIER_BATCH_SIZE Number of events per API call (default: 10)
 `)
       process.exit(0)

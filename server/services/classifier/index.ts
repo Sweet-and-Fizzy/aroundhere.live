@@ -8,7 +8,7 @@ import type {
 import { CANONICAL_GENRES, EVENT_TYPES } from './types'
 import { CLASSIFICATION_SYSTEM_PROMPT, buildClassificationPrompt } from './prompts'
 
-const MODEL = process.env.CLASSIFIER_MODEL || 'claude-3-5-haiku-20241022'
+const MODEL = process.env.CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001'
 
 export class EventClassifier {
   /**

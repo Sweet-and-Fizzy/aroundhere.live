@@ -69,8 +69,8 @@ export const ANTHROPIC_MODELS: LLMModelInfo[] = [
     costPer1kOutputTokens: 0.015,
   },
   {
-    id: 'claude-3-5-haiku-20241022',
-    name: 'Claude 3.5 Haiku',
+    id: 'claude-haiku-4-5-20251001',
+    name: 'Claude 4.5 Haiku',
     description: 'Fast and cost-effective for simpler tasks',
     contextWindow: 200000,
     maxOutputTokens: 8192,

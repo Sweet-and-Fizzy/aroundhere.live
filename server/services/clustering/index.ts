@@ -274,7 +274,7 @@ Return ONLY the region name exactly as it should appear after "in", nothing else
   try {
     const response = await llmService.complete({
       provider: 'anthropic',
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5-20251001',
       messages: [{ role: 'user', content: prompt }],
       maxTokens: 50,
       temperature: 0.3,
