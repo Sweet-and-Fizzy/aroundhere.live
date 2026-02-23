@@ -59,9 +59,11 @@ function getMainContentParagraphs(htmlContent: string): { paragraphs: string[]; 
     '&lt;h1&gt;upcoming concerts',
     '&lt;h1&gt;upcoming shows',
     '&lt;h1&gt;this weekend',
+    '&lt;h1&gt;concert calendar',
     '<h1>upcoming concerts',
     '<h1>upcoming shows',
     '<h1>this weekend',
+    '<h1>concert calendar',
   ]
 
   let mainContent = htmlContent
@@ -150,7 +152,7 @@ If no clear featured artists, return: []`
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 200,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -257,6 +259,11 @@ export async function scrapeFreakscene(
   let artistMatches = 0
 
   for (const item of rssItems) {
+    // Skip standalone calendar/listings posts
+    if (/^concert calendar$/i.test(item.title.trim())) {
+      continue
+    }
+
     // Check if we already have this review
     const existingReview = await prisma.review.findUnique({
       where: { url: item.url },
