@@ -55,7 +55,7 @@ export async function classifyPendingEvents(
       const results = await classifier.classifyWithFallback(inputs)
 
       // Build embedding texts for events that are music (we care about similarity for music events)
-      const musicResults = results.filter(r => r.isMusic)
+      const musicResults = results.filter(r => r.isMusic && unclassified.some(e => e.id === r.eventId))
       const embeddingTexts = musicResults.map(result => {
         const event = unclassified.find(e => e.id === result.eventId)!
         return buildEventEmbeddingText({
