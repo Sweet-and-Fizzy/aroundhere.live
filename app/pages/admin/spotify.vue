@@ -24,7 +24,6 @@ interface Artist {
 interface SpotifySearchResult {
   id: string
   name: string
-  popularity: number
   genres: string[]
   imageUrl: string | null
   spotifyUrl: string
@@ -1035,9 +1034,6 @@ useSeoMeta({
                 <div class="text-sm text-gray-500 truncate">
                   {{ result.genres.slice(0, 3).join(', ') || 'No genres' }}
                 </div>
-              </div>
-              <div class="text-sm text-gray-400">
-                Pop: {{ result.popularity }}
               </div>
             </button>
           </div>

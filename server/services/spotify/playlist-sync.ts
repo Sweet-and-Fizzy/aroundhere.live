@@ -40,6 +40,7 @@ interface EventWithArtists {
       id: string
       name: string
       spotifyId: string | null
+      spotifyName: string | null
       spotifyMatchStatus: string
       spotifyPopularTracks: PopularTrack[] | null
     }
@@ -95,6 +96,7 @@ export async function syncPlaylist(playlistId: string): Promise<SyncResult> {
               id: true,
               name: true,
               spotifyId: true,
+              spotifyName: true,
               spotifyMatchStatus: true,
               spotifyPopularTracks: true,
             },
@@ -136,7 +138,7 @@ export async function syncPlaylist(playlistId: string): Promise<SyncResult> {
       // If no cached tracks, try to fetch them
       if (tracks.length === 0 && artist.spotifyId) {
         try {
-          tracks = await spotifyService.getPopularTracks(artist.spotifyId, 4)
+          tracks = await spotifyService.getPopularTracks(artist.spotifyId, 4, artist.spotifyName || artist.name)
           // Cache them
           await prisma.artist.update({
             where: { id: artist.id },

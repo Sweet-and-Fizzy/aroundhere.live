@@ -139,7 +139,7 @@ export async function matchSingleArtist(
     let popularTracks = null
     if (status === 'AUTO_MATCHED' || status === 'NEEDS_REVIEW') {
       try {
-        popularTracks = await spotifyService.getPopularTracks(match.artist.id, 4)
+        popularTracks = await spotifyService.getPopularTracks(match.artist.id, 4, match.artist.name)
       } catch (err) {
         console.warn(`Failed to get tracks for ${artistName}:`, err)
       }
@@ -204,7 +204,7 @@ export async function manuallyMatchArtist(
     // Fetch popular tracks
     let popularTracks = null
     try {
-      popularTracks = await spotifyService.getPopularTracks(spotifyId, 4)
+      popularTracks = await spotifyService.getPopularTracks(spotifyId, 4, spotifyArtist.name)
     } catch (err) {
       console.warn(`Failed to get tracks for artist ${spotifyId}:`, err)
     }
@@ -328,7 +328,7 @@ export async function refreshPopularTracks(
 
   for (const artist of artists) {
     try {
-      const tracks = await spotifyService.getPopularTracks(artist.spotifyId!, 4)
+      const tracks = await spotifyService.getPopularTracks(artist.spotifyId!, 4, artist.spotifyName || artist.name)
 
       await prisma.artist.update({
         where: { id: artist.id },

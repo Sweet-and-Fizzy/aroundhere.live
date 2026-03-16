@@ -28,13 +28,13 @@ WORKDIR /app
 # Install tsx for running TypeScript scrapers directly
 RUN npm install -g tsx
 
-# Install only Chromium (not all browsers)
-RUN npx playwright install chromium
-
 # Copy built application and dependencies
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
+
+# Install Chromium matching the project's Playwright version (must be after node_modules copy)
+RUN npx playwright install chromium
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/scripts ./scripts

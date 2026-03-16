@@ -14,7 +14,6 @@ interface SpotifyArtistFullResponse {
   id: string
   name: string
   genres: string[]
-  popularity: number
 }
 
 /**

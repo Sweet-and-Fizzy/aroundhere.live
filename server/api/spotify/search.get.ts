@@ -33,7 +33,6 @@ export default defineEventHandler(async (event) => {
     artists: artists.map((artist) => ({
       id: artist.id,
       name: artist.name,
-      popularity: artist.popularity,
       genres: artist.genres,
       imageUrl: artist.images?.[0]?.url || null,
       spotifyUrl: artist.external_urls.spotify,

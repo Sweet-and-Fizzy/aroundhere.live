@@ -15,7 +15,6 @@ import type {
   SpotifyArtist,
   SpotifyTrack,
   SpotifySearchResult,
-  SpotifyTopTracksResult,
   SpotifyTokenResponse,
   SpotifyUserProfile,
   SpotifyPlaylist,
@@ -304,7 +303,6 @@ class SpotifyService {
     return {
       id: artist.id,
       name: artist.name,
-      popularity: artist.popularity,
       genres: artist.genres,
       images: artist.images,
       external_urls: artist.external_urls,
@@ -441,16 +439,31 @@ class SpotifyService {
   // ============================================
 
   /**
-   * Get an artist's top tracks
+   * Get an artist's popular tracks via search
+   * (Replaces removed /artists/{id}/top-tracks endpoint)
    */
-  async getArtistTopTracks(
+  async getPopularTracks(
     artistId: string,
-    market = 'US'
-  ): Promise<SpotifyTrack[]> {
+    count = 4,
+    artistName?: string
+  ): Promise<PopularTrack[]> {
+    // If no artist name provided, look it up
+    if (!artistName) {
+      const artist = await this.getArtistById(artistId)
+      if (!artist) throw new Error(`Artist ${artistId} not found`)
+      artistName = artist.name
+    }
+
     const token = await this.getClientCredentialsToken()
 
+    const params = new URLSearchParams({
+      q: `artist:"${artistName}"`,
+      type: 'track',
+      limit: '10',
+    })
+
     const response = await fetch(
-      `${SPOTIFY_API_BASE}/artists/${artistId}/top-tracks?market=${market}`,
+      `${SPOTIFY_API_BASE}/search?${params.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -460,28 +473,34 @@ class SpotifyService {
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`Failed to get top tracks: ${error}`)
+      throw new Error(`Failed to search tracks: ${error}`)
     }
 
-    const data: SpotifyTopTracksResult = await response.json()
-    return data.tracks
-  }
+    const data = await response.json() as { tracks: { items: SpotifyTrack[] } }
+    const tracks = data.tracks?.items || []
 
-  /**
-   * Get top N tracks formatted for storage
-   */
-  async getPopularTracks(
-    artistId: string,
-    count = 4
-  ): Promise<PopularTrack[]> {
-    const tracks = await this.getArtistTopTracks(artistId)
+    // Deduplicate by track name and filter to tracks by this artist
+    const seen = new Set<string>()
+    const filtered: PopularTrack[] = []
 
-    return tracks.slice(0, count).map((track) => ({
-      trackId: track.id,
-      name: track.name,
-      uri: track.uri,
-      durationMs: track.duration_ms,
-    }))
+    for (const track of tracks) {
+      const isByArtist = track.artists.some((a) =>
+        a.id === artistId || a.name.toLowerCase() === artistName!.toLowerCase()
+      )
+      const key = track.name.toLowerCase()
+      if (isByArtist && !seen.has(key)) {
+        seen.add(key)
+        filtered.push({
+          trackId: track.id,
+          name: track.name,
+          uri: track.uri,
+          durationMs: track.duration_ms,
+        })
+        if (filtered.length >= count) break
+      }
+    }
+
+    return filtered
   }
 
   // ============================================
@@ -495,7 +514,7 @@ class SpotifyService {
     const token = await this.getOAuthToken()
     const tracks: SpotifyTrack[] = []
     let url: string | null =
-      `${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks?limit=100`
+      `${SPOTIFY_API_BASE}/playlists/${playlistId}/items?limit=100`
 
     while (url) {
       const response: Response = await fetch(url, {
@@ -533,7 +552,7 @@ class SpotifyService {
       const batch = trackUris.slice(i, i + 100)
 
       const response = await fetch(
-        `${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks`,
+        `${SPOTIFY_API_BASE}/playlists/${playlistId}/items`,
         {
           method: 'POST',
           headers: {
@@ -567,7 +586,7 @@ class SpotifyService {
       const batch = trackUris.slice(i, i + 100)
 
       const response = await fetch(
-        `${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks`,
+        `${SPOTIFY_API_BASE}/playlists/${playlistId}/items`,
         {
           method: 'DELETE',
           headers: {
@@ -601,7 +620,7 @@ class SpotifyService {
     const remaining = trackUris.slice(100)
 
     const response = await fetch(
-      `${SPOTIFY_API_BASE}/playlists/${playlistId}/tracks`,
+      `${SPOTIFY_API_BASE}/playlists/${playlistId}/items`,
       {
         method: 'PUT',
         headers: {
