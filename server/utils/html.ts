@@ -151,6 +151,16 @@ export function cleanEventTitle(title: string): string {
 }
 
 /**
+ * Simple slug: lowercase, replace non-alphanumeric with hyphens, trim hyphens
+ */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
  * Generate URL-safe slug from text
  */
 export function generateSlug(text: string, date?: Date): string {

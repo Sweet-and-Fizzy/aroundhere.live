@@ -56,6 +56,8 @@ const userMenuItems = computed(() => {
       { label: user.value?.email, disabled: true },
     ],
     [
+      { label: 'My Events', icon: 'i-heroicons-calendar-days', to: '/my-events' },
+      { label: 'Submit Event', icon: 'i-heroicons-plus-circle', to: '/events/submit' },
       { label: 'My Interests', icon: 'i-heroicons-heart', to: '/interests' },
       { label: 'How It Works', icon: 'i-heroicons-question-mark-circle', to: '/how-it-works' },
       { label: 'Settings', icon: 'i-heroicons-cog-6-tooth', to: '/settings' },
@@ -65,6 +67,9 @@ const userMenuItems = computed(() => {
   // Add admin links if user is admin/moderator
   if (isAdmin.value) {
     const adminItems = [
+      { label: 'Submissions', icon: 'i-heroicons-inbox-arrow-down', to: '/admin/submissions' },
+      { label: 'Reports', icon: 'i-heroicons-flag', to: '/admin/reports' },
+      { label: 'Venue Claims', icon: 'i-heroicons-shield-check', to: '/admin/venue-claims' },
       { label: 'Artists', icon: 'i-heroicons-user-group', to: '/admin/artists' },
       { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
       { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
@@ -243,6 +248,28 @@ const userMenuItems = computed(() => {
                   </div>
 
                   <NuxtLink
+                    to="/my-events"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-calendar-days"
+                      class="w-4 h-4"
+                    />
+                    My Events
+                  </NuxtLink>
+                  <NuxtLink
+                    to="/events/submit"
+                    class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    active-class="text-white bg-gray-800 font-medium"
+                  >
+                    <UIcon
+                      name="i-heroicons-plus-circle"
+                      class="w-4 h-4"
+                    />
+                    Submit Event
+                  </NuxtLink>
+                  <NuxtLink
                     to="/interests"
                     class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
                     active-class="text-white bg-gray-800 font-medium"
@@ -278,6 +305,39 @@ const userMenuItems = computed(() => {
 
                   <!-- Admin links for mobile -->
                   <template v-if="isAdmin">
+                    <NuxtLink
+                      to="/admin/submissions"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-inbox-arrow-down"
+                        class="w-4 h-4"
+                      />
+                      Submissions
+                    </NuxtLink>
+                    <NuxtLink
+                      to="/admin/reports"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-flag"
+                        class="w-4 h-4"
+                      />
+                      Reports
+                    </NuxtLink>
+                    <NuxtLink
+                      to="/admin/venue-claims"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-shield-check"
+                        class="w-4 h-4"
+                      />
+                      Venue Claims
+                    </NuxtLink>
                     <NuxtLink
                       to="/admin/artists"
                       class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"

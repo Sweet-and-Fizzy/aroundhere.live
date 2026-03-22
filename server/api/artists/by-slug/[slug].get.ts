@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
         },
       },
       startsAt: { gte: new Date() },
-      reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      reviewStatus: 'APPROVED',
     },
     include: {
       venue: {
@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
         },
       },
       startsAt: { lt: new Date() },
-      reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      reviewStatus: 'APPROVED',
     },
   })
 

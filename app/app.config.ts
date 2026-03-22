@@ -8,8 +8,19 @@ export default defineAppConfig({
     safelistColors: ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose', 'gray'],
     input: {
       slots: {
-        root: 'text-gray-900',
+        root: 'w-full text-gray-900',
         base: 'text-gray-900 border-gray-400 placeholder:text-gray-500',
+      },
+    },
+    textarea: {
+      slots: {
+        root: 'w-full',
+        base: 'border-gray-400 placeholder:text-gray-500',
+      },
+    },
+    select: {
+      slots: {
+        base: 'border-gray-400',
       },
     },
     selectMenu: {

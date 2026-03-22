@@ -537,7 +537,10 @@ useHead({
               name="i-heroicons-chat-bubble-left-right"
               class="w-4 h-4 flex-shrink-0 text-blue-600"
             />
-            <span>See something that doesn't look right or have an idea to make it better? Send us a note at <a
+            <span>Know about a show that isn't listed? <NuxtLink
+              to="/events/submit"
+              class="font-medium underline hover:text-gray-700"
+            >Submit an event</NuxtLink> — or send us feedback at <a
               href="mailto:whatsup@aroundhere.live"
               class="font-medium underline hover:text-gray-700"
             >whatsup@aroundhere.live</a></span>

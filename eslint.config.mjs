@@ -115,6 +115,9 @@ const nuxtGlobals = {
   GeolocationPosition: 'readonly',
   navigator: 'readonly',
   Response: 'readonly',
+  FormData: 'readonly',
+  // Nitro/h3 server utilities
+  readMultipartFormData: 'readonly',
 }
 
 export default [

@@ -107,6 +107,9 @@ async function saveEditing() {
   }
 }
 
+// Event report modal
+const reportModalOpen = ref(false)
+
 // Cancel/restore event
 const cancelling = ref(false)
 
@@ -722,6 +725,23 @@ useHead({
                 </div>
               </div>
 
+              <!-- Pending Review Notice -->
+              <div
+                v-if="event.reviewStatus === 'PENDING' && event.submittedById"
+                class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2"
+              >
+                <div class="flex items-center gap-2 text-sm text-yellow-800">
+                  <UIcon
+                    name="i-heroicons-clock"
+                    class="w-4 h-4"
+                  />
+                  <span class="font-medium">Pending Review</span>
+                </div>
+                <p class="text-xs text-yellow-700 mt-1">
+                  This event is awaiting review and is not yet publicly visible.
+                </p>
+              </div>
+
               <!-- Venue / Address -->
               <div v-if="event.venue">
                 <div class="flex items-center gap-2">
@@ -773,6 +793,36 @@ useHead({
                   </template>
                 </p>
               </div>
+              <!-- Venue-less event: show custom location -->
+              <div v-else-if="event.locationName">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-gray-900">{{ event.locationName }}</span>
+                  <UButton
+                    v-if="event.locationLat && event.locationLng"
+                    :href="`https://www.google.com/maps/search/?api=1&query=${event.locationLat},${event.locationLng}`"
+                    target="_blank"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-heroicons-map"
+                    size="xs"
+                    external
+                  >
+                    Map
+                  </UButton>
+                </div>
+                <p
+                  v-if="event.locationAddress"
+                  class="text-gray-600 text-sm mt-0.5"
+                >
+                  {{ event.locationAddress }}
+                </p>
+                <p
+                  v-else-if="event.locationCity"
+                  class="text-gray-600 text-sm mt-0.5"
+                >
+                  {{ event.locationCity }}<span v-if="event.locationState">, {{ event.locationState }}</span>
+                </p>
+              </div>
 
               <!-- Cover and Age -->
               <div class="flex items-center gap-6 text-sm font-medium text-gray-700">
@@ -819,6 +869,14 @@ useHead({
                   :going-count="goingCount"
                   @update="onAttendanceUpdate"
                 />
+              </div>
+              <div class="mt-2 text-right">
+                <button
+                  class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  @click="reportModalOpen = true"
+                >
+                  Report an issue
+                </button>
               </div>
             </div>
           </UCard>
@@ -1134,6 +1192,14 @@ useHead({
 
     <BackToTop />
     <FloatingChatButton always-visible />
+
+    <!-- Report Modal -->
+    <EventReportModal
+      v-if="event"
+      v-model:open="reportModalOpen"
+      :event-id="event.id"
+      :event-title="event.title"
+    />
   </div>
 </template>
 

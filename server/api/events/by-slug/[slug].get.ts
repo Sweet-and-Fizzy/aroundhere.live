@@ -80,6 +80,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Access control: only show non-APPROVED events to their submitter, admins, or venue moderators
+  const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'MODERATOR'
+  const isSubmitter = userId && eventData.submittedById === userId
+  let isVenueMod = false
+  if (!isAdmin && !isSubmitter && userId && eventData.venueId) {
+    const { isVenueModerator } = await import('../../../utils/venue-moderator')
+    isVenueMod = await isVenueModerator(prisma, userId, eventData.venueId)
+  }
+  if (eventData.reviewStatus !== 'APPROVED' && !isAdmin && !isSubmitter && !isVenueMod) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Event not found',
+    })
+  }
+
   // Get attendance counts and user's status in parallel
   const [interestedCount, goingCount, userAttendance] = await Promise.all([
     prisma.userEventAttendance.count({

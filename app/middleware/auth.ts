@@ -1,4 +1,4 @@
-export default defineNuxtRouteMiddleware(async () => {
+export default defineNuxtRouteMiddleware(async (to) => {
   // Only run on client side
   if (import.meta.server) return
 
@@ -8,6 +8,6 @@ export default defineNuxtRouteMiddleware(async () => {
     await $fetch('/api/auth/me')
   } catch {
     // User is not authenticated, redirect to login
-    return navigateTo('/login')
+    return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
   }
 })

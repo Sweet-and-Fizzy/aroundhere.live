@@ -70,6 +70,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     databaseUrl: process.env.DATABASE_URL,
     emailFrom: process.env.EMAIL_FROM || 'AroundHere <whatsup@aroundhere.live>',
     superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
+    r2AccountId: process.env.R2_ACCOUNT_ID,
+    r2AccessKeyId: process.env.R2_ACCESS_KEY_ID,
+    r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    r2BucketName: process.env.R2_BUCKET_NAME,
+    r2PublicUrl: process.env.R2_PUBLIC_URL,
     // Session configuration for nuxt-auth-utils
     // Note: password is set via NUXT_SESSION_PASSWORD env variable at runtime
     // @ts-expect-error password is required by SessionConfig but provided via env

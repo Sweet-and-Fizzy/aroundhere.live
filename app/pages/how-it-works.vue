@@ -110,6 +110,82 @@ const { loggedIn, ready } = useUserSession()
 
       <section>
         <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-plus-circle"
+              class="w-5 h-5 text-emerald-600"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Submit Events
+            </h2>
+            <p class="text-gray-600">
+              Know about a show that isn't listed? Anyone with an account can
+              <NuxtLink
+                to="/events/submit"
+                class="text-primary-600 hover:text-primary-700 font-medium underline"
+              >
+                submit events
+              </NuxtLink>. Submissions are reviewed by our team (usually within 24 hours) and you'll get an email when it's approved. You can edit your events anytime from the
+              <NuxtLink
+                to="/my-events"
+                class="text-primary-600 hover:text-primary-700 font-medium underline"
+              >
+                My Events
+              </NuxtLink>
+              page.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-hand-raised"
+              class="w-5 h-5 text-indigo-600"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Track Attendance
+            </h2>
+            <p class="text-gray-600">
+              Mark events as "Interested" or "Going" to keep track of your plans. You can see how many others are attending too. Your upcoming events appear in your weekly email digest.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-envelope"
+              class="w-5 h-5 text-orange-600"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Weekly Recommendations
+            </h2>
+            <p class="text-gray-600">
+              Every Wednesday you'll get a curated email with personalized picks based on your interests, plus a full list of what's happening that week. Enabled by default, adjustable in
+              <NuxtLink
+                to="/settings"
+                class="text-primary-600 hover:text-primary-700 font-medium underline"
+              >
+                settings
+              </NuxtLink>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
           <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
             <SpotifyIcon class="w-5 h-5 text-[#1DB954]" />
           </div>
@@ -126,6 +202,44 @@ const { loggedIn, ready } = useUserSession()
                 Spotify playlist
               </NuxtLink>
               features artists with upcoming local shows. It updates daily — artists playing sooner appear first, and tracks are removed after their show passes.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-shield-check"
+              class="w-5 h-5 text-teal-600"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              For Venue Owners
+            </h2>
+            <p class="text-gray-600">
+              Own or manage a venue? Claim your venue page to review community-submitted events and get notified when shows are added. Visit any venue page and click "Claim Venue" to get started.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center">
+            <UIcon
+              name="i-heroicons-flag"
+              class="w-5 h-5 text-rose-500"
+            />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              Help Keep Listings Accurate
+            </h2>
+            <p class="text-gray-600">
+              See something wrong? Use the "Report" button on any event to flag incorrect dates, wrong venues, cancellations, or duplicates. Our team will review and fix it.
             </p>
           </div>
         </div>

@@ -64,6 +64,20 @@ const isAdminOrModerator = computed(() => {
   return role === 'ADMIN' || role === 'MODERATOR'
 })
 
+// Venue claim modal
+const claimModalOpen = ref(false)
+
+// Check if user is a verified moderator of this venue
+const isVenueModerator = ref(false)
+onMounted(() => {
+  if (loggedIn.value && venue.value) {
+    $fetch('/api/user/moderated-venues').then((res: any) => {
+      const items = res?.items || []
+      isVenueModerator.value = items.some((v: any) => v.venueId === venue.value?.id)
+    }).catch(() => {})
+  }
+})
+
 const seoDescription = computed(() => {
   if (!venue.value) return ''
   const desc = venue.value.description?.slice(0, 160)
@@ -167,16 +181,38 @@ useHead({
           <BackButton
             variant="light"
           />
-          <UButton
-            v-if="isAdminOrModerator && venue"
-            :to="`/admin/venues/${venue.id}/edit`"
-            color="neutral"
-            variant="solid"
-            icon="i-heroicons-pencil-square"
-            size="sm"
-          >
-            Edit Venue
-          </UButton>
+          <div class="flex items-center gap-2">
+            <UButton
+              v-if="isVenueModerator"
+              :to="`/venues/${venue.slug}/moderate`"
+              color="primary"
+              variant="soft"
+              icon="i-heroicons-shield-check"
+              size="sm"
+            >
+              Manage Submissions
+            </UButton>
+            <UButton
+              v-else-if="loggedIn && !isAdminOrModerator"
+              color="neutral"
+              variant="solid"
+              icon="i-heroicons-shield-check"
+              size="sm"
+              @click="claimModalOpen = true"
+            >
+              Claim Venue
+            </UButton>
+            <UButton
+              v-if="isAdminOrModerator && venue"
+              :to="`/admin/venues/${venue.id}/edit`"
+              color="neutral"
+              variant="solid"
+              icon="i-heroicons-pencil-square"
+              size="sm"
+            >
+              Edit Venue
+            </UButton>
+          </div>
         </div>
         <div class="flex items-center gap-4 mt-2">
           <img
@@ -269,5 +305,12 @@ useHead({
 
     <BackToTop />
     <FloatingChatButton always-visible />
+
+    <VenueClaimModal
+      v-if="venue"
+      v-model:open="claimModalOpen"
+      :venue-id="venue.id"
+      :venue-name="venue.name"
+    />
   </div>
 </template>

@@ -55,6 +55,15 @@ export interface Event {
   isMusic?: boolean | null
   eventType?: EventType | null
   canonicalGenres?: string[]
+  // Community submission fields
+  reviewStatus?: string
+  submittedById?: string | null
+  locationName?: string | null
+  locationAddress?: string | null
+  locationCity?: string | null
+  locationState?: string | null
+  locationLat?: number | null
+  locationLng?: number | null
   venue?: {
     id: string
     name: string

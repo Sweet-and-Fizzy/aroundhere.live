@@ -241,6 +241,25 @@ const eventTypeLabel = computed(() => {
             {{ event.venue.city }}
           </span>
         </div>
+        <div
+          v-else-if="event.locationName"
+          class="mt-0.5 flex items-center gap-1.5"
+        >
+          <span class="inline-flex items-center gap-1.5 text-sm text-gray-900">
+            <UIcon
+              name="i-heroicons-map-pin"
+              class="w-4 h-4"
+              aria-hidden="true"
+            />
+            <span class="font-medium">{{ event.locationName }}</span>
+          </span>
+          <span
+            v-if="event.locationCity"
+            class="flex-shrink-0 text-xs text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded"
+          >
+            {{ event.locationCity }}
+          </span>
+        </div>
 
         <!-- Recommendation reason -->
         <div

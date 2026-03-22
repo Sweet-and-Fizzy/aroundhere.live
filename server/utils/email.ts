@@ -451,6 +451,133 @@ Manage interests: ${baseUrl}/interests
   }
 }
 
+/**
+ * Send admin email about a new event report
+ */
+export async function sendEventReportAdminEmail(
+  adminEmail: string,
+  params: { eventTitle: string; eventSlug: string; reason: string; message?: string | null }
+) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo-email.png`
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: adminEmail,
+      subject: `Event Report: ${params.eventTitle}`,
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">Event Report</h2>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Event:</strong> ${escapeHtml(params.eventTitle)}</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>
+          ${params.message ? `<p style="color: #4b5563; font-size: 15px;"><strong>Message:</strong> ${escapeHtml(params.message)}</p>` : ''}
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${baseUrl}/admin/reports" style="background-color: #111827; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">Review Reports</a>
+          </div>
+        `,
+        footerContent: '<p style="color: #9ca3af; font-size: 12px; margin: 0;">Admin notification from AroundHere</p>',
+      }),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send event report admin email:', error)
+    return { success: false, error }
+  }
+}
+
+/**
+ * Send admin email about a new event submission
+ */
+export async function sendEventSubmissionAdminEmail(
+  adminEmail: string,
+  params: { eventTitle: string; submitterEmail: string; date: string; location: string }
+) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo-email.png`
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: adminEmail,
+      subject: `New Event Submission: ${params.eventTitle}`,
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">New Event Submission</h2>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Title:</strong> ${escapeHtml(params.eventTitle)}</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Date:</strong> ${escapeHtml(params.date)}</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Location:</strong> ${escapeHtml(params.location)}</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Submitted by:</strong> ${escapeHtml(params.submitterEmail)}</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${baseUrl}/admin/submissions" style="background-color: #111827; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">Review Submissions</a>
+          </div>
+        `,
+        footerContent: '<p style="color: #9ca3af; font-size: 12px; margin: 0;">Admin notification from AroundHere</p>',
+      }),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send event submission admin email:', error)
+    return { success: false, error }
+  }
+}
+
+/**
+ * Notify submitter about their event submission status change
+ */
+export async function sendSubmissionStatusEmail(
+  submitterEmail: string,
+  params: { eventTitle: string; eventSlug: string; status: 'APPROVED' | 'REJECTED' }
+) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo-email.png`
+
+  const isApproved = params.status === 'APPROVED'
+  const subject = isApproved
+    ? `Your event "${params.eventTitle}" has been approved`
+    : `Your event submission "${params.eventTitle}" was not approved`
+
+  const content = isApproved
+    ? `
+      <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">Event Approved</h2>
+      <p style="color: #4b5563; font-size: 15px;">Your event <strong>${escapeHtml(params.eventTitle)}</strong> has been approved and is now live on AroundHere.</p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${baseUrl}/events/${params.eventSlug}" style="background-color: #111827; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">View Event</a>
+      </div>
+    `
+    : `
+      <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">Submission Not Approved</h2>
+      <p style="color: #4b5563; font-size: 15px;">Unfortunately, your event submission <strong>${escapeHtml(params.eventTitle)}</strong> was not approved. This may be because it didn't meet our listing guidelines or was a duplicate of an existing listing.</p>
+      <p style="color: #4b5563; font-size: 15px;">Feel free to submit a revised event if you think this was a mistake.</p>
+    `
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: submitterEmail,
+      subject,
+      html: emailLayout({
+        logoUrl,
+        content,
+        footerContent: `
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            <a href="${baseUrl}/settings" style="color: #6b7280; text-decoration: underline;">Manage preferences</a>
+          </p>
+        `,
+      }),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send submission status email:', error)
+    return { success: false, error }
+  }
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -1068,4 +1195,48 @@ Always check the venue website before heading out to confirm times and details.
 Browse all events: ${baseUrl}/
 Manage preferences: ${baseUrl}/settings
   `.trim()
+}
+
+/**
+ * Notify venue moderator(s) about a new community event submission at their venue
+ */
+export async function sendVenueModeratorSubmissionEmail(
+  moderatorEmail: string,
+  params: {
+    eventTitle: string
+    submitterEmail: string
+    date: string
+    venueName: string
+    venueSlug: string
+  }
+) {
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.siteUrl || 'https://aroundhere.live'
+  const logoUrl = `${baseUrl}/around-here-logo-email.png`
+
+  try {
+    await resend.emails.send({
+      from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
+      to: moderatorEmail,
+      subject: `New event submitted at ${params.venueName}: ${params.eventTitle}`,
+      html: emailLayout({
+        logoUrl,
+        content: `
+          <h2 style="color: #111827; margin-top: 0; font-size: 20px; font-weight: 600;">New Event Submission</h2>
+          <p style="color: #4b5563; font-size: 15px;">Someone submitted an event at your venue.</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Event:</strong> ${escapeHtml(params.eventTitle)}</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Date:</strong> ${escapeHtml(params.date)}</p>
+          <p style="color: #4b5563; font-size: 15px;"><strong>Submitted by:</strong> ${escapeHtml(params.submitterEmail)}</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${baseUrl}/venues/${encodeURIComponent(params.venueSlug)}/moderate" style="background-color: #111827; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">Review Submission</a>
+          </div>
+        `,
+        footerContent: `<p style="color: #9ca3af; font-size: 12px; margin: 0;">You're receiving this because you're a moderator for ${escapeHtml(params.venueName)} on AroundHere.</p>`,
+      }),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send venue moderator submission email:', error)
+    return { success: false, error }
+  }
 }

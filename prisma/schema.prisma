@@ -62,9 +62,12 @@ model Venue {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
+  communitySubmissions Boolean @default(false)
+
   region Region  @relation(fields: [regionId], references: [id])
   events Event[]
   favoritedBy UserFavoriteVenue[]
+  moderators  VenueModerator[]
 
   @@unique([regionId, slug])
   @@index([regionId])
@@ -170,17 +173,28 @@ model Event {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  // Community submission fields
+  submittedById   String?
+  locationName    String?      // For venue-less events
+  locationAddress String?
+  locationCity    String?
+  locationState   String?
+  locationLat     Float?
+  locationLng     Float?
+
   // Vector embedding for similarity search (managed via raw SQL)
   embedding       Unsupported("vector(1536)")?
 
   region       Region        @relation(fields: [regionId], references: [id])
   venue        Venue?        @relation(fields: [venueId], references: [id])
   source       Source?       @relation(fields: [sourceId], references: [id]) // Canonical source
+  submittedBy  User?         @relation("submittedEvents", fields: [submittedById], references: [id])
   eventArtists EventArtist[]
   eventSources EventSource[] // All sources that found this event
   spotifyPlaylistTracks SpotifyPlaylistTrack[]
   recommendationLogs    RecommendationLog[]
   userAttendance        UserEventAttendance[]
+  reports       EventReport[]
 
   @@unique([sourceId, sourceEventId])
   @@index([regionId, startsAt])
@@ -189,6 +203,7 @@ model Event {
   @@index([isMusic])
   @@index([startsAt])
   @@index([eventType])
+  @@index([submittedById])
   @@map("events")
 }
 
@@ -375,6 +390,9 @@ model User {
   favoriteCities        UserFavoriteCity[]
   eventAttendance       UserEventAttendance[]
   recommendationLogs    RecommendationLog[]
+  submittedEvents       Event[]            @relation("submittedEvents")
+  eventReports          EventReport[]
+  moderatedVenues       VenueModerator[]
 
   @@map("users")
 }
@@ -825,4 +843,67 @@ enum ScraperVersionOrigin {
   AI_GENERATED  // Created by AI agent
   MANUAL_EDIT   // Manually edited by user
   ROLLBACK      // Rolled back to previous version
+}
+
+// ============================================================================
+// Community Features
+// ============================================================================
+
+enum EventReportReason {
+  WRONG_DATE
+  WRONG_VENUE
+  CANCELLED
+  DUPLICATE
+  SPAM
+  OTHER
+}
+
+enum EventReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// Event reports from users (feedback on event listings)
+model EventReport {
+  id          String            @id @default(cuid())
+  eventId     String
+  userId      String?
+  reason      EventReportReason
+  message     String?
+  status      EventReportStatus @default(OPEN)
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  adminNote   String?
+  ipAddress   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([eventId])
+  @@index([status])
+  @@index([ipAddress, createdAt])
+  @@map("event_reports")
+}
+
+// Venue moderators (venue operators who can manage submissions)
+model VenueModerator {
+  id         String    @id @default(cuid())
+  venueId    String
+  userId     String
+  role        String    // owner, manager, booker
+  contactInfo String?
+  verifiedAt  DateTime?
+  verifiedBy String?
+  isActive   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([venueId, userId])
+  @@map("venue_moderators")
 }

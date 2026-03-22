@@ -176,8 +176,7 @@ export default defineEventHandler(async (event) => {
       gte: startDate,
       ...(endDate && { lte: endDate }),
     },
-    // Include PENDING events for now until we have a review workflow
-    reviewStatus: { in: ['APPROVED', 'PENDING'] },
+    reviewStatus: 'APPROVED',
     isCancelled: false,
     // Filter by music/non-music
     // musicOnly=true (default): only isMusic=true

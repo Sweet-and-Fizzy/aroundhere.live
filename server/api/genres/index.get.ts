@@ -38,7 +38,7 @@ export default defineEventHandler(async () => {
       startsAt: {
         gte: new Date(),
       },
-      reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      reviewStatus: 'APPROVED',
       isCancelled: false,
       isMusic: true, // Only music events have meaningful genres
     },

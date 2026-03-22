@@ -337,7 +337,7 @@ export async function runAllScrapers(): Promise<RunnerResult[]> {
     where: {
       isMusic: null,
       startsAt: { gte: now },
-      reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      reviewStatus: 'APPROVED',
       isCancelled: false,
     },
     select: {

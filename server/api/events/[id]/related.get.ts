@@ -46,6 +46,7 @@ export default defineEventHandler(async (event) => {
         startsAt: { gte: new Date() },
         isCancelled: false,
         isMusic: true,
+        reviewStatus: 'APPROVED',
       },
       select: {
         id: true,
@@ -113,6 +114,7 @@ export default defineEventHandler(async (event) => {
       AND e."startsAt" >= NOW()
       AND e."isCancelled" = false
       AND e."isMusic" = true
+      AND e."reviewStatus" = 'APPROVED'
       AND e.embedding IS NOT NULL
     ORDER BY e.embedding <=> source.embedding
     LIMIT $2`,

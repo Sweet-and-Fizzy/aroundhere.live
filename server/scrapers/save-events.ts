@@ -197,7 +197,7 @@ export async function saveEvent(
       sourceUrl: scrapedEvent.sourceUrl,
       sourceEventId: sourceEventId,
       confidenceScore: 0.8,
-      reviewStatus: 'PENDING', // New events need review
+      reviewStatus: 'APPROVED', // Scraped events are auto-approved
     },
   })
 

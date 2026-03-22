@@ -295,7 +295,7 @@ export default defineEventHandler(async (event) => {
                 lte: weekListingEnd,
               },
               isCancelled: false,
-              reviewStatus: { in: ['APPROVED', 'PENDING'] },
+              reviewStatus: 'APPROVED',
               // Only include music events
               OR: [
                 { isMusic: true },

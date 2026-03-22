@@ -551,6 +551,120 @@ export async function notifyChatQualitySample(params: {
   await sendSlackNotification(message, blocks)
 }
 
+// ============================================================================
+// Community Feature Notifications
+// ============================================================================
+
+/**
+ * Notify admins about a new event report
+ */
+export async function notifyEventReport(params: {
+  eventTitle: string
+  eventSlug: string
+  reason: string
+  message?: string | null
+  reporterEmail?: string | null
+}): Promise<void> {
+  const { eventTitle, eventSlug, reason, message, reporterEmail } = params
+  const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'https://aroundhere.live'
+
+  const slackMessage = `Flag: ${eventTitle} - ${reason}`
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `*Event Report*`,
+          '',
+          `*Event:* <${siteUrl}/events/${eventSlug}|${eventTitle}>`,
+          `*Reason:* ${reason}`,
+          message ? `*Message:* ${message}` : '',
+          reporterEmail ? `*Reporter:* ${reporterEmail}` : '*Reporter:* Anonymous',
+          '',
+          `<${siteUrl}/admin/reports|View Reports>`,
+        ].filter(Boolean).join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(slackMessage, blocks)
+}
+
+/**
+ * Notify admins about a new community event submission
+ */
+export async function notifyEventSubmission(params: {
+  eventTitle: string
+  submitterEmail: string
+  venueName?: string | null
+  locationName?: string | null
+  date: string
+}): Promise<void> {
+  const { eventTitle, submitterEmail, venueName, locationName, date } = params
+  const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'https://aroundhere.live'
+
+  const location = venueName || locationName || 'Unknown'
+  const slackMessage = `New submission: ${eventTitle}`
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `*New Event Submission*`,
+          '',
+          `*Title:* ${eventTitle}`,
+          `*Date:* ${date}`,
+          `*Location:* ${location}`,
+          `*Submitted by:* ${submitterEmail}`,
+          '',
+          `<${siteUrl}/admin/submissions|Review Submissions>`,
+        ].join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(slackMessage, blocks)
+}
+
+/**
+ * Notify admins about a venue claim request
+ */
+export async function notifyVenueClaim(params: {
+  venueName: string
+  venueSlug: string
+  claimerEmail: string
+  role: string
+}): Promise<void> {
+  const { venueName, venueSlug, claimerEmail, role } = params
+  const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'https://aroundhere.live'
+
+  const slackMessage = `Venue claim: ${venueName}`
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `*Venue Claim Request*`,
+          '',
+          `*Venue:* <${siteUrl}/venues/${venueSlug}|${venueName}>`,
+          `*Claimant:* ${claimerEmail}`,
+          `*Role:* ${role}`,
+          '',
+          `<${siteUrl}/admin/venue-claims|Review Claims>`,
+        ].join('\n'),
+      },
+    },
+  ]
+
+  await sendSlackNotification(slackMessage, blocks)
+}
+
 /**
  * Alert when a scraper exhibits anomalous behavior (e.g., creating too many duplicates)
  */

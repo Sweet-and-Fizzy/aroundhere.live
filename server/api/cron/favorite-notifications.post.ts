@@ -101,6 +101,7 @@ export default defineEventHandler(async (event) => {
         const matchingEvents = await prisma.event.findMany({
           where: {
             isCancelled: false,
+            reviewStatus: 'APPROVED',
             startsAt: { gte: now }, // Only future events
             createdAt: { gte: sinceDate }, // Only recently added events
             // Skip events from sources with paused notifications

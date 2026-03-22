@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
       gte: startDate,
       ...(endDate && { lte: endDate }),
     },
-    reviewStatus: { in: ['APPROVED', 'PENDING'] },
+    reviewStatus: 'APPROVED',
     isCancelled: false,
     // Text search - match title, description, venue name, or artist name
     OR: [

@@ -172,7 +172,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto px-4 py-8">
+  <div class="max-w-4xl mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">
       Settings
     </h1>
@@ -327,6 +327,9 @@ useSeoMeta({
           </div>
         </div>
       </UCard>
+
+      <!-- Moderated Venues -->
+      <ModeratedVenues />
 
       <!-- Save Status & Sign Out -->
       <div class="flex justify-between items-center">

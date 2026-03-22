@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     where: {
       venueId: venue.id,
       startsAt: { gte: new Date() },
-      reviewStatus: { in: ['APPROVED', 'PENDING'] },
+      reviewStatus: 'APPROVED',
       isCancelled: false,
     },
     include: {

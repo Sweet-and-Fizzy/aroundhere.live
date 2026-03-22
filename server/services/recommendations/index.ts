@@ -268,6 +268,7 @@ export async function findCandidateEvents(
         AND "regionId" = ${regionId}
         AND "isCancelled" = false
         AND "isMusic" = true
+        AND "reviewStatus" = 'APPROVED'
         AND embedding IS NOT NULL
         AND id != ALL(${excludeEventIds})
       ORDER BY "startsAt" ASC
@@ -280,6 +281,7 @@ export async function findCandidateEvents(
         AND "regionId" = ${regionId}
         AND "isCancelled" = false
         AND "isMusic" = true
+        AND "reviewStatus" = 'APPROVED'
         AND embedding IS NOT NULL
       ORDER BY "startsAt" ASC
     `
@@ -290,6 +292,7 @@ export async function findCandidateEvents(
         AND "startsAt" <= ${endDate}
         AND "isCancelled" = false
         AND "isMusic" = true
+        AND "reviewStatus" = 'APPROVED'
         AND embedding IS NOT NULL
         AND id != ALL(${excludeEventIds})
       ORDER BY "startsAt" ASC
@@ -301,6 +304,7 @@ export async function findCandidateEvents(
         AND "startsAt" <= ${endDate}
         AND "isCancelled" = false
         AND "isMusic" = true
+        AND "reviewStatus" = 'APPROVED'
         AND embedding IS NOT NULL
       ORDER BY "startsAt" ASC
     `

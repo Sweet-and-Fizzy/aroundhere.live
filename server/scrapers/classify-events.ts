@@ -14,6 +14,96 @@ const BATCH_SIZE = 20
 const MAX_CLASSIFICATION_ATTEMPTS = 3
 
 /**
+ * Classify a single event by ID (used when approving community submissions)
+ */
+export async function classifySingleEvent(
+  prisma: PrismaClient,
+  eventId: string
+): Promise<void> {
+  const eventRecord = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: { venue: { select: { name: true } } },
+  })
+  if (!eventRecord) return
+
+  const input: ClassificationInput = {
+    id: eventRecord.id,
+    title: eventRecord.title,
+    description: eventRecord.description,
+    venueName: eventRecord.venue?.name,
+    existingTags: eventRecord.genres,
+  }
+
+  try {
+    const results = await classifier.classifyWithFallback([input])
+    const result = results[0]
+    if (!result) return
+
+    // Generate embedding if it's a music event
+    let embedding: number[] | null = null
+    if (result.isMusic) {
+      try {
+        const text = buildEventEmbeddingText({
+          title: eventRecord.title,
+          description: eventRecord.description,
+          canonicalGenres: result.canonicalGenres,
+          eventType: result.eventType,
+        })
+        const embeddings = await generateEmbeddings([text])
+        embedding = embeddings[0] || null
+      } catch (err) {
+        console.error('[Classify] Failed to generate embedding for single event:', err)
+      }
+    }
+
+    if (embedding) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE events SET
+          "isMusic" = $1,
+          "eventType" = $2,
+          "canonicalGenres" = $3,
+          "summary" = $4,
+          "classifiedAt" = $5,
+          "classificationConfidence" = $6,
+          embedding = $7::vector
+        WHERE id = $8`,
+        result.isMusic,
+        result.eventType,
+        result.canonicalGenres,
+        result.summary,
+        new Date(),
+        result.confidence,
+        `[${embedding.join(',')}]`,
+        result.eventId
+      )
+    } else {
+      await prisma.event.update({
+        where: { id: result.eventId },
+        data: {
+          isMusic: result.isMusic,
+          eventType: result.eventType,
+          canonicalGenres: result.canonicalGenres,
+          summary: result.summary,
+          classifiedAt: new Date(),
+          classificationConfidence: result.confidence,
+        },
+      })
+    }
+
+    console.log(`[Classify] Single event classified: "${eventRecord.title}" → ${result.isMusic ? 'music' : 'non-music'}, type=${result.eventType}, genres=${result.canonicalGenres.join(',')}`)
+  } catch (error) {
+    console.error(`[Classify] Failed to classify single event "${eventRecord.title}":`, error)
+    // Don't throw - approval should still succeed even if classification fails
+    // Fall back to isMusic: true so the event at least shows up
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { isMusic: true, eventType: 'MUSIC', classificationConfidence: 0.3 },
+    })
+    console.warn(`[Classify] Defaulted event "${eventRecord.title}" to music after classification failure`)
+  }
+}
+
+/**
  * Classify all pending (unclassified) events in batches
  * Returns the total number of events classified
  */
