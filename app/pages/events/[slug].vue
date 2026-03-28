@@ -3,7 +3,7 @@ const route = useRoute()
 const slug = route.params.slug as string
 
 const { data: event, error, refresh: refreshEvent } = await useFetch(`/api/events/by-slug/${slug}`)
-const { getGenreLabel, getGenreBadgeClasses, genreLabels } = useGenreLabels()
+const { getGenreLabel, genreLabels } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeBadgeClasses, eventTypeLabels } = useEventTypeLabels()
 const { formatTime, formatDate } = useEventTime()
 const { user } = useUserSession()
@@ -278,13 +278,21 @@ const venueLocationParts = computed(() => {
 
 const venueLocationString = computed(() => venueLocationParts.value.join(', '))
 
-// Address string without venue name (for display under venue link)
+// Address string without venue name or zip code (for display under venue link)
 const venueAddressString = computed(() => {
   if (!event.value?.venue?.address) return ''
   const parts: string[] = [event.value.venue.address]
-  if (event.value.venue.city) parts.push(event.value.venue.city)
-  if (event.value.venue.state || event.value.venue.postalCode) {
-    parts.push([event.value.venue.state, event.value.venue.postalCode].filter(Boolean).join(' '))
+  if (event.value.venue.city) {
+    parts.push(event.value.venue.city)
+  }
+  if (event.value.venue.state) {
+    if (parts.length > 1) {
+      // Append state to city: "Northampton, MA"
+      parts[parts.length - 1] += `, ${event.value.venue.state}`
+    } else {
+      // No city, add state as its own part: "123 Main St, MA"
+      parts.push(event.value.venue.state)
+    }
   }
   return parts.join(', ')
 })
@@ -546,24 +554,26 @@ useHead({
   <div class="max-w-6xl mx-auto">
     <div v-if="event">
       <!-- Two Column Layout: Details + Image -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
         <!-- Hero Image (first in DOM for mobile, right column on desktop) -->
         <div
           v-if="event.imageUrl"
-          class="lg:sticky lg:top-6 lg:self-start lg:order-2"
+          class="lg:sticky lg:top-6 lg:self-start lg:order-2 -mx-4 sm:mx-0"
         >
           <img
             :src="event.imageUrl"
             :alt="event.title"
-            class="w-full max-h-[32rem] object-contain mx-auto rounded-xl"
+            class="w-full max-h-[32rem] object-contain mx-auto sm:rounded-xl"
           >
         </div>
 
-        <!-- Left Column: Event Info + Description (second in DOM for mobile, left column on desktop) -->
-        <div class="lg:order-1 space-y-6">
-          <!-- Event Info Card -->
-          <UCard class="relative">
-            <!-- Cancel/Restore Button (Admin Only) -->
+        <!-- Left Column: Event Info + Description -->
+        <div class="lg:order-1 space-y-5">
+          <!-- ============================================ -->
+          <!-- HERO ZONE: Title + Date — the anchor of the page -->
+          <!-- ============================================ -->
+          <div class="relative">
+            <!-- Admin: Cancel/Restore -->
             <UTooltip
               v-if="canEdit"
               :text="event.isCancelled ? 'Restore this event' : 'Mark as cancelled'"
@@ -575,179 +585,194 @@ useHead({
                 variant="ghost"
                 size="sm"
                 :loading="cancelling"
-                class="absolute top-4 right-4 z-10"
+                class="absolute top-0 right-0 z-10"
                 @click="toggleCancelled"
               />
             </UTooltip>
 
-            <div class="space-y-3">
-              <!-- Title -->
-              <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 pr-12">
-                {{ event.title }}
-              </h1>
+            <!-- Badges row — event type + genres, quiet above the title -->
+            <div
+              v-if="!isEditing"
+              class="flex flex-wrap items-center gap-1.5 mb-3"
+            >
+              <UBadge
+                v-if="event.eventType"
+                :ui="{ base: getEventTypeBadgeClasses(event.eventType) }"
+                size="sm"
+              >
+                {{ getEventTypeLabel(event.eventType) }}
+              </UBadge>
+              <UBadge
+                v-for="genre in event.canonicalGenres"
+                :key="genre"
+                :ui="{ base: 'bg-gray-100 text-gray-700' }"
+                size="sm"
+              >
+                {{ getGenreLabel(genre) }}
+              </UBadge>
+              <UButton
+                v-if="canEdit"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-heroicons-pencil-square"
+                aria-label="Edit event classification"
+                @click="startEditing"
+              />
+            </div>
 
-              <!-- Date and Time -->
-              <div class="font-medium text-gray-700">
-                {{ formattedDate }}
-                <span v-if="formattedTime">at {{ formattedTime }}</span>
-                <span
-                  v-if="doorsTime"
-                  class="text-gray-500 text-sm ml-2"
-                >(Doors: {{ doorsTime }})</span>
-                <UDropdownMenu
-                  v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl"
-                  :items="[[
-                    { label: 'Google Calendar', icon: 'i-heroicons-calendar-days', click: openGoogleCalendar },
-                    { label: 'Outlook Calendar', icon: 'i-heroicons-calendar-days', click: openOutlookCalendar },
-                    { label: 'Download .ics', icon: 'i-heroicons-arrow-down-tray', click: downloadIcs }
-                  ]]"
-                  :popper="{ placement: 'bottom-start' }"
+            <!-- Inline Editing Form -->
+            <div
+              v-else
+              class="space-y-3 p-3 mb-3 bg-gray-50 rounded-lg border border-gray-200"
+            >
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                <select
+                  v-model="editEventType"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
-                  <UButton
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-calendar-days"
-                    trailing-icon="i-heroicons-chevron-down"
-                    size="xs"
-                    class="ml-2"
+                  <option :value="null">
+                    (None)
+                  </option>
+                  <option
+                    v-for="type in availableEventTypes"
+                    :key="type.value"
+                    :value="type.value"
                   >
-                    Calendar
-                  </UButton>
-                </UDropdownMenu>
+                    {{ type.label }}
+                  </option>
+                </select>
               </div>
-
-              <!-- Event Type & Genre badges with inline editing -->
-              <div v-if="!isEditing">
-                <div class="flex flex-wrap items-center gap-2">
-                  <!-- Event Type Badge -->
-                  <UBadge
-                    v-if="event.eventType"
-                    :ui="{
-                      base: getEventTypeBadgeClasses(event.eventType)
-                    }"
-                    size="md"
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Genres</label>
+                <div class="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md bg-white min-h-[2.5rem]">
+                  <label
+                    v-for="genre in availableGenres"
+                    :key="genre.value"
+                    class="inline-flex items-center px-2 py-1 rounded text-xs cursor-pointer transition-colors"
+                    :class="editGenres.includes(genre.value) ? 'bg-primary-100 text-primary-700 font-medium' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                   >
-                    {{ getEventTypeLabel(event.eventType) }}
-                  </UBadge>
-
-                  <!-- Genre Badges -->
-                  <UBadge
-                    v-for="genre in event.canonicalGenres"
-                    :key="genre"
-                    :ui="{
-                      base: getGenreBadgeClasses(genre)
-                    }"
-                    size="md"
-                  >
-                    {{ getGenreLabel(genre) }}
-                  </UBadge>
-
-                  <!-- Edit Button (Admin/Moderator only) -->
-                  <UButton
-                    v-if="canEdit"
-                    size="xs"
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-pencil-square"
-                    aria-label="Edit event classification"
-                    @click="startEditing"
-                  >
-                    Edit
-                  </UButton>
-                </div>
-              </div>
-
-              <!-- Inline Editing Form -->
-              <div
-                v-else
-                class="space-y-3 p-3 bg-gray-50 rounded-lg"
-              >
-                <!-- Event Type Select -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                  <select
-                    v-model="editEventType"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option :value="null">
-                      (None)
-                    </option>
-                    <option
-                      v-for="type in availableEventTypes"
-                      :key="type.value"
-                      :value="type.value"
+                    <input
+                      v-model="editGenres"
+                      type="checkbox"
+                      :value="genre.value"
+                      class="sr-only"
                     >
-                      {{ type.label }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Genres Multi-Select -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Genres</label>
-                  <div class="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md bg-white min-h-[2.5rem]">
-                    <label
-                      v-for="genre in availableGenres"
-                      :key="genre.value"
-                      class="inline-flex items-center px-2 py-1 rounded text-xs cursor-pointer transition-colors"
-                      :class="editGenres.includes(genre.value) ? 'bg-primary-100 text-primary-700 font-medium' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                    >
-                      <input
-                        v-model="editGenres"
-                        type="checkbox"
-                        :value="genre.value"
-                        class="sr-only"
-                      >
-                      {{ genre.label }}
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="flex gap-2">
-                  <UButton
-                    size="sm"
-                    color="primary"
-                    :loading="saving"
-                    @click="saveEditing"
-                  >
-                    Save
-                  </UButton>
-                  <UButton
-                    size="sm"
-                    color="neutral"
-                    variant="outline"
-                    :disabled="saving"
-                    @click="cancelEditing"
-                  >
-                    Cancel
-                  </UButton>
+                    {{ genre.label }}
+                  </label>
                 </div>
               </div>
+              <div class="flex gap-2">
+                <UButton
+                  size="sm"
+                  color="primary"
+                  :loading="saving"
+                  @click="saveEditing"
+                >
+                  Save
+                </UButton>
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="outline"
+                  :disabled="saving"
+                  @click="cancelEditing"
+                >
+                  Cancel
+                </UButton>
+              </div>
+            </div>
 
-              <!-- Pending Review Notice -->
+            <!-- Title -->
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight pr-10">
+              {{ event.title }}
+            </h1>
+
+            <!-- Date/Time — prominent treatment -->
+            <div class="mt-3 flex items-start gap-3">
+              <!-- Calendar chip -->
               <div
-                v-if="event.reviewStatus === 'PENDING' && event.submittedById"
-                class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2"
+                v-if="event.startsAt"
+                class="flex-shrink-0 w-14 text-center bg-gray-900 text-white rounded-lg overflow-hidden shadow-sm"
               >
-                <div class="flex items-center gap-2 text-sm text-yellow-800">
-                  <UIcon
-                    name="i-heroicons-clock"
-                    class="w-4 h-4"
-                  />
-                  <span class="font-medium">Pending Review</span>
+                <div class="text-[10px] font-bold uppercase tracking-wider bg-blue-600 py-0.5">
+                  {{ new Date(event.startsAt).toLocaleDateString('en-US', { month: 'short', timeZone: eventTimezone }) }}
                 </div>
-                <p class="text-xs text-yellow-700 mt-1">
-                  This event is awaiting review and is not yet publicly visible.
-                </p>
+                <div class="text-2xl font-extrabold py-1 leading-none">
+                  {{ new Date(event.startsAt).toLocaleDateString('en-US', { day: 'numeric', timeZone: eventTimezone }) }}
+                </div>
               </div>
+              <div class="pt-0.5">
+                <div class="text-lg font-semibold text-gray-900">
+                  {{ formattedDate }}
+                </div>
+                <div class="flex items-center gap-2 text-gray-600 text-sm mt-0.5">
+                  <span
+                    v-if="formattedTime"
+                    class="font-medium"
+                  >{{ formattedTime }}</span>
+                  <span
+                    v-if="doorsTime"
+                    class="text-gray-400"
+                  >·</span>
+                  <span v-if="doorsTime">Doors {{ doorsTime }}</span>
+                  <UDropdownMenu
+                    v-if="icsUrl || googleCalendarUrl || outlookCalendarUrl"
+                    :items="[[
+                      { label: 'Google Calendar', icon: 'i-heroicons-calendar-days', click: openGoogleCalendar },
+                      { label: 'Outlook Calendar', icon: 'i-heroicons-calendar-days', click: openOutlookCalendar },
+                      { label: 'Download .ics', icon: 'i-heroicons-arrow-down-tray', click: downloadIcs }
+                    ]]"
+                    :popper="{ placement: 'bottom-start' }"
+                  >
+                    <button class="text-gray-400 hover:text-primary-600 transition-colors ml-1">
+                      <UIcon
+                        name="i-heroicons-calendar-days"
+                        class="w-4 h-4"
+                      />
+                    </button>
+                  </UDropdownMenu>
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <!-- Venue / Address -->
-              <div v-if="event.venue">
-                <div class="flex items-center gap-2">
+          <!-- Pending Review Notice -->
+          <div
+            v-if="event.reviewStatus === 'PENDING' && event.submittedById"
+            class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2"
+          >
+            <div class="flex items-center gap-2 text-sm text-yellow-800">
+              <UIcon
+                name="i-heroicons-clock"
+                class="w-4 h-4"
+              />
+              <span class="font-medium">Pending Review</span>
+            </div>
+            <p class="text-xs text-yellow-700 mt-1">
+              This event is awaiting review and is not yet publicly visible.
+            </p>
+          </div>
+
+          <!-- ============================================ -->
+          <!-- LOGISTICS ZONE: Venue, price, age — the practical info -->
+          <!-- ============================================ -->
+          <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+            <!-- Venue -->
+            <div
+              v-if="event.venue"
+              class="flex items-start gap-3"
+            >
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+              />
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
                   <NuxtLink
                     :to="`/venues/${event.venue.slug}`"
-                    class="font-medium text-primary-600 hover:text-primary-900 hover:bg-primary-50 transition-all px-2 py-1 -mx-2 -my-1 rounded inline-block"
+                    class="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
                   >
                     {{ event.venue.name }}
                   </NuxtLink>
@@ -758,213 +783,235 @@ useHead({
                     :slug="event.venue.slug"
                     size="sm"
                   />
-                  <UButton
-                    v-if="mapUrl"
-                    :href="mapUrl"
-                    target="_blank"
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-map"
-                    size="xs"
-                    external
-                  >
-                    Map
-                  </UButton>
                 </div>
+                <a
+                  v-if="venueAddressString && mapUrl"
+                  :href="mapUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-gray-600 hover:text-primary-600 transition-colors"
+                >
+                  {{ venueAddressString }}
+                </a>
                 <p
-                  v-if="venueAddressString"
-                  class="text-gray-600 text-sm mt-0.5"
+                  v-else-if="venueAddressString"
+                  class="text-sm text-gray-600"
                 >
                   {{ venueAddressString }}
                 </p>
-                <!-- Attendance counts -->
-                <p
-                  v-if="interestedCount > 0 || goingCount > 0"
-                  class="text-gray-500 text-sm mt-1"
-                >
-                  <template v-if="interestedCount > 0">
-                    {{ interestedCount }} interested
-                  </template>
-                  <template v-if="interestedCount > 0 && goingCount > 0">
-                    ,
-                  </template>
-                  <template v-if="goingCount > 0">
-                    {{ goingCount }} going
-                  </template>
-                </p>
               </div>
-              <!-- Venue-less event: show custom location -->
-              <div v-else-if="event.locationName">
+            </div>
+            <!-- Venue-less event: show custom location -->
+            <div
+              v-else-if="event.locationName"
+              class="flex items-start gap-3"
+            >
+              <UIcon
+                name="i-heroicons-map-pin"
+                class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+              />
+              <div>
                 <div class="flex items-center gap-2">
-                  <span class="font-medium text-gray-900">{{ event.locationName }}</span>
+                  <span class="font-semibold text-gray-900">{{ event.locationName }}</span>
                   <UButton
                     v-if="event.locationLat && event.locationLng"
                     :href="`https://www.google.com/maps/search/?api=1&query=${event.locationLat},${event.locationLng}`"
                     target="_blank"
                     color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-map"
+                    variant="ghost"
+                    icon="i-heroicons-arrow-top-right-on-square"
                     size="xs"
                     external
-                  >
-                    Map
-                  </UButton>
+                  />
                 </div>
                 <p
                   v-if="event.locationAddress"
-                  class="text-gray-600 text-sm mt-0.5"
+                  class="text-sm text-gray-600"
                 >
                   {{ event.locationAddress }}
                 </p>
                 <p
                   v-else-if="event.locationCity"
-                  class="text-gray-600 text-sm mt-0.5"
+                  class="text-sm text-gray-600"
                 >
                   {{ event.locationCity }}<span v-if="event.locationState">, {{ event.locationState }}</span>
                 </p>
               </div>
+            </div>
 
-              <!-- Cover and Age -->
-              <div class="flex items-center gap-6 text-sm font-medium text-gray-700">
-                <div v-if="event.coverCharge">
-                  {{ event.coverCharge }}
-                </div>
-                <div>
-                  {{ formattedAgeRestriction }}
-                </div>
-              </div>
-
-              <!-- Tickets, Event Links, and Attendance Buttons -->
-              <div class="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-gray-100">
-                <div class="flex flex-wrap items-center gap-2">
-                  <UButton
-                    v-if="event.ticketUrl"
-                    :href="event.ticketUrl"
-                    target="_blank"
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-ticket"
-                    size="xs"
-                    external
-                  >
-                    Get Tickets
-                  </UButton>
-                  <UButton
-                    v-if="event.sourceUrl"
-                    :href="event.sourceUrl"
-                    target="_blank"
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-arrow-top-right-on-square"
-                    size="xs"
-                    external
-                  >
-                    Official Page
-                  </UButton>
-                </div>
-                <EventAttendanceButtons
-                  :event-id="event.id"
-                  show-labels
-                  :interested-count="interestedCount"
-                  :going-count="goingCount"
-                  @update="onAttendanceUpdate"
+            <!-- Price + Age — icon-labeled row -->
+            <div
+              v-if="event.coverCharge || formattedAgeRestriction"
+              class="flex items-center gap-4 text-sm"
+            >
+              <div
+                v-if="event.coverCharge"
+                class="flex items-center gap-1.5 text-gray-700"
+              >
+                <UIcon
+                  name="i-heroicons-ticket"
+                  class="w-4 h-4 text-gray-400"
                 />
+                <span class="font-semibold">{{ event.coverCharge }}</span>
               </div>
-              <div class="mt-2 text-right">
+              <div
+                v-if="event.coverCharge && formattedAgeRestriction"
+                class="w-px h-4 bg-gray-300"
+              />
+              <div
+                v-if="formattedAgeRestriction"
+                class="flex items-center gap-1.5 text-gray-700"
+              >
+                <UIcon
+                  name="i-heroicons-user"
+                  class="w-4 h-4 text-gray-400"
+                />
+                <span>{{ formattedAgeRestriction }}</span>
+              </div>
+            </div>
+
+            <!-- Attendance counts -->
+            <p
+              v-if="interestedCount > 0 || goingCount > 0"
+              class="text-xs text-gray-600 pl-8"
+            >
+              <template v-if="interestedCount > 0">
+                {{ interestedCount }} interested
+              </template>
+              <template v-if="interestedCount > 0 && goingCount > 0">
+                ·
+              </template>
+              <template v-if="goingCount > 0">
+                {{ goingCount }} going
+              </template>
+            </p>
+          </div>
+
+          <!-- ============================================ -->
+          <!-- ACTION ZONE: Primary CTA + attendance -->
+          <!-- ============================================ -->
+          <div class="space-y-3">
+            <!-- Primary CTA: Get Tickets (full-width when available) -->
+            <a
+              v-if="event.ticketUrl"
+              :href="event.ticketUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center justify-center gap-2 w-full py-3 px-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl transition-colors text-center"
+            >
+              <UIcon
+                name="i-heroicons-ticket"
+                class="w-5 h-5"
+              />
+              Get Tickets
+            </a>
+
+            <!-- Attendance + secondary links row -->
+            <div class="flex items-center justify-between gap-3">
+              <EventAttendanceButtons
+                :event-id="event.id"
+                show-labels
+                :interested-count="interestedCount"
+                :going-count="goingCount"
+                @update="onAttendanceUpdate"
+              />
+              <div class="flex items-center gap-1">
+                <UButton
+                  v-if="event.sourceUrl"
+                  :href="event.sourceUrl"
+                  target="_blank"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-heroicons-arrow-top-right-on-square"
+                  size="xs"
+                  external
+                >
+                  Source
+                </UButton>
                 <button
-                  class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  class="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1"
                   @click="reportModalOpen = true"
                 >
-                  Report an issue
+                  Report
                 </button>
               </div>
             </div>
-          </UCard>
+          </div>
 
-          <!-- Description / About -->
-          <UCard
-            v-if="sanitizedDescriptionHtml || event.description"
-            :ui="{ header: 'py-2 px-4 sm:px-6', body: 'py-2 px-4 sm:px-6' }"
+          <!-- ============================================ -->
+          <!-- CONTENT ZONE: Description, Lineup, Press -->
+          <!-- ============================================ -->
+          <div
+            v-if="(sanitizedDescriptionHtml || event.description) || event.eventArtists?.length || canEdit || artistReviews.length"
+            class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-200 overflow-hidden"
           >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-heroicons-information-circle"
-                  class="w-5 h-5 text-primary-500"
-                />
-                <span class="font-semibold">About</span>
-              </div>
-            </template>
-
-            <!-- Show HTML only when expanded (to avoid truncation breaking tags) -->
-            <!-- Note: HTML content is sanitized to remove dangerous elements (see sanitizedDescriptionHtml computed property) -->
-            <!-- eslint-disable vue/no-v-html -->
+            <!-- Description / About -->
             <div
-              v-if="sanitizedDescriptionHtml && shouldUseHtml"
-              class="prose prose-gray max-w-none"
+              v-if="sanitizedDescriptionHtml || event.description"
+              class="p-4 sm:p-5"
             >
+              <h2 class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">
+                About
+              </h2>
+              <!-- eslint-disable vue/no-v-html -->
               <div
-                class="html-content-container"
-                v-html="sanitizedDescriptionHtml"
-              />
-              <!-- eslint-enable vue/no-v-html -->
-              <button
-                v-if="hasLongDescription"
-                class="text-primary-600 hover:text-primary-700 font-medium mt-3 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
-                :aria-expanded="descriptionExpanded"
-                @click="descriptionExpanded = !descriptionExpanded"
+                v-if="sanitizedDescriptionHtml && shouldUseHtml"
+                class="prose prose-gray max-w-none"
               >
-                <UIcon
-                  :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-                  class="w-4 h-4"
-                  aria-hidden="true"
+                <div
+                  class="html-content-container"
+                  v-html="sanitizedDescriptionHtml"
                 />
-                {{ descriptionExpanded ? 'Show less' : 'Show more' }}
-              </button>
-            </div>
-            <!-- Use plain text when collapsed (safe to truncate) or when no HTML -->
-            <div
-              v-else
-              class="text-gray-700 whitespace-pre-line leading-relaxed"
-            >
-              <template v-if="!descriptionExpanded">
-                {{ truncatedDescription }}
-              </template>
-              <template v-else>
-                {{ event.description }}
-              </template>
-              <button
-                v-if="hasLongDescription"
-                class="text-primary-600 hover:text-primary-700 font-medium mt-3 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
-                :aria-expanded="descriptionExpanded"
-                @click="descriptionExpanded = !descriptionExpanded"
-              >
-                <UIcon
-                  :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-                  class="w-4 h-4"
-                  aria-hidden="true"
-                />
-                {{ descriptionExpanded ? 'Show less' : 'Show more' }}
-              </button>
-            </div>
-          </UCard>
-
-          <!-- Artist Lineup - Admin Editor or Read-only -->
-          <UCard
-            v-if="event.eventArtists?.length || canEdit"
-            :ui="{ header: 'py-2 px-4 sm:px-6', body: 'py-2 px-4 sm:px-6' }"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-heroicons-user-group"
-                  class="w-5 h-5 text-primary-500"
-                />
-                <span class="font-semibold">Lineup</span>
+                <!-- eslint-enable vue/no-v-html -->
+                <button
+                  v-if="hasLongDescription"
+                  class="text-primary-600 hover:text-primary-700 font-medium mt-3 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                  :aria-expanded="descriptionExpanded"
+                  @click="descriptionExpanded = !descriptionExpanded"
+                >
+                  <UIcon
+                    :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                    class="w-4 h-4"
+                    aria-hidden="true"
+                  />
+                  {{ descriptionExpanded ? 'Show less' : 'Show more' }}
+                </button>
               </div>
-            </template>
+              <div
+                v-else
+                class="text-gray-700 whitespace-pre-line leading-relaxed"
+              >
+                <template v-if="!descriptionExpanded">
+                  {{ truncatedDescription }}
+                </template>
+                <template v-else>
+                  {{ event.description }}
+                </template>
+                <button
+                  v-if="hasLongDescription"
+                  class="text-primary-600 hover:text-primary-700 font-medium mt-3 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                  :aria-expanded="descriptionExpanded"
+                  @click="descriptionExpanded = !descriptionExpanded"
+                >
+                  <UIcon
+                    :name="descriptionExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                    class="w-4 h-4"
+                    aria-hidden="true"
+                  />
+                  {{ descriptionExpanded ? 'Show less' : 'Show more' }}
+                </button>
+              </div>
+            </div>
 
-            <template #default>
+            <!-- Artist Lineup -->
+            <div
+              v-if="event.eventArtists?.length || canEdit"
+              class="p-4 sm:p-5"
+            >
+              <h2 class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">
+                Lineup
+              </h2>
+
               <!-- Admin: Show editable artist list -->
               <EventArtistEditor
                 v-if="canEdit"
@@ -976,31 +1023,30 @@ useHead({
               <!-- Non-admin: Show read-only list -->
               <div
                 v-else
-                class="space-y-2"
+                class="space-y-1"
               >
                 <div
                   v-for="(ea, index) in event.eventArtists"
                   :key="ea.artist.id"
-                  class="flex items-center justify-between gap-2"
+                  class="flex items-center justify-between gap-2 py-1.5 -mx-2 px-2 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <NuxtLink
                       :to="`/artists/${ea.artist.slug}`"
-                      class="font-medium truncate text-gray-900 hover:text-primary-600 transition-colors"
+                      :class="[
+                        'truncate hover:text-primary-600 transition-colors',
+                        index === 0 && event.eventArtists.length > 1
+                          ? 'text-lg font-bold text-gray-900'
+                          : 'font-medium text-gray-700'
+                      ]"
                     >
                       {{ ea.artist.name }}
                     </NuxtLink>
-                    <span
-                      v-if="index === 0 && event.eventArtists.length > 1"
-                      class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
-                    >
-                      headliner
-                    </span>
                     <a
                       v-if="ea.artist.spotifyId && ['AUTO_MATCHED', 'VERIFIED'].includes(ea.artist.spotifyMatchStatus)"
                       :href="`https://open.spotify.com/artist/${ea.artist.spotifyId}`"
                       target="_blank"
-                      class="text-[#1DB954] hover:text-[#1ed760]"
+                      class="text-[#1DB954] hover:text-[#1ed760] flex-shrink-0"
                       title="Listen on Spotify"
                     >
                       <SpotifyIcon class="w-4 h-4" />
@@ -1026,62 +1072,56 @@ useHead({
                   />
                 </div>
               </div>
-            </template>
-          </UCard>
+            </div>
 
-          <!-- Artist Reviews -->
-          <UCard
-            v-if="artistReviews.length"
-            :ui="{ header: 'py-2 px-4 sm:px-6', body: 'py-2 px-4 sm:px-6' }"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-heroicons-newspaper"
-                  class="w-5 h-5 text-primary-500"
-                />
-                <span class="font-semibold">Press</span>
-              </div>
-            </template>
+            <!-- Artist Reviews / Press -->
+            <div
+              v-if="artistReviews.length"
+              class="p-4 sm:p-5"
+            >
+              <h2 class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">
+                Press
+              </h2>
 
-            <div class="space-y-4">
-              <div
-                v-for="ar in artistReviews"
-                :key="ar.review.id"
-                class="border-l-2 border-primary-200 pl-4"
-              >
-                <a
-                  :href="ar.review.url"
-                  target="_blank"
-                  class="text-primary-600 hover:text-primary-700 font-medium hover:underline"
+              <div class="space-y-4">
+                <div
+                  v-for="ar in artistReviews"
+                  :key="ar.review.id"
+                  class="border-l-2 border-primary-200 pl-4"
                 >
-                  {{ ar.review.title }}
-                </a>
-                <p
-                  v-if="ar.review.excerpt"
-                  class="text-gray-600 text-sm mt-1 line-clamp-3"
-                >
-                  "{{ ar.review.excerpt }}"
-                </p>
-                <div class="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
-                  <span>{{ ar.review.source.name }}</span>
-                  <span v-if="ar.review.publishedAt">•</span>
-                  <time
-                    v-if="ar.review.publishedAt"
-                    :datetime="ar.review.publishedAt"
+                  <a
+                    :href="ar.review.url"
+                    target="_blank"
+                    class="text-primary-600 hover:text-primary-700 font-medium hover:underline"
                   >
-                    {{ new Date(ar.review.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}
-                  </time>
-                  <span>•</span>
-                  <span class="text-gray-400">featuring {{ ar.artistName }}</span>
+                    {{ ar.review.title }}
+                  </a>
+                  <p
+                    v-if="ar.review.excerpt"
+                    class="text-gray-600 text-sm mt-1 line-clamp-3"
+                  >
+                    "{{ ar.review.excerpt }}"
+                  </p>
+                  <div class="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                    <span>{{ ar.review.source.name }}</span>
+                    <span v-if="ar.review.publishedAt">·</span>
+                    <time
+                      v-if="ar.review.publishedAt"
+                      :datetime="ar.review.publishedAt"
+                    >
+                      {{ new Date(ar.review.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}
+                    </time>
+                    <span>·</span>
+                    <span class="text-gray-400">{{ ar.artistName }}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </UCard>
+          </div><!-- /content zone card -->
         </div>
       </div>
 
-      <!-- Actions -->
+      <!-- Back -->
       <div class="flex flex-wrap gap-3 mt-8 justify-center">
         <BackButton />
       </div>
@@ -1157,7 +1197,7 @@ useHead({
                   v-for="genre in related.canonicalGenres.slice(0, 2)"
                   :key="genre"
                   :ui="{
-                    base: getGenreBadgeClasses(genre)
+                    base: 'bg-gray-100 text-gray-700'
                   }"
                   size="sm"
                 >

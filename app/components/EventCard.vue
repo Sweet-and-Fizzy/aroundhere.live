@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const expanded = ref(false)
 const imageLoaded = ref(false)
-const { getGenreLabel, getGenreBadgeClasses } = useGenreLabels()
+const { getGenreLabel } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeBadgeClasses } = useEventTypeLabels()
 const { formatTime, getDateParts } = useEventTime()
 
@@ -220,42 +220,39 @@ const eventTypeLabel = computed(() => {
 
         <div
           v-if="event.venue"
-          class="mt-0.5 flex items-center gap-1.5"
+          class="mt-0.5 flex items-center gap-1.5 text-sm"
         >
+          <UIcon
+            name="i-heroicons-map-pin"
+            class="w-4 h-4 text-gray-400 flex-shrink-0"
+            aria-hidden="true"
+          />
           <NuxtLink
             :to="`/venues/${event.venue.slug}`"
-            class="inline-flex items-center gap-1.5 text-sm text-gray-900 hover:text-primary-600 transition-colors"
+            class="font-medium text-gray-900 hover:text-primary-600 transition-colors"
           >
-            <UIcon
-              name="i-heroicons-map-pin"
-              class="w-4 h-4"
-              aria-hidden="true"
-            />
-            <span class="font-medium">{{ event.venue.name }}</span>
+            {{ event.venue.name }}
           </NuxtLink>
           <span
             v-if="event.venue.city"
-            class="flex-shrink-0 text-xs text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded"
-            :title="event.venue.city"
+            class="text-gray-500"
           >
             {{ event.venue.city }}
           </span>
         </div>
         <div
           v-else-if="event.locationName"
-          class="mt-0.5 flex items-center gap-1.5"
+          class="mt-0.5 flex items-center gap-1.5 text-sm"
         >
-          <span class="inline-flex items-center gap-1.5 text-sm text-gray-900">
-            <UIcon
-              name="i-heroicons-map-pin"
-              class="w-4 h-4"
-              aria-hidden="true"
-            />
-            <span class="font-medium">{{ event.locationName }}</span>
-          </span>
+          <UIcon
+            name="i-heroicons-map-pin"
+            class="w-4 h-4 text-gray-400 flex-shrink-0"
+            aria-hidden="true"
+          />
+          <span class="font-medium text-gray-900">{{ event.locationName }}</span>
           <span
             v-if="event.locationCity"
-            class="flex-shrink-0 text-xs text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded"
+            class="text-gray-500"
           >
             {{ event.locationCity }}
           </span>
@@ -273,7 +270,7 @@ const eventTypeLabel = computed(() => {
           <span>{{ recommendationReason }}</span>
         </div>
 
-        <!-- Badges - Order: Event Type, Genres, Ticket Price, Age Restriction -->
+        <!-- Badges + metadata row -->
         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
           <!-- Event Type -->
           <UBadge
@@ -281,58 +278,52 @@ const eventTypeLabel = computed(() => {
             :ui="{
               base: getEventTypeBadgeClasses(event.eventType)
             }"
-            size="md"
+            size="sm"
             :aria-label="`Event type: ${eventTypeLabel}`"
           >
             {{ eventTypeLabel }}
           </UBadge>
 
-          <!-- Genres -->
+          <!-- Genres — neutral styling -->
           <UBadge
             v-for="genre in displayGenres"
             :key="genre"
             :ui="{
-              base: getGenreBadgeClasses(genre)
+              base: 'bg-gray-100 text-gray-700'
             }"
-            size="md"
+            size="sm"
             :aria-label="`Genre: ${getGenreLabel(genre)}`"
           >
-            <UIcon
-              name="i-heroicons-musical-note"
-              class="w-3.5 h-3.5 mr-1"
-              aria-hidden="true"
-            />
             {{ getGenreLabel(genre) }}
           </UBadge>
 
-          <!-- Ticket Price -->
-          <UBadge
+          <!-- Ticket Price — inline text with icon -->
+          <span
             v-if="event.coverCharge"
-            color="success"
-            variant="soft"
-            size="sm"
+            class="inline-flex items-center gap-1 text-sm font-semibold text-gray-700"
             :aria-label="`Price: ${event.coverCharge}`"
-            class="!text-gray-900"
           >
             <UIcon
               name="i-heroicons-ticket"
-              class="w-3 h-3 mr-1"
+              class="w-3.5 h-3.5 text-gray-400"
               aria-hidden="true"
             />
             {{ event.coverCharge }}
-          </UBadge>
+          </span>
 
-          <!-- Age Restriction -->
-          <UBadge
+          <!-- Age Restriction — inline text with icon -->
+          <span
             v-if="event.ageRestriction && event.ageRestriction !== 'ALL_AGES'"
-            color="warning"
-            variant="soft"
-            size="sm"
+            class="inline-flex items-center gap-1 text-sm text-gray-600"
             :aria-label="`Age restriction: ${event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+')}`"
-            class="!text-gray-900"
           >
+            <UIcon
+              name="i-heroicons-user"
+              class="w-3.5 h-3.5 text-gray-400"
+              aria-hidden="true"
+            />
             {{ event.ageRestriction.replace(/_/g, ' ').replace('PLUS', '+') }}
-          </UBadge>
+          </span>
         </div>
 
         <!-- Expandable Description -->
