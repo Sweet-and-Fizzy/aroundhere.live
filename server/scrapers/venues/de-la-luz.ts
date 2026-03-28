@@ -295,14 +295,16 @@ export class DeLaLuzScraper extends HttpScraper {
         return null
       }
 
-      // Skip past events - compare dates at midnight in the event's timezone
-      // Don't filter based on time, just check if the date has passed
-      const now = new Date()
-      // Get the date portion (year-month-day) for comparison
-      const eventDate = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate())
-      const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      
-      if (eventDate < todayDate) {
+      // Skip past events using timezone-aware comparison
+      // The venue is in America/New_York but the server runs in UTC.
+      // An event at 7pm ET (23:00 UTC) on March 25 should NOT be filtered
+      // on March 26 UTC because it's still March 25 in the venue's timezone.
+      const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: this.config.timezone || 'America/New_York' }))
+      const eventET = new Date(startsAt.toLocaleString('en-US', { timeZone: this.config.timezone || 'America/New_York' }))
+      const eventDateET = new Date(eventET.getFullYear(), eventET.getMonth(), eventET.getDate())
+      const todayDateET = new Date(nowET.getFullYear(), nowET.getMonth(), nowET.getDate())
+
+      if (eventDateET < todayDateET) {
         return null
       }
 
@@ -399,20 +401,24 @@ export class DeLaLuzScraper extends HttpScraper {
 
       // Also try looking in the content for date patterns
       if (!startsAt || isNaN(startsAt.getTime())) {
-        const pageText = $('body').text()
-        
+        // Strip script/style tags before extracting text to avoid matching
+        // dynamic dates like WooCommerce's "today":"2026-03-26T00:00:00"
+        const $clone = $.root().clone()
+        $clone.find('script, style').remove()
+        const pageText = $clone.text()
+
         // Match patterns like "Saturday, November 22, 2025" or "November 22, 2025"
         let dateMatch = pageText.match(
           /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?,?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})/i
         )
-        
+
         // Also try abbreviated months like "Nov 22, 2025"
         if (!dateMatch) {
           dateMatch = pageText.match(
             /(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?,?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i
           )
         }
-        
+
         // Also try ISO format dates like "2025-11-22"
         if (!dateMatch) {
           dateMatch = pageText.match(/(\d{4})-(\d{2})-(\d{2})/)
@@ -537,20 +543,24 @@ export class DeLaLuzScraper extends HttpScraper {
 
       // Also try looking in the content for date patterns
       if (!startsAt || isNaN(startsAt.getTime())) {
-        const pageText = $('body').text()
-        
+        // Strip script/style tags before extracting text to avoid matching
+        // dynamic dates like WooCommerce's "today":"2026-03-26T00:00:00"
+        const $clone = $.root().clone()
+        $clone.find('script, style').remove()
+        const pageText = $clone.text()
+
         // Match patterns like "Saturday, November 22, 2025" or "November 22, 2025"
         let dateMatch = pageText.match(
           /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?,?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})/i
         )
-        
+
         // Also try abbreviated months like "Nov 22, 2025"
         if (!dateMatch) {
           dateMatch = pageText.match(
             /(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?,?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i
           )
         }
-        
+
         // Also try ISO format dates like "2025-11-22"
         if (!dateMatch) {
           dateMatch = pageText.match(/(\d{4})-(\d{2})-(\d{2})/)
@@ -595,9 +605,6 @@ export class DeLaLuzScraper extends HttpScraper {
       if (!startsAt || isNaN(startsAt.getTime())) {
         console.log(`[${this.config.name}] Could not parse date from HTML for: ${title}`)
         console.log(`[${this.config.name}] URL: ${sourceUrl}`)
-        // Log a sample of the page text to help debug
-        const sampleText = $('body').text().substring(0, 500)
-        console.log(`[${this.config.name}] Page text sample: ${sampleText}`)
         return null
       }
 

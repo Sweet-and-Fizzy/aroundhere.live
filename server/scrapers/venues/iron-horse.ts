@@ -35,6 +35,7 @@ interface ElfsightEvent {
 export class IronHorseScraper extends PlaywrightScraper {
   // Map of "name|date" (lowercase) to Elfsight event data for matching
   private elfsightEvents: Map<string, ElfsightEvent> = new Map()
+  private usedElfsightIds: Set<string> = new Set()
 
   constructor() {
     super(ironHorseConfig)
@@ -193,6 +194,54 @@ export class IronHorseScraper extends PlaywrightScraper {
     return undefined
   }
 
+  // Get the first unused Elfsight event matching a title (for when we don't have a date yet)
+  private getElfsightEventByTitle(title: string): ElfsightEvent | undefined {
+    const normalizedTitle = title.toLowerCase().trim()
+    for (const [key, event] of this.elfsightEvents) {
+      if (key.startsWith(`${normalizedTitle}|`) && !this.usedElfsightIds.has(event.id)) {
+        this.usedElfsightIds.add(event.id)
+        return event
+      }
+    }
+    return undefined
+  }
+
+  // Parse date from Elfsight API data (start.date = "YYYY-MM-DD", start.time = "HH:MM")
+  private parseElfsightDate(dateStr: string, timeStr?: string): Date | null {
+    try {
+      const parts = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (!parts || !parts[1] || !parts[2] || !parts[3]) return null
+
+      const year = parseInt(parts[1])
+      const month = parseInt(parts[2]) - 1
+      const day = parseInt(parts[3])
+
+      let hours = 20 // Default 8pm
+      let minutes = 0
+
+      if (timeStr) {
+        const time24 = timeStr.match(/^(\d{1,2}):(\d{2})$/)
+        if (time24 && time24[1] && time24[2]) {
+          hours = parseInt(time24[1])
+          minutes = parseInt(time24[2])
+        } else {
+          const time12 = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+          if (time12 && time12[1] && time12[2] && time12[3]) {
+            hours = parseInt(time12[1])
+            minutes = parseInt(time12[2])
+            const ampm = time12[3].toLowerCase()
+            if (ampm === 'pm' && hours < 12) hours += 12
+            if (ampm === 'am' && hours === 12) hours = 0
+          }
+        }
+      }
+
+      return this.createDateInTimezone(year, month, day, hours, minutes)
+    } catch {
+      return null
+    }
+  }
+
   // Build the direct event URL - prefer Salesforce ticket URL, fall back to calendar
   private buildEventUrl(title: string, date?: Date): string {
     const event = this.getElfsightEvent(title, date)
@@ -297,7 +346,20 @@ export class IronHorseScraper extends PlaywrightScraper {
         $el.find('.eapp-events-calendar-time-text').text()
       )
 
-      const startsAt = this.parseEappDate(dateText, timeText)
+      // Prefer Elfsight API date/time data over rendered DOM text, since the
+      // rendered widget shows dates in the browser's timezone which on a UTC
+      // server can be a day off from the venue's local date.
+      let startsAt: Date | null = null
+      const elfsightData = this.getElfsightEventByTitle(title)
+      if (elfsightData?.start?.date) {
+        startsAt = this.parseElfsightDate(elfsightData.start.date, elfsightData.start.time || timeText)
+        if (startsAt) {
+          console.log(`[Iron Horse] Using Elfsight API date for "${title}": ${elfsightData.start.date} ${elfsightData.start.time || '(no time)'} -> ${startsAt.toISOString()}`)
+        }
+      }
+      if (!startsAt) {
+        startsAt = this.parseEappDate(dateText, timeText)
+      }
       if (!startsAt) {
         console.log(`[Iron Horse] Could not parse date for: ${title} (date: ${dateText}, time: ${timeText})`)
         return null
@@ -590,7 +652,21 @@ export class IronHorseScraper extends PlaywrightScraper {
       const startDate = data.startDate as string
       if (!startDate) return null
 
-      const startsAt = new Date(startDate)
+      // LD+JSON dates are often date-only strings like "2026-03-30".
+      // new Date("2026-03-30") parses as midnight UTC which is 8pm ET the
+      // previous day. Parse as a local date in the venue's timezone instead.
+      let startsAt: Date
+      const dateOnlyMatch = startDate.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (dateOnlyMatch && dateOnlyMatch[1] && dateOnlyMatch[2] && dateOnlyMatch[3]) {
+        startsAt = this.createDateInTimezone(
+          parseInt(dateOnlyMatch[1]),
+          parseInt(dateOnlyMatch[2]) - 1,
+          parseInt(dateOnlyMatch[3]),
+          20, 0 // Default 8pm
+        )
+      } else {
+        startsAt = new Date(startDate)
+      }
       if (isNaN(startsAt.getTime())) return null
 
       const offers = data.offers as Record<string, unknown> | undefined
