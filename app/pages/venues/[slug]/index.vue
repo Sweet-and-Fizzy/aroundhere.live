@@ -56,6 +56,19 @@ watch(viewMode, (newMode) => {
 
 const config = useRuntimeConfig()
 
+// Favorites
+const { isVenueFavorited, toggleVenue } = useFavorites()
+const togglingFavorite = ref(false)
+async function handleToggleFavorite() {
+  if (!venue.value) return
+  togglingFavorite.value = true
+  try {
+    await toggleVenue({ id: venue.value.id, name: venue.value.name, slug: venue.value.slug })
+  } finally {
+    togglingFavorite.value = false
+  }
+}
+
 // Check if user is admin or moderator
 const { loggedIn, user } = useUserSession()
 const isAdminOrModerator = computed(() => {
@@ -177,79 +190,225 @@ useHead({
       </div>
 
       <div class="relative max-w-4xl mx-auto">
-        <div class="flex items-center justify-between mb-4">
-          <BackButton
-            variant="light"
-          />
-          <div class="flex items-center gap-2">
-            <UButton
-              v-if="isVenueModerator"
-              :to="`/venues/${venue.slug}/moderate`"
-              color="primary"
-              variant="soft"
-              icon="i-heroicons-shield-check"
-              size="sm"
-            >
-              Manage Submissions
-            </UButton>
-            <UButton
-              v-else-if="loggedIn && !isAdminOrModerator"
-              color="neutral"
-              variant="solid"
-              icon="i-heroicons-shield-check"
-              size="sm"
-              @click="claimModalOpen = true"
-            >
-              Claim Venue
-            </UButton>
-            <UButton
-              v-if="isAdminOrModerator && venue"
-              :to="`/admin/venues/${venue.id}/edit`"
-              color="neutral"
-              variant="solid"
-              icon="i-heroicons-pencil-square"
-              size="sm"
-            >
-              Edit Venue
-            </UButton>
-          </div>
+        <!-- Admin buttons — subtle, top-right -->
+        <div
+          v-if="isVenueModerator || (loggedIn && !isAdminOrModerator) || isAdminOrModerator"
+          class="flex items-center justify-end gap-2 mb-4"
+        >
+          <UButton
+            v-if="isVenueModerator"
+            :to="`/venues/${venue.slug}/moderate`"
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-shield-check"
+            size="sm"
+            class="text-white/80 hover:text-white"
+          >
+            Manage Submissions
+          </UButton>
+          <UButton
+            v-else-if="loggedIn && !isAdminOrModerator"
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-shield-check"
+            size="sm"
+            class="text-white/80 hover:text-white"
+            @click="claimModalOpen = true"
+          >
+            Claim Venue
+          </UButton>
+          <UButton
+            v-if="isAdminOrModerator && venue"
+            :to="`/admin/venues/${venue.id}/edit`"
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-pencil-square"
+            size="sm"
+            class="text-white/80 hover:text-white"
+          >
+            Edit
+          </UButton>
         </div>
-        <div class="flex items-center gap-4 mt-2">
+
+        <!-- Venue identity -->
+        <div class="flex items-center gap-4">
           <img
             v-if="venue.logoUrl"
             :src="venue.logoUrl"
             :alt="`${venue.name} logo`"
             class="h-20 w-20 object-contain bg-white/10 backdrop-blur rounded-lg p-2 border border-white/20"
           >
-          <div class="flex items-center gap-3">
-            <h1 class="text-3xl md:text-4xl font-bold drop-shadow-lg">
-              {{ venue.name }}
-            </h1>
-            <FavoriteButton
-              :id="venue.id"
-              type="venue"
-              :name="venue.name"
-              :slug="venue.slug"
-              size="lg"
-            />
-          </div>
+          <h1 class="text-3xl md:text-4xl font-bold drop-shadow-lg">
+            {{ venue.name }}
+          </h1>
         </div>
       </div>
     </div>
 
-    <!-- Contact & Location Card -->
     <div class="max-w-4xl mx-auto">
-      <VenueContactCard
-        v-if="venue"
-        :venue="venue"
-      />
+      <!-- Description — standalone, not boxed -->
+      <p
+        v-if="venue.description"
+        class="text-gray-700 leading-relaxed mt-2"
+      >
+        {{ venue.description }}
+      </p>
+
+      <!-- Logistics + Map -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+        <!-- Logistics panel -->
+        <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+          <!-- Address -->
+          <a
+            v-if="venue.address"
+            :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([venue.address, venue.city, venue.state].filter(Boolean).join(', '))}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-start gap-3 text-gray-700 hover:text-primary-600 transition-colors"
+          >
+            <UIcon
+              name="i-heroicons-map-pin"
+              class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+            />
+            <span>{{ [venue.address, venue.city, venue.state].filter(Boolean).join(', ') }}</span>
+          </a>
+
+          <!-- Website -->
+          <a
+            v-if="venue.website"
+            :href="venue.website"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 text-gray-700 hover:text-primary-600 transition-colors"
+          >
+            <UIcon
+              name="i-heroicons-globe-alt"
+              class="w-5 h-5 text-gray-400 flex-shrink-0"
+            />
+            <span>Website</span>
+          </a>
+
+          <!-- Phone -->
+          <a
+            v-if="venue.phone"
+            :href="`tel:${venue.phone.replace(/\D/g, '')}`"
+            class="flex items-center gap-3 text-gray-700 hover:text-primary-600 transition-colors"
+          >
+            <UIcon
+              name="i-heroicons-phone"
+              class="w-5 h-5 text-gray-400 flex-shrink-0"
+            />
+            <span>{{ venue.phone }}</span>
+          </a>
+
+          <!-- Email -->
+          <a
+            v-if="venue.email"
+            :href="`mailto:${venue.email}`"
+            class="flex items-center gap-3 text-gray-700 hover:text-primary-600 transition-colors"
+          >
+            <UIcon
+              name="i-heroicons-envelope"
+              class="w-5 h-5 text-gray-400 flex-shrink-0"
+            />
+            <span class="truncate">{{ venue.email }}</span>
+          </a>
+
+          <!-- Save venue — matches contact row styling -->
+          <button
+            v-if="loggedIn"
+            class="flex items-center gap-3 pt-2 border-t border-gray-200 w-full text-left transition-colors group"
+            :class="isVenueFavorited(venue.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'"
+            :disabled="togglingFavorite"
+            @click="handleToggleFavorite"
+          >
+            <UIcon
+              :name="isVenueFavorited(venue.id) ? 'i-heroicons-heart-solid' : 'i-heroicons-heart'"
+              class="w-5 h-5 flex-shrink-0"
+              :class="togglingFavorite && 'animate-pulse'"
+            />
+            <span>{{ isVenueFavorited(venue.id) ? 'Saved' : 'Save venue' }}</span>
+          </button>
+
+          <!-- Venue type + capacity — subtle metadata -->
+          <div
+            v-if="venue.venueType || venue.capacity"
+            class="flex items-center gap-4 pt-2 border-t border-gray-200 text-sm text-gray-600"
+          >
+            <span
+              v-if="venue.venueType"
+              class="flex items-center gap-1.5"
+            >
+              <UIcon
+                name="i-heroicons-building-storefront"
+                class="w-4 h-4 text-gray-400"
+              />
+              {{ venue.venueType.replace(/_/g, ' ') }}
+            </span>
+            <span
+              v-if="venue.capacity"
+              class="flex items-center gap-1.5"
+            >
+              <UIcon
+                name="i-heroicons-user-group"
+                class="w-4 h-4 text-gray-400"
+              />
+              {{ venue.capacity }} capacity
+            </span>
+          </div>
+        </div>
+
+        <!-- Map -->
+        <div
+          v-if="venue.latitude && venue.longitude"
+          class="space-y-2"
+        >
+          <div class="h-56 rounded-xl overflow-hidden bg-gray-100">
+            <VenueMap
+              :key="`venue-${venue.latitude}-${venue.longitude}`"
+              :venues="[{
+                id: 'single-venue',
+                name: venue.name,
+                slug: '',
+                latitude: venue.latitude,
+                longitude: venue.longitude,
+                city: venue.city,
+                address: venue.address
+              }]"
+              :force-center="true"
+              class="w-full h-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Accessibility info -->
+      <div
+        v-if="venue.accessibilityInfo"
+        class="mt-5 bg-blue-50 rounded-xl p-4"
+      >
+        <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2 mb-2">
+          <UIcon
+            name="i-heroicons-information-circle"
+            class="w-4 h-4 text-blue-500"
+          />
+          Accessibility
+        </h3>
+        <p class="text-sm text-gray-700 whitespace-pre-line">
+          {{ venue.accessibilityInfo }}
+        </p>
+      </div>
     </div>
 
     <!-- Events Section -->
-    <div class="max-w-4xl mx-auto mt-8">
+    <div class="max-w-4xl mx-auto mt-10 pt-8 border-t border-gray-200">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold text-gray-900">
-          Upcoming Events ({{ events.length }})
+        <h2 class="text-xl font-bold text-gray-900">
+          Upcoming Events
+          <span
+            v-if="events.length > 0"
+            class="text-gray-400 font-normal"
+          >{{ events.length }}</span>
         </h2>
 
         <!-- View Toggle Buttons -->
