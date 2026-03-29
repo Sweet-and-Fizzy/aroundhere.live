@@ -58,6 +58,39 @@ watchEffect(() => {
 
 const saving = ref(false)
 const saveError = ref('')
+const uploadingLogo = ref(false)
+const uploadingBanner = ref(false)
+const logoFileRef = ref<HTMLInputElement | null>(null)
+const bannerFileRef = ref<HTMLInputElement | null>(null)
+const toast = useToast()
+
+async function handleImageUpload(field: 'logoUrl' | 'imageUrl', event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  target.value = ''
+
+  const uploading = field === 'logoUrl' ? uploadingLogo : uploadingBanner
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const result = await $fetch<{ url: string }>('/api/uploads/image', {
+      method: 'POST',
+      body: formData,
+    })
+    form.value[field] = result.url
+    toast.add({ title: 'Image uploaded', color: 'success' })
+  } catch (err: any) {
+    toast.add({
+      title: 'Upload failed',
+      description: err.data?.message || 'Could not upload image',
+      color: 'error',
+    })
+  } finally {
+    uploading.value = false
+  }
+}
 
 async function save() {
   saving.value = true
@@ -288,10 +321,30 @@ useSeoMeta({
         </div>
 
         <div class="col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
           <p class="text-xs text-gray-500 mb-2">
             Square image used in venue lists
           </p>
+          <div class="flex items-center gap-2 mb-2">
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-heroicons-arrow-up-tray"
+              size="sm"
+              :loading="uploadingLogo"
+              @click="logoFileRef?.click()"
+            >
+              Upload
+            </UButton>
+            <span class="text-sm text-gray-500">or paste a URL</span>
+            <input
+              ref="logoFileRef"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              class="hidden"
+              @change="handleImageUpload('logoUrl', $event)"
+            >
+          </div>
           <input
             v-model="form.logoUrl"
             type="url"
@@ -307,10 +360,30 @@ useSeoMeta({
         </div>
 
         <div class="col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Banner Image URL</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Banner Image</label>
           <p class="text-xs text-gray-500 mb-2">
             Wide hero image for the venue page header
           </p>
+          <div class="flex items-center gap-2 mb-2">
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-heroicons-arrow-up-tray"
+              size="sm"
+              :loading="uploadingBanner"
+              @click="bannerFileRef?.click()"
+            >
+              Upload
+            </UButton>
+            <span class="text-sm text-gray-500">or paste a URL</span>
+            <input
+              ref="bannerFileRef"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              class="hidden"
+              @change="handleImageUpload('imageUrl', $event)"
+            >
+          </div>
           <input
             v-model="form.imageUrl"
             type="url"
