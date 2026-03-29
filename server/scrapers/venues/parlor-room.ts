@@ -567,9 +567,21 @@ export class ParlorRoomScraper extends PlaywrightScraper {
         coverCharge = `$${offers.price}`
       }
 
+      // Extract image URL
+      let imageUrl: string | undefined
+      const image = data.image
+      if (typeof image === 'string') {
+        imageUrl = image
+      } else if (Array.isArray(image) && image.length > 0) {
+        imageUrl = typeof image[0] === 'string' ? image[0] : (image[0] as Record<string, string>)?.url
+      } else if (image && typeof image === 'object') {
+        imageUrl = (image as Record<string, string>).url
+      }
+
       return {
         title: decodeHtmlEntities(title),
         description: data.description ? decodeHtmlEntities(data.description as string) : undefined,
+        imageUrl,
         startsAt,
         endsAt: data.endDate ? new Date(data.endDate as string) : undefined,
         coverCharge,
