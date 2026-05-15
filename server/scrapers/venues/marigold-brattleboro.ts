@@ -314,6 +314,7 @@ export class MarigoldBrattleboroScraper extends PlaywrightScraper {
         if (response.ok) {
           const html = await response.text()
           const $ = cheerio.load(html)
+          $('style, script, form, .frm_form_fields, .wonderplugingridgallery').remove()
 
           // Primary source: page <title> tag - most reliable
           // Format: "Event Name – Marigold" or "Event Name - Marigold"

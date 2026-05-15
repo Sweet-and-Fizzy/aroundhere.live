@@ -14,6 +14,7 @@ import {
   normalizeForComparison,
 } from '../utils/html'
 import { extractAndLinkArtist } from '../utils/artist-extraction'
+import { cleanScrapedDescription } from './utils/sanitize'
 import { notifyScraperAnomaly } from '../services/notifications'
 import { similarityScore } from './dedup'
 
@@ -59,7 +60,7 @@ export async function saveEvent(
 
     if (existingFromSameSource) {
       // Update existing event from same source
-      const descriptions = processDescriptions(scrapedEvent.description)
+      const descriptions = processDescriptions(cleanScrapedDescription(scrapedEvent.description))
       // Clean title after deduplication to avoid breaking matching
       const cleanedTitle = cleanEventTitle(decodeHtmlEntities(scrapedEvent.title))
       await prisma.event.update({
@@ -123,7 +124,7 @@ export async function saveEvent(
     if (dedupResult.shouldUpdateCanonical) {
       // Same source re-scrape or higher priority source - update the canonical event
       console.log(`[SaveEvent] Updating canonical event (same source or higher priority)`)
-      const canonicalDescriptions = processDescriptions(scrapedEvent.description)
+      const canonicalDescriptions = processDescriptions(cleanScrapedDescription(scrapedEvent.description))
       // Clean title after deduplication to avoid breaking matching
       const cleanedTitle = cleanEventTitle(decodeHtmlEntities(scrapedEvent.title))
       await prisma.event.update({
@@ -174,7 +175,7 @@ export async function saveEvent(
   const slug = generateSlug(cleanedTitle, scrapedEvent.startsAt)
 
   // Process descriptions - preserve HTML in descriptionHtml, clean text in description
-  const newDescriptions = processDescriptions(scrapedEvent.description)
+  const newDescriptions = processDescriptions(cleanScrapedDescription(scrapedEvent.description))
 
   // Create new event
   const event = await prisma.event.create({

@@ -158,6 +158,7 @@ export class MarigoldScraper extends PlaywrightScraper {
   // Fallback method to parse from static HTML
   private async parseEventsFromHtml(html: string): Promise<ScrapedEvent[]> {
     const $ = cheerio.load(html)
+    $('style, script, form, .frm_form_fields, .wonderplugingridgallery').remove()
     const events: ScrapedEvent[] = []
 
     // Extract from gallery items in HTML
@@ -367,6 +368,7 @@ export class MarigoldScraper extends PlaywrightScraper {
         if (response.ok) {
           const html = await response.text()
           const $ = cheerio.load(html)
+          $('style, script, form, .frm_form_fields, .wonderplugingridgallery').remove()
 
           // Check if event is cancelled/postponed
           const pageText = $('body').text().toLowerCase()
@@ -565,7 +567,8 @@ export class MarigoldScraper extends PlaywrightScraper {
 
       const html = await response.text()
       const $ = cheerio.load(html)
-        return this.parseEventFromHtml($, url)
+      $('style, script, form, .frm_form_fields, .wonderplugingridgallery').remove()
+      return this.parseEventFromHtml($, url)
       } catch (error) {
         console.error(`[${this.config.name}] Error fetching ${url}:`, error)
         return null
