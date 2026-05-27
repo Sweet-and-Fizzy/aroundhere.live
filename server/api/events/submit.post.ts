@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { generateSlug, slugify } from '../../utils/html'
 import { findNearestRegion } from '../../utils/find-nearest-region'
+import { geocodeAddress } from '../../services/geocoding'
 import { getOrCreateCommunitySource } from '../../utils/community-source'
 import { notifyEventSubmission } from '../../services/notifications'
 import { sendEventSubmissionAdminEmail, sendVenueModeratorSubmissionEmail } from '../../utils/email'
@@ -91,9 +92,30 @@ export default defineEventHandler(async (event) => {
     regionId = venue.regionId
     timezone = venue.region.timezone
   } else {
-    // Venue-less event: use geocoded coordinates to find region
-    if (locationLat && locationLng) {
-      const region = await findNearestRegion(prisma, locationLat, locationLng)
+    eventLocationName = locationName?.trim() || null
+    eventLocationAddress = locationAddress?.trim() || null
+    eventLocationLat = locationLat || null
+    eventLocationLng = locationLng || null
+
+    // If the form didn't supply coordinates, geocode the free-text location so
+    // the event lands in the correct region instead of falling back to "Other".
+    if (!eventLocationLat || !eventLocationLng) {
+      const addressToGeocode = [eventLocationName, eventLocationAddress].filter(Boolean).join(', ')
+      if (addressToGeocode) {
+        const geocoded = await geocodeAddress(addressToGeocode)
+        if (geocoded) {
+          eventLocationLat = geocoded.lat
+          eventLocationLng = geocoded.lng
+          if (!eventLocationAddress) {
+            eventLocationAddress = geocoded.formattedAddress
+          }
+        }
+      }
+    }
+
+    // Use coordinates (supplied or geocoded) to find the nearest region.
+    if (eventLocationLat && eventLocationLng) {
+      const region = await findNearestRegion(prisma, eventLocationLat, eventLocationLng)
       regionId = region.id
       timezone = region.timezone
     } else {
@@ -109,18 +131,14 @@ export default defineEventHandler(async (event) => {
       timezone = defaultRegion.timezone
     }
 
-    eventLocationName = locationName?.trim() || null
-    eventLocationAddress = locationAddress?.trim() || null
     // Try to extract city/state from address
-    if (locationAddress) {
-      const parts = locationAddress.split(',').map((p: string) => p.trim())
+    if (eventLocationAddress) {
+      const parts = eventLocationAddress.split(',').map((p: string) => p.trim())
       if (parts.length >= 2) {
         eventLocationCity = parts[parts.length - 2] || null
         eventLocationState = parts[parts.length - 1]?.split(' ')[0] || null
       }
     }
-    eventLocationLat = locationLat || null
-    eventLocationLng = locationLng || null
   }
 
   // Get or create community source
