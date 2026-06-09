@@ -155,6 +155,34 @@ describe('mergeEventData', () => {
     // Other fields should still be filled
     expect(updates.coverCharge).toBe('$10')
   })
+
+  it('backfills age when existing has none and scraped has a specific restriction', () => {
+    const existing = createExistingEvent({ ageRestriction: null })
+    const scraped = createScrapedEvent({ ageRestriction: 'TWENTY_ONE_PLUS' })
+
+    expect(mergeEventData(existing, scraped).ageRestriction).toBe('TWENTY_ONE_PLUS')
+  })
+
+  it('treats existing ALL_AGES as unknown and backfills a specific restriction', () => {
+    const existing = createExistingEvent({ ageRestriction: 'ALL_AGES' })
+    const scraped = createScrapedEvent({ ageRestriction: 'TWENTY_ONE_PLUS' })
+
+    expect(mergeEventData(existing, scraped).ageRestriction).toBe('TWENTY_ONE_PLUS')
+  })
+
+  it('does not override a specific existing age restriction', () => {
+    const existing = createExistingEvent({ ageRestriction: 'EIGHTEEN_PLUS' })
+    const scraped = createScrapedEvent({ ageRestriction: 'TWENTY_ONE_PLUS' })
+
+    expect(mergeEventData(existing, scraped).ageRestriction).toBeUndefined()
+  })
+
+  it('does not write age when scraped restriction is ALL_AGES (the default)', () => {
+    const existing = createExistingEvent({ ageRestriction: 'ALL_AGES' })
+    const scraped = createScrapedEvent({ ageRestriction: 'ALL_AGES' })
+
+    expect(mergeEventData(existing, scraped).ageRestriction).toBeUndefined()
+  })
 })
 
 describe('similarity threshold behavior', () => {

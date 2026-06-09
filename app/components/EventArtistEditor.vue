@@ -455,8 +455,13 @@ function getSpotifyStatusColor(status?: string): string {
               v-model="editingName"
               size="xs"
               class="flex-1"
-              @keyup.enter="saveArtistName(ea.artistId)"
-              @keyup.escape="cancelEditingName"
+              @keyup="
+                $event.key === 'Enter'
+                  ? saveArtistName(ea.artistId)
+                  : $event.key === 'Escape'
+                    ? cancelEditingName()
+                    : undefined
+              "
             />
             <UButton
               size="xs"

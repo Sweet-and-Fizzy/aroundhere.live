@@ -74,6 +74,11 @@ export async function saveEvent(
           endsAt: scrapedEvent.endsAt,
           doorsAt: scrapedEvent.doorsAt,
           coverCharge: scrapedEvent.coverCharge,
+          // Refresh age only when the scraper parsed a specific restriction this run, so
+          // we never clobber an existing value (venue default or moderator edit) with a blank.
+          ...(scrapedEvent.ageRestriction
+            ? { ageRestriction: scrapedEvent.ageRestriction }
+            : {}),
           ticketUrl: scrapedEvent.ticketUrl,
           sourceUrl: scrapedEvent.sourceUrl,
           genres: scrapedEvent.genres || [],
@@ -138,6 +143,12 @@ export async function saveEvent(
           descriptionHtml: canonicalDescriptions.descriptionHtml,
           imageUrl: scrapedEvent.imageUrl,
           coverCharge: scrapedEvent.coverCharge,
+          // Refresh age only when the scraper parsed a specific restriction this run.
+          // Omitting it otherwise leaves the existing value (set from the venue default
+          // at create time, or hand-corrected by a moderator) untouched.
+          ...(scrapedEvent.ageRestriction
+            ? { ageRestriction: scrapedEvent.ageRestriction }
+            : {}),
           ticketUrl: scrapedEvent.ticketUrl,
           genres: scrapedEvent.genres || [],
           updatedAt: new Date(),
