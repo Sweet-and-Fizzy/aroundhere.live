@@ -220,6 +220,7 @@ export function mergeEventData(
     ticketUrl?: string | null
     doorsAt?: Date | null
     endsAt?: Date | null
+    ageRestriction?: ScrapedEvent['ageRestriction'] | null
   },
   scraped: ScrapedEvent
 ): Partial<ScrapedEvent> {
@@ -243,6 +244,14 @@ export function mergeEventData(
   }
   if (!existing.endsAt && scraped.endsAt) {
     updates.endsAt = scraped.endsAt
+  }
+  // Backfill age when the existing event has none recorded. We treat the unspecified
+  // default 'ALL_AGES' as "not yet known" so a scraper that later learns a specific
+  // restriction (e.g. 21+ parsed from a detail page) can fill it in. A specific
+  // existing value (18+/21+) is never overwritten.
+  const ageUnknown = !existing.ageRestriction || existing.ageRestriction === 'ALL_AGES'
+  if (ageUnknown && scraped.ageRestriction && scraped.ageRestriction !== 'ALL_AGES') {
+    updates.ageRestriction = scraped.ageRestriction
   }
 
   return updates
