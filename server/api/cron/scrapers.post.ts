@@ -32,6 +32,7 @@ import { MarigoldBrattleboroScraper } from '../../scrapers/venues/marigold-bratt
 import { LuthiersScraper } from '../../scrapers/venues/luthiers'
 import { FameScraper } from '../../scrapers/venues/fame'
 import { DailyOperationScraper } from '../../scrapers/venues/daily-operation'
+import { TheHeavyCultureCoopScraper } from '../../scrapers/venues/the-heavy-culture-coop'
 
 interface ScraperResult {
   name: string
@@ -68,6 +69,7 @@ export default defineEventHandler(async (event) => {
     new LuthiersScraper(),
     new FameScraper(),
     new DailyOperationScraper(),
+    new TheHeavyCultureCoopScraper(),
   ]
 
   for (const scraper of hardcodedScrapers) {
@@ -76,9 +78,19 @@ export default defineEventHandler(async (event) => {
       const result = await scraper.scrape()
 
       if (result.success) {
-        // Get source for saving
-        const source = await prisma.source.findUnique({
+        // Get or create the source (a missing source row would otherwise silently drop events)
+        const source = await prisma.source.upsert({
           where: { slug: scraper.config.id },
+          update: {},
+          create: {
+            name: scraper.config.name,
+            slug: scraper.config.id,
+            type: 'SCRAPER',
+            category: scraper.config.category || 'OTHER',
+            priority: scraper.config.priority || 50,
+            trustScore: 0.8,
+            website: scraper.config.url,
+          },
         })
         const venue = await prisma.venue.findFirst({
           where: { slug: scraper.config.venueSlug },
