@@ -90,6 +90,59 @@ export function parseAgeRestrictionFromText(
 }
 
 /**
+ * Read the organizer page's embedded upcomingEvents list (Next.js __NEXT_DATA__).
+ * Returns null when the page has no such list (e.g. a bot-challenge page) or
+ * when the list is shorter than upcomingEventsTotal: saving a partial list
+ * would cancel every event missing from it. Exported for testing.
+ */
+export function extractEmbeddedUpcomingEvents(html: string): EventbriteListItem[] | null {
+  const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)
+  if (!match?.[1]) return null
+
+  let data: unknown
+  try {
+    data = JSON.parse(match[1])
+  } catch {
+    return null
+  }
+
+  const findUpcoming = (
+    node: unknown
+  ): { upcomingEvents: unknown[]; upcomingEventsTotal?: unknown } | null => {
+    if (!node || typeof node !== 'object') return null
+    const holder = node as { upcomingEvents?: unknown; upcomingEventsTotal?: unknown }
+    if (Array.isArray(holder.upcomingEvents)) {
+      return { upcomingEvents: holder.upcomingEvents, upcomingEventsTotal: holder.upcomingEventsTotal }
+    }
+    for (const child of Object.values(node)) {
+      const found = findUpcoming(child)
+      if (found) return found
+    }
+    return null
+  }
+
+  const found = findUpcoming(data)
+  if (!found) return null
+  const upcoming = found.upcomingEvents
+  if (typeof found.upcomingEventsTotal === 'number' && found.upcomingEventsTotal > upcoming.length) {
+    return null
+  }
+
+  const items: EventbriteListItem[] = []
+  for (const event of upcoming) {
+    const e = event as { id?: unknown; url?: unknown; name?: unknown; summary?: unknown }
+    if ((typeof e.id !== 'string' && typeof e.id !== 'number') || typeof e.url !== 'string') continue
+    items.push({
+      id: String(e.id),
+      url: e.url,
+      title: typeof e.name === 'string' ? e.name : undefined,
+      summary: typeof e.summary === 'string' ? e.summary : undefined,
+    })
+  }
+  return items
+}
+
+/**
  * Base scraper for Eventbrite organizers.
  *
  * Eventbrite's organizer pages no longer embed usable event data
@@ -112,8 +165,18 @@ export abstract class EventbriteScraper extends PlaywrightScraper {
     this.organizerId = config.organizerId
   }
 
-  protected async parseEvents(_html: string): Promise<ScrapedEvent[]> {
-    const listing = await this.fetchFutureEventList()
+  protected async parseEvents(html: string): Promise<ScrapedEvent[]> {
+    let listing: EventbriteListItem[]
+    try {
+      listing = await this.fetchFutureEventList()
+    } catch (error) {
+      // showmore gets blocked (CloudFront 403); the organizer page we already
+      // loaded embeds the same upcoming list
+      const embedded = extractEmbeddedUpcomingEvents(html)
+      if (!embedded) throw error
+      console.log(`[${this.config.name}] ${(error as Error).message}; using organizer page list`)
+      listing = embedded
+    }
     console.log(`[${this.config.name}] Organizer has ${listing.length} future events`)
 
     const scrapedEvents: ScrapedEvent[] = []
@@ -144,9 +207,18 @@ export abstract class EventbriteScraper extends PlaywrightScraper {
           },
         }
       )
-      if (!response.ok) break
-      const json = (await response.json()) as {
-        data?: { events?: Array<Record<string, unknown>>; has_next_page?: boolean }
+      // A failed first page means we can't list events at all; a failed later
+      // page just ends pagination with what we have
+      if (!response.ok) {
+        if (pageNum === 1) throw new Error(`Eventbrite showmore returned HTTP ${response.status}`)
+        break
+      }
+      let json: { data?: { events?: Array<Record<string, unknown>>; has_next_page?: boolean } }
+      try {
+        json = await response.json()
+      } catch {
+        if (pageNum === 1) throw new Error('Eventbrite showmore returned non-JSON')
+        break
       }
       for (const event of json.data?.events || []) {
         const id = event.id as string | undefined

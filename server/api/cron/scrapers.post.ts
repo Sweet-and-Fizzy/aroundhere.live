@@ -15,6 +15,7 @@ import { executeScraperCode } from '../../services/agent/executor'
 import { saveScrapedEvents, detectSuspiciousDuplicates, handleSuspiciousDuplicates } from '../../scrapers/save-events'
 import { classifyPendingEvents } from '../../scrapers/classify-events'
 import { recordScraperSuccess, recordScraperFailure } from '../../utils/scraper-run-status'
+import { detectEventCollapse } from '../../utils/scraper-health'
 import type { ScrapedEvent } from '../../scrapers/types'
 
 // Import hardcoded scrapers
@@ -46,6 +47,54 @@ interface ScraperResult {
   duration: number
   error?: string
   consecutiveFailures?: number
+}
+
+/**
+ * Save a successful scrape's events and record the run. A run whose events
+ * collapsed to zero after a healthy previous run is recorded as a failure.
+ */
+async function saveAndRecordRun(
+  events: ScrapedEvent[],
+  source: { id: string; name: string; priority: number; lastEventCount: number | null },
+  venue: { id: string; regionId: string; name: string },
+  scraperStart: number
+): Promise<ScraperResult> {
+  const runStartTime = new Date()
+  const saveResult = await saveScrapedEvents(
+    prisma,
+    events,
+    { id: venue.id, regionId: venue.regionId },
+    { id: source.id, priority: source.priority }
+  )
+
+  // Check for suspicious duplicates and pause notifications if found
+  if (saveResult.saved > 0) {
+    const duplicates = await detectSuspiciousDuplicates(prisma, source.id, venue.id, runStartTime)
+    if (duplicates.length > 0) {
+      await handleSuspiciousDuplicates(prisma, {
+        sourceId: source.id,
+        sourceName: source.name,
+        venueName: venue.name,
+      }, duplicates)
+    }
+  }
+
+  const counts = {
+    eventsFound: events.length,
+    eventsSaved: saveResult.saved,
+    eventsSkipped: saveResult.skipped,
+    eventsCanceled: saveResult.canceled,
+    duration: Date.now() - scraperStart,
+  }
+
+  const collapseError = detectEventCollapse(source.lastEventCount, saveResult.accepted)
+  if (collapseError) {
+    const failures = await recordScraperFailure(prisma, source.id)
+    return { name: source.name, success: false, ...counts, error: collapseError, consecutiveFailures: failures }
+  }
+
+  await recordScraperSuccess(prisma, source.id, saveResult.accepted)
+  return { name: source.name, success: true, ...counts }
 }
 
 export default defineEventHandler(async (event) => {
@@ -101,42 +150,7 @@ export default defineEventHandler(async (event) => {
         })
 
         if (source && venue) {
-          const runStartTime = new Date()
-          const saveResult = await saveScrapedEvents(
-            prisma,
-            result.events,
-            { id: venue.id, regionId: venue.regionId },
-            { id: source.id, priority: source.priority }
-          )
-
-          // Check for suspicious duplicates and pause notifications if found
-          if (saveResult.saved > 0) {
-            const duplicates = await detectSuspiciousDuplicates(
-              prisma,
-              source.id,
-              venue.id,
-              runStartTime
-            )
-            if (duplicates.length > 0) {
-              await handleSuspiciousDuplicates(prisma, {
-                sourceId: source.id,
-                sourceName: source.name,
-                venueName: venue.name,
-              }, duplicates)
-            }
-          }
-
-          await recordScraperSuccess(prisma, source.id, result.events.length)
-
-          results.push({
-            name: scraper.config.name,
-            success: true,
-            eventsFound: result.events.length,
-            eventsSaved: saveResult.saved,
-            eventsSkipped: saveResult.skipped,
-            eventsCanceled: saveResult.canceled,
-            duration: Date.now() - scraperStart,
-          })
+          results.push(await saveAndRecordRun(result.events, source, venue, scraperStart))
         }
       } else {
         // Update source status on failure
@@ -219,42 +233,7 @@ export default defineEventHandler(async (event) => {
 
       if (result.success) {
         const events: ScrapedEvent[] = (result.data as ScrapedEvent[]) ?? []
-        const runStartTime = new Date()
-        const saveResult = await saveScrapedEvents(
-          prisma,
-          events,
-          { id: venue.id, regionId: venue.regionId },
-          { id: source.id, priority: source.priority }
-        )
-
-        // Check for suspicious duplicates and pause notifications if found
-        if (saveResult.saved > 0) {
-          const duplicates = await detectSuspiciousDuplicates(
-            prisma,
-            source.id,
-            venue.id,
-            runStartTime
-          )
-          if (duplicates.length > 0) {
-            await handleSuspiciousDuplicates(prisma, {
-              sourceId: source.id,
-              sourceName: source.name,
-              venueName: venue.name,
-            }, duplicates)
-          }
-        }
-
-        await recordScraperSuccess(prisma, source.id, events.length)
-
-        results.push({
-          name: source.name,
-          success: true,
-          eventsFound: events.length,
-          eventsSaved: saveResult.saved,
-          eventsSkipped: saveResult.skipped,
-          eventsCanceled: saveResult.canceled,
-          duration: Date.now() - scraperStart,
-        })
+        results.push(await saveAndRecordRun(events, source, venue, scraperStart))
       } else {
         const failures = await recordScraperFailure(prisma, source.id)
 

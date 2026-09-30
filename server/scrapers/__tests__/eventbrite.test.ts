@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  extractEmbeddedUpcomingEvents,
   findEventLd,
   formatOffersPrice,
   parseAgeRestrictionFromText,
@@ -62,5 +63,68 @@ describe('parseAgeRestrictionFromText', () => {
 
   it('returns undefined when nothing matches', () => {
     expect(parseAgeRestrictionFromText('Doors at 7')).toBeUndefined()
+  })
+})
+
+describe('extractEmbeddedUpcomingEvents', () => {
+  const page = (data: unknown) =>
+    `<html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script></body></html>`
+
+  it('reads upcomingEvents from the organizer page Next data', () => {
+    const html = page({
+      props: {
+        pageProps: {
+          upcomingEvents: [
+            {
+              id: '1997162567000',
+              name: 'Community Day',
+              url: 'https://www.eventbrite.com/e/community-day-tickets-1997162567000',
+              summary: '',
+            },
+            { id: 'no-url', name: 'Broken' },
+          ],
+        },
+      },
+    })
+    expect(extractEmbeddedUpcomingEvents(html)).toEqual([
+      {
+        id: '1997162567000',
+        url: 'https://www.eventbrite.com/e/community-day-tickets-1997162567000',
+        title: 'Community Day',
+        summary: '',
+      },
+    ])
+  })
+
+  it('returns an empty list when the organizer has no upcoming events', () => {
+    expect(extractEmbeddedUpcomingEvents(page({ props: { upcomingEvents: [] } }))).toEqual([])
+  })
+
+  it('returns null when the page has no Next data', () => {
+    expect(extractEmbeddedUpcomingEvents('<html><body>Just a moment...</body></html>')).toBeNull()
+  })
+
+  it('returns null when the embedded list is truncated, so missing events are not canceled', () => {
+    const html = page({
+      props: {
+        upcomingEvents: [{ id: '1', url: 'https://www.eventbrite.com/e/one-1', name: 'One' }],
+        upcomingEventsTotal: 25,
+      },
+    })
+    expect(extractEmbeddedUpcomingEvents(html)).toBeNull()
+  })
+
+  it('accepts numeric event ids', () => {
+    const html = page({
+      props: {
+        upcomingEvents: [{ id: 42, url: 'https://www.eventbrite.com/e/two-42', name: 'Two' }],
+        upcomingEventsTotal: 1,
+      },
+    })
+    expect(extractEmbeddedUpcomingEvents(html)?.[0]?.id).toBe('42')
+  })
+
+  it('returns null when the Next data has no upcomingEvents', () => {
+    expect(extractEmbeddedUpcomingEvents(page({ props: { pageProps: {} } }))).toBeNull()
   })
 })

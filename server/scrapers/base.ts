@@ -3,6 +3,20 @@ import * as cheerio from 'cheerio'
 import { fromZonedTime } from 'date-fns-tz'
 import type { ScraperConfig, ScraperResult, ScrapedEvent, BaseScraper } from './types'
 
+/**
+ * Error for a landing page that returned an HTTP error and yielded no events.
+ * Requiring zero events keeps challenge pages that return 403 and then render
+ * the calendar from counting as failures. Reports the post-redirect URL.
+ */
+export function navigationError(
+  status: number | undefined,
+  finalUrl: string | undefined,
+  eventCount: number
+): string | null {
+  if (status === undefined || status < 400 || eventCount > 0) return null
+  return `HTTP ${status} from ${finalUrl}`
+}
+
 export abstract class PlaywrightScraper implements BaseScraper {
   config: ScraperConfig
   protected browser: Browser | null = null
@@ -62,7 +76,7 @@ export abstract class PlaywrightScraper implements BaseScraper {
       await this.beforeNavigate()
 
       // Navigate to the page
-      await this.page.goto(this.config.url, {
+      const response = await this.page.goto(this.config.url, {
         waitUntil: this.getWaitUntilStrategy(),
       })
 
@@ -106,6 +120,9 @@ export abstract class PlaywrightScraper implements BaseScraper {
           console.log(`[${this.config.name}] Page ${pageNum}: found ${pageEvents.length} events (${newEvents.length} new)`)
         }
       }
+
+      const navError = navigationError(response?.status(), response?.url(), events.length)
+      if (navError) throw new Error(navError)
 
       console.log(`[${this.config.name}] Scraped ${events.length} events total`)
     } catch (error) {

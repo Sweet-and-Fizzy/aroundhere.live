@@ -1,4 +1,4 @@
-import { PlaywrightScraper } from '../base'
+import { PlaywrightScraper, navigationError } from '../base'
 import { WixCalendarScraper } from '../platforms/wix-calendar'
 import type { ScrapedEvent } from '../types'
 import { fromZonedTime } from 'date-fns-tz'
@@ -32,7 +32,7 @@ export class FameScraper extends PlaywrightScraper {
 
       // Navigate with more lenient settings for Wix sites
       console.log('Navigating to Fame calendar page...')
-      await this.page.goto(this.config.url, {
+      const response = await this.page.goto(this.config.url, {
         waitUntil: 'domcontentloaded', // Don't wait for networkidle (Wix has lots of background requests)
         timeout: 45000,
       })
@@ -102,6 +102,9 @@ export class FameScraper extends PlaywrightScraper {
 
         return scrapedEvent
       })
+
+      const navError = navigationError(response?.status(), response?.url(), events.length)
+      if (navError) throw new Error(navError)
 
       console.log(`[${this.config.name}] Scraped ${events.length} events total`)
     } catch (error) {
