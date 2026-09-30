@@ -115,6 +115,7 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
     doorsInfo?: string
     description?: string
     descriptionHtml?: string
+    ticketUrl?: string
   }> {
     if (!this.page) return {}
 
@@ -131,7 +132,10 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
       let isFirstHtmlBlock = true
 
       for (const block of allBlocks) {
-        const text = block.textContent?.trim() || ''
+        // Newer Squarespace blocks embed a <style> tag next to .sqs-html-content,
+        // so read text from the content node to keep CSS out of the checks below
+        const htmlContent = block.querySelector('.sqs-html-content')
+        const text = (htmlContent || block).textContent?.trim() || ''
 
         // Skip footer content
         if (
@@ -142,7 +146,11 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
           continue
         }
 
-        const blockType = block.className.match(/sqs-block-(\w+)/)?.[1] || 'unknown'
+        // Match on classList: newer markup is "sqs-block sqs-block-website-component
+        // sqs-block-html", so the first sqs-block-* class is not the block type
+        const blockType = ['html', 'image', 'video', 'embed'].find((t) =>
+          block.classList.contains(`sqs-block-${t}`)
+        )
 
         if (blockType === 'html') {
           if (text.length < 10) continue
@@ -176,7 +184,7 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
           }
 
           // Get clean HTML content (inline cleanHtml function)
-          const innerHtml = block.querySelector('.sqs-html-content')?.innerHTML || block.innerHTML
+          const innerHtml = htmlContent?.innerHTML || block.innerHTML
           const cleanedHtml = innerHtml
             .replace(/\s*style="[^"]*"/gi, '')
             .replace(/\s*class="[^"]*"/gi, '')
@@ -239,7 +247,20 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
         }
       }
 
-      if (contentParts.length === 0) return {}
+      // Ticket link: prefer a known ticketing host, else a button labeled "ticket"
+      // Hostname must contain a dot: venues sometimes paste malformed hrefs like " https//tixr..."
+      const links = Array.from(
+        document.querySelectorAll<HTMLAnchorElement>('a[href^="http"]')
+      ).filter((a) => a.hostname.includes('.'))
+      const ticketLink =
+        links.find((a) =>
+          /tixr\.com|eventbrite\.|ticketmaster\.|etix\.com|dice\.fm|seetickets\.|axs\.com|ticketweb\.|showclix\.|universe\.com/i.test(
+            a.hostname
+          )
+        ) ||
+        links.find(
+          (a) => a.closest('.sqs-block-button') && /ticket/i.test(a.textContent || '')
+        )
 
       // Build HTML description (processDescriptions will extract plain text)
       const description = contentParts.map((p) => p.content).join('\n')
@@ -248,6 +269,7 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
         pricingInfo,
         doorsInfo,
         description: description || undefined,
+        ticketUrl: ticketLink?.href,
       }
     })
   }
@@ -258,7 +280,12 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
   protected parseSquarespaceEvent(
     data: Record<string, unknown>,
     sourceUrl: string,
-    pageContent?: { pricingInfo?: string; doorsInfo?: string; description?: string }
+    pageContent?: {
+      pricingInfo?: string
+      doorsInfo?: string
+      description?: string
+      ticketUrl?: string
+    }
   ): ScrapedEvent | null {
     try {
       // Extract and clean title (often has " — Venue Name" suffix)
@@ -326,6 +353,7 @@ export abstract class SquarespaceScraper extends PlaywrightScraper {
         sourceUrl,
         sourceEventId,
         coverCharge,
+        ticketUrl: pageContent?.ticketUrl,
       }
     } catch (error) {
       console.error(`[${this.config.name}] Error parsing event:`, error)
