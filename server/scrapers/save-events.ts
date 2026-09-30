@@ -359,7 +359,9 @@ export async function markMissingEventsAsCanceled(
 }
 
 /**
- * Save multiple scraped events and return counts
+ * Save multiple scraped events and return counts. `accepted` is the number of
+ * events that passed date validation and saved without error (created,
+ * updated, or deduped): the scraper's usable upcoming event count.
  */
 export async function saveScrapedEvents(
   prisma: PrismaClient,
@@ -367,11 +369,19 @@ export async function saveScrapedEvents(
   venue: { id: string; regionId: string },
   source: { id: string; priority: number },
   defaultAgeRestriction?: 'ALL_AGES' | 'EIGHTEEN_PLUS' | 'TWENTY_ONE_PLUS'
-): Promise<{ saved: number; skipped: number; updated: number; filtered: number; canceled: number }> {
+): Promise<{
+  saved: number
+  skipped: number
+  updated: number
+  filtered: number
+  canceled: number
+  accepted: number
+}> {
   let saved = 0
   let skipped = 0
   let updated = 0
   let filtered = 0
+  let errored = 0
 
   // Track sourceEventIds for cancellation detection
   const scrapedSourceEventIds: string[] = []
@@ -419,6 +429,7 @@ export async function saveScrapedEvents(
     } catch (error) {
       console.error(`[SaveEvent] Error saving event: ${event.title}`, error)
       skipped++
+      errored++
     }
   }
 
@@ -440,7 +451,7 @@ export async function saveScrapedEvents(
   }
 
   console.log(`[SaveEvent] Summary: saved=${saved}, updated=${updated}, skipped=${skipped}, filtered=${filtered}, canceled=${canceled}`)
-  return { saved, skipped, updated, filtered, canceled }
+  return { saved, skipped, updated, filtered, canceled, accepted: saved + updated + skipped - errored }
 }
 
 /**

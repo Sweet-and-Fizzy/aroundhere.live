@@ -827,6 +827,7 @@ export interface StaleScraperInfo {
   daysSinceLastRun: number | null
   isHardcoded: boolean
   daysSinceLastEvent?: number | null
+  quietThresholdDays?: number
 }
 
 export interface ScraperHealthDigest {
@@ -834,6 +835,7 @@ export interface ScraperHealthDigest {
   failingScrapers: StaleScraperInfo[] // 3+ consecutive failures
   disabledScrapers: StaleScraperInfo[] // isActive = false
   silentScrapers: StaleScraperInfo[] // Runs report success but return zero events
+  quietScrapers: StaleScraperInfo[] // Still returning events, but no new ones for longer than usual
   adminUrl?: string
 }
 
@@ -841,9 +843,10 @@ export interface ScraperHealthDigest {
  * Send a daily digest of scraper health issues
  */
 export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Promise<void> {
-  const { staleScrapers, failingScrapers, disabledScrapers, silentScrapers, adminUrl } = digest
+  const { staleScrapers, failingScrapers, disabledScrapers, silentScrapers, quietScrapers, adminUrl } = digest
 
-  const totalIssues = staleScrapers.length + failingScrapers.length + disabledScrapers.length + silentScrapers.length
+  const totalIssues =
+    staleScrapers.length + failingScrapers.length + disabledScrapers.length + silentScrapers.length + quietScrapers.length
 
   // Don't send if everything is healthy
   if (totalIssues === 0) {
@@ -878,6 +881,14 @@ export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Pr
       .map(s => `• ${s.name} (last new event ${s.daysSinceLastEvent ?? '?'}d ago)${s.isHardcoded ? ' [hardcoded]' : ''}`)
       .join('\n')
     sections.push(`*🤫 Silent (runs succeed but return zero events):*\n${silentList}${silentScrapers.length > 5 ? `\n_...and ${silentScrapers.length - 5} more_` : ''}`)
+  }
+
+  if (quietScrapers.length > 0) {
+    const quietList = quietScrapers
+      .slice(0, 5)
+      .map(s => `• ${s.name} (no new events in ${s.daysSinceLastEvent}d, flagged after ${s.quietThresholdDays}d)${s.isHardcoded ? ' [hardcoded]' : ''}`)
+      .join('\n')
+    sections.push(`*🔇 Gone quiet (no new events for longer than usual):*\n${quietList}${quietScrapers.length > 5 ? `\n_...and ${quietScrapers.length - 5} more_` : ''}`)
   }
 
   if (disabledScrapers.length > 0) {
