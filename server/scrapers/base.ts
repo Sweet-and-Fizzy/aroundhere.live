@@ -407,7 +407,7 @@ export abstract class HttpScraper implements BaseScraper {
     let events: ScrapedEvent[] = []
 
     try {
-      const response = await fetch(this.config.url, {
+      const response = await fetch(this.fetchUrl(), {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         },
@@ -434,6 +434,11 @@ export abstract class HttpScraper implements BaseScraper {
       scrapedAt: new Date(),
       duration: Date.now() - startTime,
     }
+  }
+
+  // Override when the data lives somewhere other than the venue's page (e.g. a JSON API)
+  protected fetchUrl(): string {
+    return this.config.url
   }
 
   protected abstract parseEvents(html: string): Promise<ScrapedEvent[]>

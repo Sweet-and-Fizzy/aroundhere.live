@@ -1,0 +1,494 @@
+{
+ "status": 1,
+ "data": {
+  "widgets": {
+   "c4b76df1-e520-4ed0-9318-f18bd056c38a": {
+    "status": 1,
+    "data": {
+     "settings": {
+      "events": [
+       {
+        "id": "71c4d065-c25f-4c13-9022-c2140748c0de",
+        "name": "Oliver Wood w/ Ric Robertson",
+        "start": {
+         "type": "datetime",
+         "date": "2026-09-30",
+         "time": "19:00"
+        },
+        "end": {
+         "type": "datetime",
+         "date": "2026-09-30",
+         "time": "19:00"
+        },
+        "timeZone": "America/New_York",
+        "repeatPeriod": "noRepeat",
+        "description": "<div>Whenever <strong>Oliver Wood</strong> isn't touring with The Wood Brothers — the Grammy-nominated roots trio that he co-founded in 2006 — he typically begins his mornings the same way: in Nashville, at home, with a coffee cup in his hand and a notebook in his lap.&nbsp;</div><br><div>&nbsp;</div><br><div>\"There's a chair in my living room, right in front of a window,\" he says. \"Every morning, I go down there to drink my coffee, meditate, and write. It's like a therapy session for me, because I can write without any specific goal in mind. I can be creative without being self-judgmental.”&nbsp;</div><br><div>&nbsp;</div><br><div>Many of the songs from Fat Cat Silhouette, Wood's second solo record, began taking shape in that chair. Produced by his Wood Brothers’ bandmate Jano Rix, it's an album of unexpected twists and turns. Longtime fans will recognize the earnest, elastic voice that has always anchored the Wood Brothers' mix of forward-looking folk and southern country-funk, but Fat Cat Silhouette doesn't spend much time looking backward. Instead, it abandons convention, breaks a few rules, and positions Oliver Wood as a roots-music innovator who's every bit as interested in the process as the product.&nbsp;&nbsp;</div><br><div>&nbsp;</div><br><div>\"I wanted to get outside my box and embrace the uncertainty of what's out there,\" he explains. \"I wanted weird guitar tones. The song 'Yo I Surrender' has the worst guitar sound I've ever heard in my life, and I just love it. I wanted more percussion and less drums. Once we began experimenting and doing whatever we wanted, the pressure melted away and I felt liberated.”&nbsp;</div><br><div>&nbsp;</div><br><div>On the album's opener, \"Light and Sweet,\" Wood matches an imaginative storyline with a melody that leaps from ground level into the stratosphere. Eight songs later, he brings things to a close with \"Fortune Drives the Bus,\" which he recorded on an iPhone in his own backyard. While tracking the rest of Fat Cat Silhouette to analog tape, Wood pushed himself to keep things weird. This is an album that finds the art in the unexpected, and Oliver Wood — whose songwriting and vocal chops remain as sharp as ever — at his most adventurous.&nbsp;</div><br><div><strong>Ric Robertson </strong>crafts songs that are as colorful and unpredictable as life itself, the kind of music that doesn’t ask for your attention — it quietly earns it. One note, one image, one breath at a time. He’s a singer, songwriter, multi-instrumentalist, and visual artist — but mostly, he’s just trying to make sense of the absurd beauty in being alive.</div><br><div>&nbsp;These days, Robertson is mostly out on the road solo, carving out his own odd little orbit, hauling a real upright piano from town to town — a heavy, creaky companion that makes every show a little less predictable and a lot more alive. It’s an old-school, seat-of-the-pants kind of operation: no playback, no safety net, just songs, stories, and a whole-hearted belief that the good stuff doesn’t need a middleman.</div><br><div>&nbsp;&nbsp;Raised in the American South but never easy to pin down, the music floats somewhere between timeless folk wisdom and psychedelic backroom vaudeville. A strange, beautiful blend , he has a gift for turning personal detours into universal truths, and turning heartbreak, hilarity, and hallucination into something you can hum along to.</div><br><div>&nbsp;&nbsp;Robertson has lent his voice, songs, and musical curiosity to projects with artists like Lucius, The Wood Brothers, and Sierra Ferrell, but it’s in his solo work where his vision comes fully alive and his voice shines most true. His latest album, Choices and Chains, is a crooked little odyssey of transformation- following the technicolor psychamericana on his breakout album “Carolina Child”.</div><br><div>&nbsp;&nbsp;Quietly radical, unabashedly grassroots, and fiercely human, you may find Ric Robertson somewhere past the edge of the map — alone on a small stage, an upright piano, a spellbound crowd, and a kind of music that cuts through the noise and reminds you why any of this matters at all. There’s a tenderness here, and a little madness too. But mostly there’s honesty — the kind you don’t come across every day, and the kind that sticks with you long after the music fades out.</div>",
+        "coverImage": {
+         "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/e539f6dc-2a55-4b8f-b2a5-04bdff31f9b2/Oliver-Wood-Photo-by-Alysse-Gafkjen-217.jpg",
+         "name": "Oliver Wood Photo by Alysse Gafkjen #217.jpg",
+         "size": 17218642,
+         "type": "image/jpeg",
+         "extension": "jpg",
+         "width": 8147,
+         "height": 5419,
+         "meta": {
+          "width": 8147,
+          "height": 5419
+         }
+        },
+        "images": [],
+        "eventType": [
+         "34b6f096-e0ae-4be5-9dc4-aa4330530501",
+         "363c0521-db2e-44ff-9e6b-d1ac076baf8c",
+         "ffb0c8c2-d229-456c-8f8c-e21171d2866f"
+        ],
+        "location": [
+         "e1912f9f-ec16-4a0e-a01c-a5bc84220db0"
+        ],
+        "host": [],
+        "tags": [],
+        "color": "transparent",
+        "actions": [
+         {
+          "id": "4a67820c-0ec1-410e-bfb3-86f846c335eb",
+          "type": "link",
+          "text": "LOW TICKETS",
+          "link": {
+           "type": "url",
+           "value": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000CbgnlMAB",
+           "rawValue": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000CbgnlMAB",
+           "target": "_blank"
+          },
+          "primary": true,
+          "visible": true
+         }
+        ],
+        "actionsCaption": "TIX START @ $30 incl. all fees",
+        "video": null,
+        "file": null,
+        "isAllDay": false,
+        "visible": true,
+        "exceptions": [],
+        "repeatMonthlyOnDay": "nthDay",
+        "repeatEndsOccurrences": 1,
+        "repeatWeeklyOnDays": [],
+        "repeatInterval": 1,
+        "repeatEnds": "never",
+        "repeatFrequency": "daily"
+       },
+       {
+        "id": "61178618-d12e-485f-95c3-99257d0e3866",
+        "name": "Rachel Sumner & Traveling Light w/ Lila!",
+        "start": {
+         "type": "datetime",
+         "date": "2026-10-25",
+         "time": "19:30"
+        },
+        "end": {
+         "type": "datetime",
+         "date": "2026-10-25",
+         "time": "19:30"
+        },
+        "timeZone": "US/Eastern",
+        "repeatPeriod": "noRepeat",
+        "description": "<div><strong>Rachel Sumner &amp; Traveling Light</strong> are a Boston-based string band making music that blends folk tradition with feminist storytelling, poetic detail, and just enough grit. At the center is Sumner’s songwriting—rooted in history, myth, and personal reckoning—carried by close harmonies, upright bass, acoustic guitar, and fiddle. The trio features <strong>Kat Wallace</strong> on fiddle and vocals and <strong>Mike Siegel</strong> on upright bass and vocals, whose playing brings both tension and tenderness to the sound.</div><br><div>Their sound is spare and intimate, sometimes eerie, sometimes sweet, always intentional. They call it <strong>Femericana</strong>—sharp-edged Americana with a splash of feminine rage.</div><br><div>Sumner has performed at the Library of Congress, where five of her original songs are now archived, and was a 2024 winner of the Kerrville New Folk competition. Her song “Radium Girls (Curie Eleison)” struck a nerve—streamed over 300,000 times and picked up by dancers, theater directors, and deep listeners who saw themselves in its story. It’s been tattooed on arms, sung in audition rooms, and carried into classrooms and protests. The kind of song people hold onto.</div><br><div>Rachel Sumner &amp; Traveling Light has toured coast to coast, bringing their spellbinding live show to listening rooms, libraries, farms, and festivals across the country. They've appeared at Grey Fox Bluegrass Festival, Earl Scruggs Festival, IBMA, and legendary folk listening rooms like Caffé Lena and Club Passim, where their shows have become a staple of the Boston folk scene.</div><br><div>Their latest release, <em>The Traveling Light Sessions</em>, reimagines Sumner’s studio album <em>Heartless Things</em>—recorded live around one microphone with no overdubs. Just the way they play it.</div><br><div><span>Western Mass born and raised singer-songwriter Lila!’s bedroom-indie-folk springs forth from the ocean of her honest heart, its dreamy tendrils drawing equally from the eternal turning of New England seasons and the cosmic well of the high desert, where her soul resides. Her debut EP “Judy” and single “High Desert Tsunami” are available on all streaming platforms.</span></div>",
+        "coverImage": {
+         "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/e0e172d3-7acb-43ce-b1a5-ece04c8af812/STALEY-TBF2025-8192.jpg"
+        },
+        "images": [],
+        "eventType": [],
+        "location": [
+         "fdad738b-571b-44b2-bee2-71e03b473e98"
+        ],
+        "host": [],
+        "tags": [],
+        "color": "transparent",
+        "actions": [
+         {
+          "id": "3c2ca0cf-9561-40d2-b037-bec0c1b796f5",
+          "type": "link",
+          "text": "TICKETS",
+          "link": {
+           "type": "url",
+           "value": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000B0lILMAZ",
+           "rawValue": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000B0lILMAZ",
+           "target": "_blank"
+          },
+          "primary": true,
+          "visible": true
+         }
+        ],
+        "actionsCaption": "TIX START @ $24 incl. all fees",
+        "video": null,
+        "file": null,
+        "isAllDay": false,
+        "visible": true,
+        "exceptions": [],
+        "repeatMonthlyOnDay": "nthDay",
+        "repeatEndsOccurrences": 1,
+        "repeatWeeklyOnDays": [],
+        "repeatInterval": 1,
+        "repeatEnds": "never",
+        "repeatFrequency": "daily"
+       },
+       {
+        "id": "c7855009-6c38-4fc3-beb6-814aaea83daf",
+        "name": "Beginner Mandolin w/ Glenn Weiser",
+        "start": {
+         "type": "datetime",
+         "date": "2026-10-05",
+         "time": "18:30"
+        },
+        "end": {
+         "type": "datetime",
+         "date": "2026-10-05",
+         "time": "18:30"
+        },
+        "timeZone": "America/New_York",
+        "repeatPeriod": "custom",
+        "description": "<div><strong>Door Time:</strong> 6:15pm <strong>|| Workshop Time</strong>: 6:30pm</div><br><div><strong><br>Max Capacity:</strong> <em>15</em><br><strong>Minimum:</strong> <em>4</em></div><br><div><em><br></em>The mandolin is one of the most versatile and easy to learn of the fretted instruments. It is commonly heard in folk, country, bluegrass, Celtic music, old-time, and even Delta blues. In this 4-week course, Glenn Weiser, a multi-instrumental teacher with 40 years’ experience, will get you started on the mandolin. Topics covered will include how to read tablature and music notation for melody playing, basic chords in the principal keys used in acoustic/roots music, the fundamentals of pick technique, and the tremolo. After boning up on the basics, you will play easy folk melodies in the keys of C, G, D, A, and Am, Em, and Dm. You will also learn some basics of music theory as it’s applied to mandolin-the concepts of the I, IV and V chords, and how scales and modes are constructed.&nbsp;&nbsp;Worksheets will be provided for each class at no extra charge.</div><br><div><strong><em>Instructor Bio:</em></strong><br>Glenn Weiser studied classical guitar in high school with Maestro Paul Battat, and later fingerstyle guitar with ragtime guitarist Eric Schoenberg. He also received instruction on mandolin from John McGann of the Berklee College of Music and pointers on blues harmonica from Jerry Portnoy, formerly of the Muddy Waters Blues Band. Now based in Connecticut, Glenn has taught students of all ages and levels how to play guitar, banjo, mandolin, harmonica, fiddle, ukulele, and electric bass for over 40 years. Acoustic Guitar magazine has called him a “master teacher.” The styles he teaches include folk, bluegrass, blues, Celtic music, old-time string band music, classical guitar, fingerstyle guitar, and classic rock. Glenn is the author of nine books on fingerstyle guitar and six books on harmonica, and has written for Acoustic Guitar and Sing Out! magazines. He has performed at festivals, coffeehouses, and other venues in the Northeast, and has two CDs of fingerstyle guitar music available. Glenn is ranked among&nbsp;<a href=\"http://harmonica.com\">harmonica.com</a>’s 100 Top Musicians. He is also the admin of Facebook’s Celtic Guitar Group and the Bluegrass, Country and Old-Time Harmonica group.</div><br><div>Glenn is also available for private lessons in Northampton to students of all levels on the above-named instruments and styles. Contact him at 413-455-9215 or at&nbsp;<a href=\"mailto:banjoandguitar100@yahoo.com\">banjoandguitar100@yahoo.com</a>&nbsp;</div><br><div>Website:&nbsp;<a href=\"http://www.celticguitarmusic.com\">www.celticguitarmusic.com</a></div>",
+        "coverImage": {
+         "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/33703ecf-d534-4e35-b2e9-3d349fb81847/Resized_20231103_124418.jpg",
+         "name": "Resized_20231103_124418.jpeg",
+         "size": 291927,
+         "type": "image/jpeg",
+         "extension": "jpg",
+         "width": 1080,
+         "height": 1080,
+         "meta": {
+          "width": 1080,
+          "height": 1080
+         }
+        },
+        "images": [],
+        "eventType": [
+         "afcfceb5-fbca-4d1b-accc-f6ee50b8f284"
+        ],
+        "location": [
+         "84ea831a-3ccf-42c4-97ac-c607b67e21b3"
+        ],
+        "host": [],
+        "tags": [],
+        "color": "rgb(230, 248, 233)",
+        "actions": [
+         {
+          "id": "1e1ec7ab-fc6d-41f9-9060-50a60f6e9b71",
+          "type": "link",
+          "text": "REGISTER HERE",
+          "link": {
+           "type": "url",
+           "value": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV5000008sGsnMAE",
+           "rawValue": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV5000008sGsnMAE",
+           "target": "_blank"
+          },
+          "primary": true,
+          "visible": true
+         }
+        ],
+        "actionsCaption": "BUNDLE PRICE STARTS @ $125 incl. all fees",
+        "video": null,
+        "file": null,
+        "isAllDay": false,
+        "visible": true,
+        "exceptions": [],
+        "repeatMonthlyOnDay": "nthDay",
+        "repeatEndsOccurrences": 1,
+        "repeatWeeklyOnDays": [
+         "mo"
+        ],
+        "repeatEnds": "onDate",
+        "repeatFrequency": "weekly",
+        "repeatEndsDate": {
+         "type": "datetime",
+         "date": "2026-10-26",
+         "time": "18:30"
+        },
+        "repeatInterval": 1
+       },
+       {
+        "id": "ee0ba639-b692-4806-a78e-5c368623b35d",
+        "name": "The Ultimate Doors: Tribute to The Doors",
+        "start": {
+         "type": "datetime",
+         "date": "2026-08-30",
+         "time": "19:00"
+        },
+        "end": {
+         "type": "datetime",
+         "date": "2026-08-30",
+         "time": "19:00"
+        },
+        "timeZone": "America/New_York",
+        "repeatPeriod": "noRepeat",
+        "description": "<div><strong>The Ultimate Doors</strong> has long been celebrated as one of the most authentic and&nbsp;powerful Doors tribute bands in the country. Described by fans and critics as&nbsp;“uncannily true to the original” and “the closest you’ll get to seeing The Doors&nbsp;live today,” the band has built its reputation on delivering a raw, electrifying,&nbsp;and immersive experience that captures the spirit of Jim Morrison and The&nbsp;Doors with uncanny accuracy.</div><br><div>What sets The Ultimate Doors apart is their obsessive attention to<br>authenticity. From the period-correct instruments and vintage gear that<br>recreate The Doors’ unmistakable tones, to the styling, stage presence, and<br>energy that mirror the original band, every detail is crafted to transport<br>audiences back to 1968. The four musicians of The Ultimate Doors combine to&nbsp;create a sound so faithful that fans often remark they feel as though they’re at&nbsp;a real Doors concert. It’s not just a tribute….it’s a time machine.</div>",
+        "coverImage": {
+         "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/31cca21b-c8ea-49ed-83f3-3c32eb18746c/3-BAND-PHOTO-NO-LOGO.jpg"
+        },
+        "images": [],
+        "eventType": [
+         "33c345de-4ee0-4658-b445-0e1d96573642",
+         "34b6f096-e0ae-4be5-9dc4-aa4330530501"
+        ],
+        "location": [
+         "e1912f9f-ec16-4a0e-a01c-a5bc84220db0"
+        ],
+        "host": [],
+        "tags": [],
+        "color": "transparent",
+        "actions": [
+         {
+          "id": "797ab66c-7d24-47a9-ac61-e947110597be",
+          "type": "link",
+          "text": "TICKETS",
+          "link": {
+           "type": "url",
+           "value": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000BVAkjMAH",
+           "rawValue": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000BVAkjMAH",
+           "target": "_blank"
+          },
+          "primary": true,
+          "visible": true
+         }
+        ],
+        "actionsCaption": "TIX START @ $36 incl. all fees",
+        "video": null,
+        "file": null,
+        "isAllDay": false,
+        "visible": true,
+        "exceptions": [],
+        "repeatMonthlyOnDay": "nthDay",
+        "repeatEndsOccurrences": 1,
+        "repeatWeeklyOnDays": [],
+        "repeatInterval": 1,
+        "repeatEnds": "never",
+        "repeatFrequency": "daily"
+       },
+       {
+        "id": "c7eca97a-20fc-401a-b27b-e126a7fbc6a2",
+        "name": "Little Lies: A Tribute to Fleetwood Mac",
+        "start": {
+         "type": "datetime",
+         "date": "2026-08-01",
+         "time": "19:00"
+        },
+        "end": {
+         "type": "datetime",
+         "date": "2026-08-01",
+         "time": "19:00"
+        },
+        "timeZone": "America/New_York",
+        "repeatPeriod": "noRepeat",
+        "description": "<div><strong>Little Lies</strong> is a touring, high-energy tribute band that captures the youthful spirit and classic sound of one of the most popular bands in the world, Fleetwood Mac.&nbsp;</div><br><div>Hailing from Boston, this seven-person lineup of professional musicians carefully reconstructs the magic of Fleetwood Mac with soaring harmonies and a thundering rhythm section. Presenting a compelling show that has consistently sold out theatres across New England and the Tri-State region over the last two years.</div><br><div>The entire catalogue of Fleetwood Mac’s 50-year tenure with Stevie Nicks and Lyndsey Buckingham is passionately recreated with breezy summer hits like “Dreams”, “Go Your Own Way” and “Say You Love Me”. The preceding formative years of Fleetwood Mac are also authentically represented with favorites like Bob Welch’s “Sentimental Lady” and founding member Peter Green’s “Black Magic Woman”.</div><br><div>Come dance the night away and sing along to some of the most memorable music in rock history and join Little Lies: A Tribute to Fleetwood Mac for an evening of romance, drama and of course, Rumours!</div>",
+        "coverImage": {
+         "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/af628f31-695c-408d-83ce-481a3a8a2aa0/LITTLE-LIES-BAND-PHOTO-ALTERNATE-OCT-2025.jpg"
+        },
+        "images": [],
+        "eventType": [
+         "33c345de-4ee0-4658-b445-0e1d96573642",
+         "34b6f096-e0ae-4be5-9dc4-aa4330530501"
+        ],
+        "location": [],
+        "host": [],
+        "tags": [],
+        "color": "transparent",
+        "actions": [
+         {
+          "id": "2a43a5f8-8db2-47e8-a301-3cb4ea162b36",
+          "type": "link",
+          "text": "TICKETS",
+          "link": {
+           "type": "url",
+           "value": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000BOHGvMAP",
+           "rawValue": "https://theparlorroom.my.salesforce-sites.com/ticket/#/events/a0SV500000BOHGvMAP",
+           "target": "_blank"
+          },
+          "primary": true,
+          "visible": true
+         }
+        ],
+        "actionsCaption": "TIX START @ $36 incl. all fees",
+        "video": null,
+        "file": null,
+        "isAllDay": false,
+        "visible": true,
+        "exceptions": [],
+        "repeatMonthlyOnDay": "nthDay",
+        "repeatEndsOccurrences": 1,
+        "repeatWeeklyOnDays": [],
+        "repeatInterval": 1,
+        "repeatEnds": "never",
+        "repeatFrequency": "daily"
+       },
+       {
+        "id": "29733de6-8f41-499d-9a2f-e32307440680",
+        "name": "Student Jazz Workshop & Jam Sessions (Showcase)",
+        "start": {
+         "type": "datetime",
+         "date": "2026-12-12",
+         "time": "09:30"
+        },
+        "end": {
+         "type": "datetime",
+         "date": "2026-12-12",
+         "time": "11:30"
+        },
+        "timeZone": "US/Eastern",
+        "repeatPeriod": "noRepeat",
+        "description": "<div>Doors: 9:00am<br>Workshop: 9:30am - 11:30am</div><br><div></div><br><div>Saturday Morning Jazz workshops, with local jazz artists, providing lessons for participants in</div><br><div>the first half and then will host a jam session in the second.</div><br><div><strong><u>Objective:</u></strong></div><br><div>To provide jazz education to high school programs and students in the Western District of Massachusetts. Students will meet with local professional jazz artist through jazz workshop presentations. Students will participate in jazz jam sessions hosted by Western District Jazz Directors. All students can attend at no cost. A Fall &amp; Spring High School Jazz Showcase will be held at the Parlor Room for the community.</div>",
+        "coverImage": null,
+        "images": [],
+        "eventType": [
+         "5721fad9-129f-4860-8c03-f734028961a6",
+         "a28cdedc-9fde-43e9-93e9-ab951d1ead48"
+        ],
+        "location": [
+         "e1912f9f-ec16-4a0e-a01c-a5bc84220db0"
+        ],
+        "host": [],
+        "tags": [],
+        "color": "rgb(255, 255, 255)",
+        "actions": [
+         {
+          "id": "915a91ec-7e1e-43ba-a9d8-c529dd975f27",
+          "type": "addToCalendar",
+          "text": "Add To Calendar",
+          "primary": true
+         }
+        ],
+        "actionsCaption": "FREE & OPEN TO ALL",
+        "video": null,
+        "file": null,
+        "isAllDay": false,
+        "visible": true,
+        "exceptions": [],
+        "repeatMonthlyOnDay": "nthDay",
+        "repeatEndsOccurrences": 1,
+        "repeatWeeklyOnDays": [
+         "tu"
+        ],
+        "repeatInterval": 1,
+        "repeatEnds": "onDate",
+        "repeatFrequency": "monthly",
+        "repeatEndsDate": {
+         "type": "datetime",
+         "date": "2027-02-02",
+         "time": "18:30"
+        }
+       }
+      ],
+      "locations": [
+       {
+        "name": "SHEA THEATER",
+        "address": "71 Avenue A, Turners Falls, MA",
+        "website": "https://sheatheater.org/",
+        "id": "1e78b36e-bcb9-4a45-b09e-e5165b2e5c14",
+        "filterID": "shea-theater"
+       },
+       {
+        "id": "fdad738b-571b-44b2-bee2-71e03b473e98",
+        "name": "THE PARLOR ROOM",
+        "address": "32 Masonic St., Northampton, MA 01060",
+        "website": "https://ironhorse.org/parlorroomshows",
+        "filterID": "the-parlor-room"
+       },
+       {
+        "id": "84ea831a-3ccf-42c4-97ac-c607b67e21b3",
+        "name": "MUSICIAN'S WORKSHOP",
+        "filterID": "musician's-workshop"
+       },
+       {
+        "id": "e1912f9f-ec16-4a0e-a01c-a5bc84220db0",
+        "name": "THE IRON HORSE",
+        "address": "18 Center Street, Northampton MA, 01060",
+        "website": "https://ironhorse.org/",
+        "filterID": "the-iron-horse"
+       },
+       {
+        "id": "c7373dbc-9ae5-46fa-8789-ef49b8cf53b4",
+        "name": "Downtown Northampton"
+       },
+       {
+        "id": "8a1d64ec-c08e-4f97-bf06-e2cc0b62fba0",
+        "name": "BLACK BIRCH VINEYARD",
+        "address": "108 Straits Road Hatfield, Massachusetts 01066",
+        "website": "https://www.blackbirchvineyard.com/vineyard-events",
+        "filterID": "black-birch-vineyard"
+       },
+       {
+        "id": "616b7899-99a0-477b-9f0f-1b461855d39e",
+        "name": "Back Porch Festival",
+        "address": "",
+        "website": "https://www.backporchfest.com/"
+       }
+      ],
+      "eventTypes": [
+       {
+        "id": "ffb0c8c2-d229-456c-8f8c-e21171d2866f",
+        "name": "Americana",
+        "categoryColor": "transparent",
+        "$$key": [
+         "eventTypes",
+         3
+        ]
+       },
+       {
+        "id": "34b6f096-e0ae-4be5-9dc4-aa4330530501",
+        "name": "Rock",
+        "categoryColor": "transparent",
+        "$$key": [
+         "eventTypes",
+         8
+        ]
+       },
+       {
+        "id": "363c0521-db2e-44ff-9e6b-d1ac076baf8c",
+        "name": "Blues",
+        "categoryColor": "transparent",
+        "$$key": [
+         "eventTypes",
+         24
+        ]
+       },
+       {
+        "id": "a28cdedc-9fde-43e9-93e9-ab951d1ead48",
+        "name": "FREE EVENT",
+        "categoryColor": "rgb(255, 56, 56)",
+        "$$key": [
+         "eventTypes",
+         28
+        ]
+       },
+       {
+        "id": "5721fad9-129f-4860-8c03-f734028961a6",
+        "name": "Open Mic",
+        "categoryColor": "transparent",
+        "$$key": [
+         "eventTypes",
+         29
+        ]
+       },
+       {
+        "id": "33c345de-4ee0-4658-b445-0e1d96573642",
+        "name": "Tribute",
+        "categoryColor": "transparent",
+        "$$key": [
+         "eventTypes",
+         30
+        ]
+       },
+       {
+        "id": "afcfceb5-fbca-4d1b-accc-f6ee50b8f284",
+        "name": "MUSICIAN'S WORKSHOP",
+        "categoryColor": "transparent",
+        "$$key": [
+         "eventTypes",
+         53
+        ]
+       }
+      ]
+     }
+    }
+   }
+  }
+ }
+}
