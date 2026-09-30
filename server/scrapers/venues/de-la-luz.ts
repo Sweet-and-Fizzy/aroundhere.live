@@ -1,6 +1,7 @@
 import { HttpScraper } from '../base'
 import type { ScrapedEvent, ScraperConfig } from '../types'
 import * as cheerio from 'cheerio'
+import { fromZonedTime } from 'date-fns-tz'
 
 /**
  * Scraper for De La Luz - WordPress site with WooCommerce/FooEvents
@@ -21,6 +22,41 @@ export const deLaLuzConfig: ScraperConfig = {
   priority: 10,
   timezone: 'America/New_York',
   defaultAgeRestriction: 'ALL_AGES', // Concert hall - varies by show
+}
+
+/**
+ * Parse an event startDate. The current (Next.js) site emits real ISO
+ * timestamps; the old WordPress site emitted "2025-11-22T1763856000America/New_York"
+ * (a Unix timestamp after the T) or a bare date. Exported for testing.
+ */
+export function parseDeLaLuzStartDate(startDate: string, timezone: string): Date | null {
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(startDate)) {
+    const iso = new Date(startDate)
+    if (!isNaN(iso.getTime())) return iso
+  }
+
+  const timestamp = startDate.match(/T(\d{10})(?:\d{3})?/)
+  if (timestamp?.[1]) return new Date(parseInt(timestamp[1], 10) * 1000)
+
+  const date = startDate.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (date?.[1]) return fromZonedTime(`${date[1]}T19:00:00`, timezone) // Default to 7 PM local
+
+  return null
+}
+
+/**
+ * The event page's tagline plus its story sections, which hold the full copy
+ * (the LD+JSON description is empty on the current site). Exported for testing.
+ */
+export function extractStoryDescription($: cheerio.CheerioAPI): string | undefined {
+  const parts: string[] = []
+  const hook = $('p.show-hook').first().text().trim()
+  if (hook) parts.push(`<p><strong>${hook}</strong></p>`)
+  $('#story .show-story-text').each((_, el) => {
+    const html = $(el).html()?.trim()
+    if (html) parts.push(html)
+  })
+  return parts.length > (hook ? 1 : 0) ? parts.join('\n') : undefined
 }
 
 export class DeLaLuzScraper extends HttpScraper {
@@ -87,23 +123,21 @@ export class DeLaLuzScraper extends HttpScraper {
       }
     })
 
-    // Dedupe links
-    const uniqueLinks = [...new Set(eventLinks)]
-
-    // Normalize URLs (convert relative to absolute)
-    const normalizedLinks = uniqueLinks.map((link) => {
-      try {
-        // If already absolute, return as-is
-        if (link.startsWith('http://') || link.startsWith('https://')) {
-          return link
-        }
-        // Use URL constructor to resolve relative URLs
-        return new URL(link, this.config.url).href
-      } catch {
-        // If URL parsing fails, return original link
-        return link
-      }
-    })
+    // Normalize URLs (absolute, no #fragment or trailing slash) before deduping:
+    // the listing links each show both as /events/x and /events/x#tickets
+    const normalizedLinks = [
+      ...new Set(
+        eventLinks.map((link) => {
+          try {
+            const url = new URL(link, this.config.url)
+            url.hash = ''
+            return url.href.replace(/\/$/, '')
+          } catch {
+            return link
+          }
+        })
+      ),
+    ]
 
     console.log(`[${this.config.name}] Found ${normalizedLinks.length} event links`)
 
@@ -188,6 +222,10 @@ export class DeLaLuzScraper extends HttpScraper {
         eventData.coverCharge = priceFromHtml
       }
 
+      if (eventData && !eventData.description) {
+        eventData.description = extractStoryDescription($)
+      }
+
       return eventData
     } catch (error) {
       console.error(`[${this.config.name}] Error fetching ${url}:`, error)
@@ -263,37 +301,8 @@ export class DeLaLuzScraper extends HttpScraper {
       const startDate = data.startDate as string
       if (!startDate) return null
 
-      console.log(`[${this.config.name}] parseEventSchema: startDate="${startDate}" for "${title}"`)
-
-      // De La Luz has malformed dates like "2025-11-22T1763856000America/New_York"
-      // The format includes a Unix timestamp after the T
-      let startsAt: Date
-      
-      // First, try to extract the Unix timestamp (10 digits after T)
-      const timestampMatch = startDate.match(/T(\d{10})(?:\d{3})?/)
-      if (timestampMatch && timestampMatch[1]) {
-        const timestamp = parseInt(timestampMatch[1], 10)
-        // It's a Unix timestamp in seconds, convert to milliseconds
-        startsAt = new Date(timestamp * 1000)
-        console.log(`[${this.config.name}] parseEventSchema: Extracted timestamp ${timestamp}, created ${startsAt.toISOString()}`)
-      } else {
-        // Fallback: Extract date part (YYYY-MM-DD)
-        const dateMatch = startDate.match(/^(\d{4}-\d{2}-\d{2})/)
-        if (dateMatch && dateMatch[1]) {
-          const dateStr = dateMatch[1]
-          // Create date in local timezone (will be converted properly)
-          const parts = dateStr.split('-')
-          const year = Number(parts[0])
-          const month = Number(parts[1])
-          const day = Number(parts[2])
-          startsAt = new Date(year, month - 1, day, 19, 0, 0) // Default to 7 PM local time
-        } else {
-          startsAt = new Date(startDate)
-        }
-      }
-      if (isNaN(startsAt.getTime())) {
-        return null
-      }
+      const startsAt = parseDeLaLuzStartDate(startDate, this.config.timezone)
+      if (!startsAt) return null
 
       // Skip past events using timezone-aware comparison
       // The venue is in America/New_York but the server runs in UTC.
