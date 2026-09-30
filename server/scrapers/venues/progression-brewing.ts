@@ -23,6 +23,56 @@ export const progressionBrewingConfig: ScraperConfig = {
   defaultAgeRestriction: 'TWENTY_ONE_PLUS', // Brewery/bar venue
 }
 
+interface ProgressionDetail {
+  imageUrl?: string
+  description?: string
+  coverCharge?: string
+}
+
+/**
+ * Parse an event detail page. LD+JSON used to carry the event, but the site now
+ * only emits Organization/WebSite there, so fall back to the Modern Events
+ * Calendar markup. Exported for testing.
+ */
+export function parseProgressionDetail(html: string): ProgressionDetail {
+  const $ = cheerio.load(html)
+  let imageUrl: string | undefined
+  let description: string | undefined
+
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const data = JSON.parse($(el).html() || '')
+      const items = data['@graph'] || [data]
+      for (const item of items) {
+        if (!['Article', 'Event', 'MusicEvent'].includes(item['@type'])) continue
+        if (!imageUrl && item.image) {
+          imageUrl = typeof item.image === 'string' ? item.image : item.image.url
+        }
+        if (!description && item.description) description = item.description
+      }
+    } catch {
+      // JSON parse failed
+    }
+  })
+
+  if (!description) {
+    description = $('.mec-single-event-description').first().html()?.trim() || undefined
+  }
+
+  if (!imageUrl) {
+    // Images are lazy-loaded: src is an SVG placeholder, the real URL is in data-breeze
+    const img = $('.mec-events-event-image img').first()
+    const candidate = img.attr('data-breeze') || img.attr('data-src') || img.attr('src')
+    if (candidate && !candidate.startsWith('data:')) imageUrl = candidate
+  }
+
+  // Band nights share a "Free Live Music ... 18+ After 7pm" blurb
+  const text = description ? cheerio.load(description).text() : ''
+  const coverCharge = /\bfree live music/i.test(text) ? 'Free' : undefined
+
+  return { imageUrl, description, coverCharge }
+}
+
 export class ProgressionBrewingScraper extends HttpScraper {
   constructor() {
     super(progressionBrewingConfig)
@@ -133,7 +183,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
   protected async parseEvents(html: string): Promise<ScrapedEvent[]> {
     const $ = cheerio.load(html)
     const events: ScrapedEvent[] = []
-    const eventsNeedingImages: ScrapedEvent[] = []
+    const eventsNeedingDetails: ScrapedEvent[] = []
 
     // Try to extract from LD+JSON first
     $('script[type="application/ld+json"]').each((_, el) => {
@@ -162,8 +212,8 @@ export class ProgressionBrewingScraper extends HttpScraper {
         const isDupe = events.some((e) => e.sourceEventId === result.event.sourceEventId)
         if (!isDupe) {
           events.push(result.event)
-          if (result.needsImageFetch) {
-            eventsNeedingImages.push(result.event)
+          if (result.needsDetailFetch) {
+            eventsNeedingDetails.push(result.event)
           }
         }
       }
@@ -192,17 +242,14 @@ export class ProgressionBrewingScraper extends HttpScraper {
     }
 
     // Fetch details from individual event pages for events that need them
-    if (eventsNeedingImages.length > 0) {
-      console.log(`[${this.config.name}] Fetching details for ${eventsNeedingImages.length} events`)
+    if (eventsNeedingDetails.length > 0) {
+      console.log(`[${this.config.name}] Fetching details for ${eventsNeedingDetails.length} events`)
       await Promise.all(
-        eventsNeedingImages.map(async (event) => {
+        eventsNeedingDetails.map(async (event) => {
           const details = await this.fetchEventDetails(event.sourceUrl)
-          if (details.imageUrl) {
-            event.imageUrl = details.imageUrl
-          }
-          if (details.description) {
-            event.description = details.description
-          }
+          event.imageUrl ||= details.imageUrl
+          event.description ||= details.description
+          event.coverCharge ||= details.coverCharge
         })
       )
     }
@@ -273,7 +320,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
   private parseMECEventElement(
     $: cheerio.CheerioAPI,
     $el: ReturnType<cheerio.CheerioAPI>
-  ): { event: ScrapedEvent; needsImageFetch: boolean } | null {
+  ): { event: ScrapedEvent; needsDetailFetch: boolean } | null {
     try {
       // Get title from MEC event title link
       const titleLink = $el.find('.mec-event-title a').first()
@@ -331,7 +378,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
           sourceUrl,
           sourceEventId,
         },
-        needsImageFetch: !imageUrl && sourceUrl !== this.config.url,
+        needsDetailFetch: sourceUrl !== this.config.url,
       }
     } catch (error) {
       console.error(`[${this.config.name}] Error parsing MEC event element:`, error)
@@ -340,9 +387,9 @@ export class ProgressionBrewingScraper extends HttpScraper {
   }
 
   /**
-   * Fetch image and description from an event's detail page using LD+JSON
+   * Fetch image, description and price from an event's detail page
    */
-  private async fetchEventDetails(eventUrl: string): Promise<{ imageUrl?: string; description?: string }> {
+  private async fetchEventDetails(eventUrl: string): Promise<ProgressionDetail> {
     try {
       const response = await fetch(eventUrl, {
         headers: {
@@ -351,48 +398,7 @@ export class ProgressionBrewingScraper extends HttpScraper {
       })
 
       if (!response.ok) return {}
-
-      const html = await response.text()
-      const $ = cheerio.load(html)
-
-      let imageUrl: string | undefined
-      let description: string | undefined
-
-      $('script[type="application/ld+json"]').each((_, el) => {
-        if (imageUrl && description) return // Already found both
-
-        try {
-          const data = JSON.parse($(el).html() || '')
-
-          // Handle @graph structure
-          if (data['@graph']) {
-            for (const item of data['@graph']) {
-              if (item['@type'] === 'Article') {
-                if (!imageUrl && item.image) {
-                  imageUrl = item.image.url || item.image
-                }
-                if (!description && item.description) {
-                  description = item.description
-                }
-              }
-            }
-          }
-
-          // Handle direct Event type
-          if (data['@type'] === 'Event' || data['@type'] === 'MusicEvent') {
-            if (!imageUrl && data.image) {
-              imageUrl = typeof data.image === 'string' ? data.image : data.image.url
-            }
-            if (!description && data.description) {
-              description = data.description
-            }
-          }
-        } catch {
-          // JSON parse failed
-        }
-      })
-
-      return { imageUrl, description }
+      return parseProgressionDetail(await response.text())
     } catch (error) {
       console.error(`[${this.config.name}] Error fetching event details from ${eventUrl}:`, error)
       return {}
