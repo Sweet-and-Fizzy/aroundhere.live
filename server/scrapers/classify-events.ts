@@ -6,12 +6,21 @@
 
 import type { PrismaClient } from '@prisma/client'
 import { classifier } from '../services/classifier'
-import type { ClassificationInput } from '../services/classifier/types'
+import type { ClassificationInput, ClassificationResult } from '../services/classifier/types'
 import { generateEmbeddings, buildEventEmbeddingText } from '../services/embeddings'
 import { sendSlackNotification } from '../services/notifications'
 
 const BATCH_SIZE = 20
 const MAX_CLASSIFICATION_ATTEMPTS = 3
+const SUMMARY_BACKFILL_LIMIT = 100
+
+type EventForClassification = {
+  id: string
+  title: string
+  description: string | null
+  genres: string[]
+  venue: { name: string } | null
+}
 
 /**
  * Classify a single event by ID (used when approving community submissions)
@@ -104,6 +113,96 @@ export async function classifySingleEvent(
 }
 
 /**
+ * Classify a batch of events and save the results (classification, summary,
+ * and embeddings for music events). Throws if the classifier fails.
+ */
+async function classifyAndSave(
+  prisma: PrismaClient,
+  events: EventForClassification[]
+): Promise<ClassificationResult[]> {
+  const inputs: ClassificationInput[] = events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    venueName: e.venue?.name,
+    existingTags: e.genres,
+  }))
+
+  const results = await classifier.classifyWithFallback(inputs)
+
+  // Build embedding texts for events that are music (we care about similarity for music events)
+  const musicResults = results.filter(r => r.isMusic && events.some(e => e.id === r.eventId))
+  const embeddingTexts = musicResults.map(result => {
+    const event = events.find(e => e.id === result.eventId)!
+    return buildEventEmbeddingText({
+      title: event.title,
+      description: event.description,
+      canonicalGenres: result.canonicalGenres,
+      eventType: result.eventType,
+    })
+  })
+
+  // Generate embeddings in batch
+  let embeddings: number[][] = []
+  if (embeddingTexts.length > 0) {
+    try {
+      embeddings = await generateEmbeddings(embeddingTexts)
+      console.log(`[Classify] Generated ${embeddings.length} embeddings`)
+    } catch (embeddingError) {
+      console.error('[Classify] Failed to generate embeddings:', embeddingError)
+      // Continue without embeddings - they can be backfilled later
+    }
+  }
+
+  // Update events with classification and embeddings
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i]
+    if (!result) continue
+    const musicIndex = musicResults.findIndex(r => r.eventId === result.eventId)
+    const embedding = musicIndex >= 0 && embeddings[musicIndex]
+      ? embeddings[musicIndex]
+      : null
+
+    // Use raw SQL to update embedding since Prisma doesn't support vector type
+    if (embedding) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE events SET
+          "isMusic" = $1,
+          "eventType" = $2,
+          "canonicalGenres" = $3,
+          "summary" = $4,
+          "classifiedAt" = $5,
+          "classificationConfidence" = $6,
+          embedding = $7::vector
+        WHERE id = $8`,
+        result.isMusic,
+        result.eventType,
+        result.canonicalGenres,
+        result.summary,
+        new Date(),
+        result.confidence,
+        `[${embedding.join(',')}]`,
+        result.eventId
+      )
+    } else {
+      await prisma.event.update({
+        where: { id: result.eventId },
+        data: {
+          isMusic: result.isMusic,
+          eventType: result.eventType,
+          canonicalGenres: result.canonicalGenres,
+          summary: result.summary,
+          classifiedAt: new Date(),
+          classificationConfidence: result.confidence,
+        },
+      })
+    }
+  }
+
+  return results
+}
+
+/**
  * Classify all pending (unclassified) events in batches
  * Returns the total number of events classified
  */
@@ -133,85 +232,8 @@ export async function classifyPendingEvents(
 
     console.log(`[Classify] Processing batch of ${unclassified.length} events...`)
 
-    const inputs: ClassificationInput[] = unclassified.map((e) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      venueName: e.venue?.name,
-      existingTags: e.genres,
-    }))
-
     try {
-      const results = await classifier.classifyWithFallback(inputs)
-
-      // Build embedding texts for events that are music (we care about similarity for music events)
-      const musicResults = results.filter(r => r.isMusic && unclassified.some(e => e.id === r.eventId))
-      const embeddingTexts = musicResults.map(result => {
-        const event = unclassified.find(e => e.id === result.eventId)!
-        return buildEventEmbeddingText({
-          title: event.title,
-          description: event.description,
-          canonicalGenres: result.canonicalGenres,
-          eventType: result.eventType,
-        })
-      })
-
-      // Generate embeddings in batch
-      let embeddings: number[][] = []
-      if (embeddingTexts.length > 0) {
-        try {
-          embeddings = await generateEmbeddings(embeddingTexts)
-          console.log(`[Classify] Generated ${embeddings.length} embeddings`)
-        } catch (embeddingError) {
-          console.error('[Classify] Failed to generate embeddings:', embeddingError)
-          // Continue without embeddings - they can be backfilled later
-        }
-      }
-
-      // Update events with classification and embeddings
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i]
-        if (!result) continue
-        const musicIndex = musicResults.findIndex(r => r.eventId === result.eventId)
-        const embedding = musicIndex >= 0 && embeddings[musicIndex]
-          ? embeddings[musicIndex]
-          : null
-
-        // Use raw SQL to update embedding since Prisma doesn't support vector type
-        if (embedding) {
-          await prisma.$executeRawUnsafe(
-            `UPDATE events SET
-              "isMusic" = $1,
-              "eventType" = $2,
-              "canonicalGenres" = $3,
-              "summary" = $4,
-              "classifiedAt" = $5,
-              "classificationConfidence" = $6,
-              embedding = $7::vector
-            WHERE id = $8`,
-            result.isMusic,
-            result.eventType,
-            result.canonicalGenres,
-            result.summary,
-            new Date(),
-            result.confidence,
-            `[${embedding.join(',')}]`,
-            result.eventId
-          )
-        } else {
-          await prisma.event.update({
-            where: { id: result.eventId },
-            data: {
-              isMusic: result.isMusic,
-              eventType: result.eventType,
-              canonicalGenres: result.canonicalGenres,
-              summary: result.summary,
-              classifiedAt: new Date(),
-              classificationConfidence: result.confidence,
-            },
-          })
-        }
-      }
+      const results = await classifyAndSave(prisma, unclassified)
 
       const musicCount = results.filter((r) => r.isMusic).length
       totalClassified += results.length
@@ -286,10 +308,62 @@ export async function classifyPendingEvents(
     totalFailed += stuckEvents.length
   }
 
+  await backfillMissingSummaries(prisma)
+
   return {
     total: totalClassified,
     music: totalMusic,
     nonMusic: totalClassified - totalMusic,
     failed: totalFailed,
   }
+}
+
+/**
+ * Re-classify upcoming events that were classified before they had a
+ * description. The classifier only writes a summary when there's a description,
+ * so a description that arrives later (a scraper fix, a venue updating its page)
+ * would otherwise never get one. Events stay visible while this runs. Each one
+ * gets at most MAX_CLASSIFICATION_ATTEMPTS tries. Returns the number of summaries written.
+ */
+export async function backfillMissingSummaries(prisma: PrismaClient): Promise<number> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM events
+    WHERE "isMusic" IS NOT NULL
+      AND summary IS NULL
+      AND "isCancelled" = false
+      AND "startsAt" >= NOW()
+      AND length(coalesce(description, '')) >= 40
+      AND "classificationAttempts" < ${MAX_CLASSIFICATION_ATTEMPTS}
+    ORDER BY "startsAt"
+    LIMIT ${SUMMARY_BACKFILL_LIMIT}
+  `
+  if (rows.length === 0) return 0
+
+  const events = await prisma.event.findMany({
+    where: { id: { in: rows.map(r => r.id) } },
+    include: { venue: { select: { name: true } } },
+  })
+
+  let written = 0
+  for (let i = 0; i < events.length; i += BATCH_SIZE) {
+    const batch = events.slice(i, i + BATCH_SIZE)
+    let unsummarized = batch.map(e => e.id)
+    try {
+      const results = await classifyAndSave(prisma, batch)
+      const summarized = new Set(results.filter(r => r.summary).map(r => r.eventId))
+      written += summarized.size
+      unsummarized = unsummarized.filter(id => !summarized.has(id))
+    } catch (error) {
+      console.error('[Classify] Summary backfill batch failed:', error)
+    }
+    if (unsummarized.length > 0) {
+      await prisma.event.updateMany({
+        where: { id: { in: unsummarized } },
+        data: { classificationAttempts: { increment: 1 } },
+      })
+    }
+  }
+
+  console.log(`[Classify] Summary backfill: ${written} of ${events.length} events summarized`)
+  return written
 }
