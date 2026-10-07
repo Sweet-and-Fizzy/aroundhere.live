@@ -7,6 +7,8 @@ import crypto from 'crypto'
 import type { VenueType } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
+import { createPrismaRegionStore } from '../../services/regions/store'
+import { resolveRegionForVenue } from '../../services/regions/resolve'
 import { notifyScraperApproved, notifyVenueApproved } from '../../services/notifications'
 
 // Type for venue data stored in session JSON
@@ -83,6 +85,20 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    let resolvedRegionId: string | null = null
+    if (session.sessionType === 'VENUE_INFO' && venueData) {
+      const resolved = await resolveRegionForVenue(
+        { store: createPrismaRegionStore(prisma) },
+        {
+          city: venueData.city,
+          state: venueData.state,
+          latitude: geocodedLat ?? venueData.latitude,
+          longitude: geocodedLng ?? venueData.longitude,
+        },
+      )
+      resolvedRegionId = resolved.regionId
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       let venue = null
       let source = null
@@ -92,37 +108,7 @@ export default defineEventHandler(async (event) => {
         const latitude = geocodedLat ?? venueData.latitude
         const longitude = geocodedLng ?? venueData.longitude
 
-        // Determine region based on location
-        // For now, match by state - you can make this more sophisticated later
-        let regionId: string | null = null
-
-        // Try to find region by state (e.g., "Western Massachusetts" contains "Massachusetts")
-        const stateValue = venueData.state ?? ''
-        const regions = stateValue ? await tx.region.findMany({
-          where: {
-            isActive: true,
-            OR: [
-              { name: { contains: stateValue, mode: 'insensitive' } },
-              { slug: { contains: stateValue.toLowerCase().replace(/\s+/g, '-'), mode: 'insensitive' } },
-            ],
-          },
-        }) : []
-
-        if (regions.length > 0 && regions[0]) {
-          regionId = regions[0].id
-        } else {
-          // Fall back to first active region
-          const defaultRegion = await tx.region.findFirst({
-            where: { isActive: true },
-            orderBy: { createdAt: 'asc' },
-          })
-
-          if (!defaultRegion) {
-            throw new Error('No active regions found in database. Please create a region first.')
-          }
-
-          regionId = defaultRegion.id
-        }
+        const regionId = resolvedRegionId!
 
         // Generate slug if not provided
         const venueName = venueData.name ?? 'unnamed-venue'

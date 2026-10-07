@@ -1,4 +1,5 @@
 import prisma from '../../utils/prisma'
+import { HOLDING_REGION_SLUG } from '../../utils/geo'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
 
   // Also fetch available regions for the dropdown
   const regions = await prisma.region.findMany({
-    where: { isActive: true },
+    where: { isActive: true, slug: { not: HOLDING_REGION_SLUG } },
     select: {
       id: true,
       name: true,

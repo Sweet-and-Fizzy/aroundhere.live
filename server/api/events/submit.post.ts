@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { generateSlug, slugify } from '../../utils/html'
-import { findNearestRegion } from '../../utils/find-nearest-region'
+import { createPrismaRegionStore } from '../../services/regions/store'
+import { resolveRegionForVenue } from '../../services/regions/resolve'
 import { geocodeAddress } from '../../services/geocoding'
 import { getOrCreateCommunitySource } from '../../utils/community-source'
 import { parseEndsAt } from '../../utils/event-times'
@@ -114,25 +115,6 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Use coordinates (supplied or geocoded) to find the nearest region.
-    if (eventLocationLat && eventLocationLng) {
-      const nearest = await findNearestRegion(prisma, eventLocationLat, eventLocationLng)
-      if (!nearest) throw createError({ statusCode: 500, message: 'No active regions available' })
-      regionId = nearest.region.id
-      timezone = nearest.region.timezone
-    } else {
-      // Fallback: use first active region
-      const defaultRegion = await prisma.region.findFirst({
-        where: { isActive: true },
-        select: { id: true, timezone: true },
-      })
-      if (!defaultRegion) {
-        throw createError({ statusCode: 500, message: 'No active regions available' })
-      }
-      regionId = defaultRegion.id
-      timezone = defaultRegion.timezone
-    }
-
     // Try to extract city/state from address
     if (eventLocationAddress) {
       const parts = eventLocationAddress.split(',').map((p: string) => p.trim())
@@ -141,6 +123,14 @@ export default defineEventHandler(async (event) => {
         eventLocationState = parts[parts.length - 1]?.split(' ')[0] || null
       }
     }
+
+    const resolved = await resolveRegionForVenue(
+      { store: createPrismaRegionStore(prisma) },
+      { city: eventLocationCity, state: eventLocationState, latitude: eventLocationLat, longitude: eventLocationLng },
+    )
+    regionId = resolved.regionId
+    const regionRow = await prisma.region.findUniqueOrThrow({ where: { id: regionId }, select: { timezone: true } })
+    timezone = regionRow.timezone
   }
 
   // Get or create community source
