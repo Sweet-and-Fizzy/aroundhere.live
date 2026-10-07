@@ -27,6 +27,6 @@
 0 8 * * 3 curl -sX POST "http://app:3000/api/cron/weekly-recommendations?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Cluster venues into regions weekly on Monday at 3am EST
-0 3 * * 1 curl -sX POST "http://app:3000/api/cron/cluster-regions?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+# disabled 2026-10-06, replaced by town-based regions: 0 3 * * 1 curl -sX POST "http://app:3000/api/cron/cluster-regions?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Empty line required at end
