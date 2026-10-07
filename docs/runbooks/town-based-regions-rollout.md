@@ -37,43 +37,71 @@ ssh deploy@138.197.34.3 "docker exec aroundhere-app npx tsx scripts/seed-region-
 
 Note: the seed's recompute (first maintenance run or first partition write) re-activates the Connecticut regions, because they have active venues. Confirm that is wanted before seeding; if not, set those venues inactive first.
 
+Note: Dry run and write should happen in one sitting. A redeploy recreates the container and discards the seed output.
+
 ## Step 4: Holding-region venues in prod
 
-Partition the holding-region venues that already exist in prod (Groton Hill and two others).
+Partition the holding-region venues that already exist in prod (Groton Hill and two others). This step runs on the production server.
 
-Run the partition dry run:
+Run the partition dry run on the server:
 ```bash
-npx tsx scripts/partition-regions.ts --include-holding --default-state MA
+ssh deploy@138.197.34.3 "docker exec aroundhere-app npx tsx scripts/partition-regions.ts --include-holding --default-state MA"
 ```
 
-This generates a `proposal.json` file containing `{ "regions": [...], "towns": [...] }`. Review the printed output:
+This generates `proposal.json` (inside the container at `/app/proposal.json`) containing `{ "regions": [...], "towns": [...] }`. Review the printed output:
 - Regions and the towns assigned to each
 - Farthest towns from the center of each region
 - New region slugs (marked with `(NEW, slug ...)`)
 - Venue slug changes (listed as `venue <id>: <old> -> <new>`)
 - Any name collisions (existing regions with the same name as proposed new regions)
 
-Edit `proposal.json` if needed, then run the write:
+To edit the proposal, copy it from the container, edit it locally, and copy it back:
 ```bash
-npx tsx scripts/partition-regions.ts --from proposal.json --write
+ssh deploy@138.197.34.3 "docker cp aroundhere-app:/app/proposal.json /tmp/proposal.json"
+# Edit /tmp/proposal.json
+ssh deploy@138.197.34.3 "docker cp /tmp/proposal.json aroundhere-app:/app/proposal.json"
+```
+
+Then run the write:
+```bash
+ssh deploy@138.197.34.3 "docker exec aroundhere-app npx tsx scripts/partition-regions.ts --from proposal.json --write --default-state MA"
 ```
 
 The write will refuse if a proposed new region name collides with an existing region name.
 
+Note: A redeploy recreates the container and discards `proposal.json`, so the dry run and write should happen in one sitting.
+
 ## Step 5: Eastern MA waves
 
-Before each Eastern MA wave, run the partition dry run with that wave's survey file plus the venue feed list:
+Before each Eastern MA wave, prepare a merged JSON file containing the wave's survey file and the feed's venue list (both as arrays of `{ city, state?, lat?, lng? }` objects combined into a single array).
+
+Copy the merged input file to the production server:
 ```bash
-npx tsx scripts/partition-regions.ts --input <file> --default-state MA
+scp <merged-file> deploy@138.197.34.3:/tmp/
+ssh deploy@138.197.34.3 "docker cp /tmp/<merged-file> aroundhere-app:/app/<merged-file>"
 ```
 
-Review the proposal and edit `proposal.json` as needed. Then write:
+Run the partition dry run on the server:
 ```bash
-npx tsx scripts/partition-regions.ts --from proposal.json --write
+ssh deploy@138.197.34.3 "docker exec aroundhere-app npx tsx scripts/partition-regions.ts --input <merged-file> --default-state MA"
+```
+
+This generates `proposal.json` (inside the container at `/app/proposal.json`). Review the printed output and copy it locally to edit if needed:
+```bash
+ssh deploy@138.197.34.3 "docker cp aroundhere-app:/app/proposal.json /tmp/proposal.json"
+# Edit /tmp/proposal.json
+ssh deploy@138.197.34.3 "docker cp /tmp/proposal.json aroundhere-app:/app/proposal.json"
+```
+
+Then run the write:
+```bash
+ssh deploy@138.197.34.3 "docker exec aroundhere-app npx tsx scripts/partition-regions.ts --from proposal.json --write --default-state MA"
 ```
 
 Once the partition write is complete, turn on that wave's event sources.
 
+Note: A redeploy recreates the container and discards files in `/app/`, so the dry run and write should happen in one sitting.
+
 ## Weekly job
 
-The `regions-maintenance` cron runs every Monday at 3am. It moves holding-region venues whose towns can now be assigned to their proper regions, and posts a Slack summary listing any venues still needing a partition run and any failures encountered.
+The `regions-maintenance` cron runs every Monday at 3am. It moves holding-region venues whose towns can now be assigned to their proper regions. It posts a Slack summary when venues moved, when venues remain in the holding region, or when failures occur. The summary lists moved venues and any venues still needing a partition run.

@@ -224,7 +224,13 @@ async function main() {
   }
   await review(proposal, towns)
   if (flag('--write')) await write(proposal, towns)
-  else console.log('\nDry run. Edit proposal.json if needed, then: npx tsx scripts/partition-regions.ts --from proposal.json --write')
+  else {
+    const defaultState = arg('--default-state')
+    const hint = defaultState
+      ? `npx tsx scripts/partition-regions.ts --from proposal.json --write --default-state ${defaultState}`
+      : 'npx tsx scripts/partition-regions.ts --from proposal.json --write'
+    console.log(`\nDry run. Edit proposal.json if needed, then: ${hint}`)
+  }
 }
 
 main().finally(() => prisma.$disconnect())
