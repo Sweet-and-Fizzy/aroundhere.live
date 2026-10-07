@@ -1,3 +1,4 @@
+import { HOLDING_REGION_SLUG } from '../../../utils/geo'
 import prisma from '../../../utils/prisma'
 import { normalizeTownKey } from '../../../services/regions/town-key'
 import { planTownReassign } from '../../../services/regions/reassign-plan'
@@ -10,8 +11,9 @@ export default defineEventHandler(async (event) => {
 
   const town = await prisma.regionTown.findUnique({ where: { id } })
   if (!town) throw createError({ statusCode: 404, message: 'Town not found' })
-  const target = await prisma.region.findUnique({ where: { id: regionId }, select: { id: true } })
+  const target = await prisma.region.findUnique({ where: { id: regionId }, select: { id: true, slug: true } })
   if (!target) throw createError({ statusCode: 400, message: 'Unknown region' })
+  if (target.slug === HOLDING_REGION_SLUG) throw createError({ statusCode: 400, message: 'Cannot assign a town to the holding region' })
 
   const candidates = await prisma.venue.findMany({ select: { id: true, name: true, slug: true, city: true, state: true, regionId: true } })
   const venues = candidates.filter(v => normalizeTownKey(v.city, v.state) === town.townKey && v.regionId !== regionId)

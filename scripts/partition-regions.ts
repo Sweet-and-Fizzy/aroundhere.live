@@ -210,6 +210,10 @@ async function checked(regions: PartitionRegion[], towns: TownInput[]): Promise<
 }
 
 async function main() {
+  if (flag('--write') && !arg('--from')) {
+    console.error('Refusing to --write without --from. Run the dry run first, review proposal.json, then: --from proposal.json --write')
+    process.exit(1)
+  }
   let towns: Map<string, TownInput>
   let proposal: PartitionRegion[]
   if (arg('--from')) {

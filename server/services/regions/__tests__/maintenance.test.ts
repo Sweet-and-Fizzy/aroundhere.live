@@ -53,6 +53,14 @@ describe('runRegionMaintenance', () => {
     expect(moves[0]).toEqual(['v1', 'ns', 'gulu-gulu-2'])
   })
 
+  it('keeps a venue in holding when its town is mapped to the holding region', async () => {
+    const { d, moves } = deps({ 'salem|ma': 'holding' }, ['gulu-gulu'])
+    const report = await runRegionMaintenance(d)
+    expect(moves).toEqual([])
+    expect(report.moved).toEqual([])
+    expect(report.stillHolding.map(h => h.venue)).toContain('Gulu-Gulu')
+  })
+
   it('formats a readable Slack summary with singular/plural', () => {
     const text = formatMaintenanceReport({ moved: [{ venue: 'A', regionId: 'ns' }], stillHolding: [{ venue: 'B', townKey: 'x|ma' }], failed: [] })
     expect(text).toContain('Moved 1 venue')

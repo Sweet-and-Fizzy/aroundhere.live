@@ -71,7 +71,11 @@ export default defineEventHandler(async (event) => {
     },
   })
 
-  await createPrismaRegionStore(prisma).recomputeRegionStats([region.id])
+  try {
+    await createPrismaRegionStore(prisma).recomputeRegionStats([region.id])
+  } catch (err) {
+    console.warn('[Regions] recomputeRegionStats failed after venue commit:', err)
+  }
 
   return {
     success: true,

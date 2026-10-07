@@ -9,7 +9,7 @@ type Region = { id: string; name: string; slug: string; isActive: boolean; venue
 const toast = useToast()
 const { data, refresh } = await useFetch<{ regions: Region[] }>('/api/admin/regions')
 const regions = computed(() => data.value?.regions ?? [])
-const regionItems = computed(() => regions.value.map(r => ({ label: r.name, value: r.id })))
+const regionItems = computed(() => regions.value.filter(r => r.slug !== 'other').map(r => ({ label: r.name, value: r.id })))
 const savingId = ref<string | null>(null)
 
 async function reassign(town: Town, regionId: string) {

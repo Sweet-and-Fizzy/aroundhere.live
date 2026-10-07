@@ -18,7 +18,8 @@ export async function runRegionMaintenance(deps: ResolveDeps & { io: Maintenance
   for (const venue of await io.listHoldingVenues()) {
     try {
       const result = await resolveRegionForVenue(deps, venue)
-      if (result.via === 'holding') {
+      const holdingId = await deps.store.getHoldingRegionId()
+      if (result.via === 'holding' || result.regionId === holdingId) {
         report.stillHolding.push({ venue: venue.name, townKey: normalizeTownKey(venue.city, venue.state) })
         continue
       }

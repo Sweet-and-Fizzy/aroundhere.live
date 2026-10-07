@@ -274,7 +274,11 @@ export default defineEventHandler(async (event) => {
     })
 
     if (resolvedRegionId) {
-      await createPrismaRegionStore(prisma).recomputeRegionStats([resolvedRegionId])
+      try {
+        await createPrismaRegionStore(prisma).recomputeRegionStats([resolvedRegionId])
+      } catch (err) {
+        console.warn('[Regions] recomputeRegionStats failed after venue commit:', err)
+      }
     }
 
     // Send Slack notifications

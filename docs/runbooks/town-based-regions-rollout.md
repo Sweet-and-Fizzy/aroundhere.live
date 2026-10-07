@@ -13,7 +13,12 @@ Run locally with a real database to validate the changes before production rollo
 
 ## Step 1: Phase 1 deployed
 
-Andrew runs the cleanup SQL using the command in its header: `scripts/sql/2026-10-06-region-cleanup.sql`.
+First run this read-only pre-check, which lists per region the counts of venues, events, users and playlists, so you can see what the cleanup will keep and delete:
+```bash
+ssh deploy@138.197.34.3 "docker exec aroundhere-db psql -U postgres -d local_music -c \"SELECT r.slug, r.name, (SELECT count(*) FROM venues v WHERE v.\\\"regionId\\\" = r.id) AS venues, (SELECT count(*) FROM events e WHERE e.\\\"regionId\\\" = r.id) AS events, (SELECT count(*) FROM users u WHERE u.\\\"regionId\\\" = r.id) AS users, (SELECT count(*) FROM spotify_playlists p WHERE p.\\\"regionId\\\" = r.id) AS playlists FROM regions r ORDER BY r.slug;\""
+```
+
+Then Andrew runs the cleanup SQL using the command in its header: `scripts/sql/2026-10-06-region-cleanup.sql`.
 
 The SQL header documents the ssh command to pipe the file; the scp line in the header is unnecessary.
 
