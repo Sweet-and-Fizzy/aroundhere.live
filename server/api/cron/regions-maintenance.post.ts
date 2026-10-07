@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
       allRegionIds: async () => (await prisma.region.findMany({ select: { id: true } })).map(r => r.id),
     },
   })
-  if (report.moved.length || report.stillHolding.length) {
+  if (report.moved.length || report.stillHolding.length || report.failed.length) {
     await sendSlackNotification(formatMaintenanceReport(report))
   }
   return { success: true, ...report }
