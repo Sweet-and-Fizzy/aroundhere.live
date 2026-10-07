@@ -1,7 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { getRequestIP } from 'h3'
 import { getLocationFromIp } from '../../services/ip-geolocation'
-import { haversineDistance } from '../../services/clustering'
+import { findNearestRegion } from '../../utils/find-nearest-region'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -100,45 +100,13 @@ export default defineEventHandler(async (event) => {
         if (ip) {
           const location = await getLocationFromIp(ip)
           if (location) {
-            // Find nearest region
-            const regions = await prisma.region.findMany({
-              where: {
-                isActive: true,
-                centroidLat: { not: null },
-                centroidLng: { not: null },
-              },
-              select: {
-                id: true,
-                centroidLat: true,
-                centroidLng: true,
-              },
-            })
-
-            if (regions.length > 0) {
-              let nearestRegion = regions[0]!
-              let nearestDistance = haversineDistance(
-                location.lat, location.lng,
-                nearestRegion.centroidLat!, nearestRegion.centroidLng!
-              )
-
-              for (const region of regions.slice(1)) {
-                const distance = haversineDistance(
-                  location.lat, location.lng,
-                  region.centroidLat!, region.centroidLng!
-                )
-                if (distance < nearestDistance) {
-                  nearestDistance = distance
-                  nearestRegion = region
-                }
-              }
-
-              // Only set region if within reasonable distance (e.g., 100 miles)
-              if (nearestDistance <= 100) {
-                user = await prisma.user.update({
-                  where: { id: user.id },
-                  data: { regionId: nearestRegion.id },
-                })
-              }
+            const nearest = await findNearestRegion(prisma, location.lat, location.lng)
+            // Only set region if within reasonable distance (e.g., 100 miles)
+            if (nearest && nearest.distance <= 100) {
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: { regionId: nearest.region.id },
+              })
             }
           }
         }

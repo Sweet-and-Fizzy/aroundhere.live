@@ -116,9 +116,10 @@ export default defineEventHandler(async (event) => {
 
     // Use coordinates (supplied or geocoded) to find the nearest region.
     if (eventLocationLat && eventLocationLng) {
-      const region = await findNearestRegion(prisma, eventLocationLat, eventLocationLng)
-      regionId = region.id
-      timezone = region.timezone
+      const nearest = await findNearestRegion(prisma, eventLocationLat, eventLocationLng)
+      if (!nearest) throw createError({ statusCode: 500, message: 'No active regions available' })
+      regionId = nearest.region.id
+      timezone = nearest.region.timezone
     } else {
       // Fallback: use first active region
       const defaultRegion = await prisma.region.findFirst({
