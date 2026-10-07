@@ -25,6 +25,10 @@ function squash(s: string): string {
   return s.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
+function trimWhitespace(s: string): string {
+  return s.normalize('NFC').trim().replace(/\s+/g, ' ')
+}
+
 export function normalizeStateCode(state: string | null | undefined): string | null {
   if (!state) return null
   // Strip periods first
@@ -40,10 +44,10 @@ export function normalizeStateCode(state: string | null | undefined): string | n
   return STATE_NAMES[s] ?? null
 }
 
-export function normalizeTownKey(city: string | null | undefined, state: string | null | undefined): string | null {
+export function cleanTownCity(city: string | null | undefined, state: string | null | undefined): string | null {
   const st = normalizeStateCode(state)
   if (!city || !st) return null
-  let c = squash(city)
+  let c = trimWhitespace(city)
 
   // Strip trailing ZIP codes (5-digit or ZIP+4) and trailing periods
   c = c.replace(/\s+\d{5}(-\d{4})?$/, '')
@@ -53,34 +57,41 @@ export function normalizeTownKey(city: string | null | undefined, state: string 
   const stateName = Object.keys(STATE_NAMES).find(n => STATE_NAMES[n] === st)
 
   // Try state code suffix: comma with optional space, or whitespace, with word boundary
-  const codePattern = new RegExp(`(?:,|\\s)\\s*\\b${st}\\b$`)
-  if (codePattern.test(c)) {
-    c = c.replace(codePattern, '')
+  const codePattern = new RegExp(`(?:,|\\s)\\s*\\b${st}\\b$`, 'i')
+  if (codePattern.test(c.toLowerCase())) {
+    c = c.replace(new RegExp(`(?:,|\\s)\\s*\\b${st}\\b$`, 'i'), '')
     c = c.replace(/,$/, '').trim()
-    return c ? `${c}|${st}` : null
+    return c || null
   }
 
   // Try state name suffix: only if preceded by comma
   if (stateName) {
-    const namePattern = new RegExp(`,\\s*\\b${stateName.replace(/\s/g, '\\s+')}\\b$`)
-    if (namePattern.test(c)) {
+    const namePattern = new RegExp(`,\\s*\\b${stateName.replace(/\s/g, '\\s+')}\\b$`, 'i')
+    if (namePattern.test(c.toLowerCase())) {
       c = c.replace(namePattern, '')
       c = c.replace(/,$/, '').trim()
-      return c ? `${c}|${st}` : null
+      return c || null
     }
   }
 
   // Add 'mass' as a special case suffix for Massachusetts
   if (st === 'ma') {
-    const massPattern = /,\s*\bmass\b$/
-    if (massPattern.test(c)) {
+    const massPattern = /,\s*\bmass\b$/i
+    if (massPattern.test(c.toLowerCase())) {
       c = c.replace(massPattern, '')
       c = c.replace(/,$/, '').trim()
-      return c ? `${c}|${st}` : null
+      return c || null
     }
   }
 
-  return c ? `${c}|${st}` : null
+  return c || null
+}
+
+export function normalizeTownKey(city: string | null | undefined, state: string | null | undefined): string | null {
+  const cleaned = cleanTownCity(city, state)
+  if (!cleaned) return null
+  const st = normalizeStateCode(state)
+  return `${cleaned.toLowerCase()}|${st}`
 }
 
 export function cleanRegionName(name: string): string {

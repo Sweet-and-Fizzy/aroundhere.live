@@ -5,7 +5,7 @@
  */
 import 'dotenv/config'
 import prisma from '../server/utils/prisma'
-import { normalizeTownKey, normalizeStateCode } from '../server/services/regions/town-key'
+import { normalizeTownKey, normalizeStateCode, cleanTownCity } from '../server/services/regions/town-key'
 import { pickSeedRegion, type SeedVenue } from '../server/services/regions/seed'
 import { HOLDING_REGION_SLUG } from '../server/utils/geo'
 
@@ -21,7 +21,7 @@ async function main() {
   for (const v of venues) {
     const key = normalizeTownKey(v.city, v.state)
     if (!key) { noKey.push(`${v.name} (city=${v.city ?? '-'}, state=${v.state ?? '-'})`); continue }
-    const entry = byTown.get(key) ?? { city: v.city!.trim(), state: normalizeStateCode(v.state)!.toUpperCase(), venues: [] }
+    const entry = byTown.get(key) ?? { city: cleanTownCity(v.city, v.state)!, state: normalizeStateCode(v.state)!.toUpperCase(), venues: [] }
     entry.venues.push({ regionId: v.regionId, regionCreatedAt: v.region.createdAt, lat: v.latitude, lng: v.longitude, name: v.name, regionName: v.region.name })
     byTown.set(key, entry)
   }
@@ -48,7 +48,7 @@ async function main() {
 
   console.log(`${rows.length} towns to seed, ${existing.size} already mapped, ${noKey.length} venues without a town key:`)
   for (const n of noKey) console.log(`  NO KEY ${n}`)
-  for (const r of rows) console.log(`  ${r.townKey} -> ${r.regionId}`)
+  for (const r of rows) console.log(`  ${r.townKey} (${r.city}) -> ${r.regionId}`)
 
   if (!write) { console.log('Dry run. Re-run with --write to insert.'); return }
   await prisma.regionTown.createMany({ data: rows, skipDuplicates: true })

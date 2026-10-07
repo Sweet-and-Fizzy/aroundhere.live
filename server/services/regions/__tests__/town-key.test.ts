@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeTownKey, normalizeStateCode, normalizeRegionName, cleanRegionName } from '../town-key'
+import { normalizeTownKey, normalizeStateCode, normalizeRegionName, cleanRegionName, cleanTownCity } from '../town-key'
 
 describe('normalizeStateCode', () => {
   it('accepts 2-letter codes', () => {
@@ -67,6 +67,65 @@ describe('normalizeTownKey', () => {
     [null, 'MA'], ['Boston', null], ['', 'MA'], ['Boston', 'Narnia'],
   ])('returns null for %s, %s', (city, state) => {
     expect(normalizeTownKey(city, state)).toBeNull()
+  })
+
+  // Property test: normalizeTownKey should equal cleanTownCity lowercased + |stateCode
+  it.each([
+    ['Northampton', 'MA'],
+    ['  Turners   Falls ', 'ma'],
+    ['Northampton, MA', 'MA'],
+    ['Northampton MA', 'MA'],
+    ['Boston, Massachusetts', 'Massachusetts'],
+    ['Brattleboro', 'Vermont'],
+    ['St. Johnsbury', 'VT'],
+    ['Montréal', 'QC'],
+  ])('cleanTownCity relationship for %s, %s', (city, state) => {
+    const cleaned = cleanTownCity(city, state)
+    const stateCode = normalizeStateCode(state)
+    if (cleaned && stateCode) {
+      expect(normalizeTownKey(city, state)).toBe(`${cleaned.toLowerCase()}|${stateCode}`)
+    }
+  })
+})
+
+describe('cleanTownCity', () => {
+  it.each([
+    ['Northampton', 'MA', 'Northampton'],
+    ['  Turners   Falls ', 'ma', 'Turners Falls'],
+    ['Northampton, MA', 'MA', 'Northampton'],
+    ['Amherst 01002', 'MA', 'Amherst'],
+    ['Montréal', 'QC', 'Montréal'],
+  ])('%s, %s -> %s', (city, state, expected) => {
+    expect(cleanTownCity(city, state)).toBe(expected)
+  })
+
+  it.each([
+    [null, 'MA'],
+    ['Boston', null],
+    ['', 'MA'],
+    ['Boston', 'Narnia'],
+  ])('returns null for %s, %s', (city, state) => {
+    expect(cleanTownCity(city, state)).toBeNull()
+  })
+
+  it('preserves accents and casing', () => {
+    expect(cleanTownCity('Montréal', 'QC')).toBe('Montréal')
+    expect(cleanTownCity('BOSTON', 'MA')).toBe('BOSTON')
+  })
+
+  it('collapses internal whitespace', () => {
+    expect(cleanTownCity('  Turners   Falls  ', 'MA')).toBe('Turners Falls')
+  })
+
+  it('strips state suffix regardless of case', () => {
+    expect(cleanTownCity('Northampton, MA', 'MA')).toBe('Northampton')
+    expect(cleanTownCity('Northampton, ma', 'MA')).toBe('Northampton')
+    expect(cleanTownCity('Boston, MASSACHUSETTS', 'MA')).toBe('Boston')
+  })
+
+  it('strips trailing ZIP codes', () => {
+    expect(cleanTownCity('Northampton 01060', 'MA')).toBe('Northampton')
+    expect(cleanTownCity('Northampton 01060-1234', 'MA')).toBe('Northampton')
   })
 })
 
