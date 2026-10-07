@@ -3,6 +3,14 @@
  * Maps event type slugs to friendly display names and badge colors
  */
 
+// Event types a user can favorite. Must match the EventType enum (minus PRIVATE
+// and OTHER); EVENT_TYPE_LABELS also holds filter groups and unused labels that
+// the favorites API rejects.
+export const SELECTABLE_EVENT_TYPES = [
+  'MUSIC', 'DJ', 'OPEN_MIC', 'COMEDY', 'THEATER', 'GAMES', 'KARAOKE',
+  'FILM', 'SPOKEN_WORD', 'DANCE', 'MARKET', 'WORKSHOP', 'PARTY', 'FITNESS', 'DRAG',
+] as const
+
 // Human-readable labels for event types
 const EVENT_TYPE_LABELS: Record<string, string> = {
   'ALL_EVENTS': 'All Events',

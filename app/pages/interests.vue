@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick } from 'vue'
 import type { Event } from '~/composables/useEvents'
+import { SELECTABLE_EVENT_TYPES } from '~/composables/useEventTypeLabels'
 
 definePageMeta({
   middleware: ['auth'],
@@ -122,13 +123,11 @@ const allGenres = computed(() => {
 })
 
 // All available event types for selection, sorted alphabetically
-// Exclude PRIVATE and OTHER as they're not really user preferences
 const allEventTypes = computed(() => {
-  return Object.entries(eventTypeLabels)
-    .filter(([slug]) => !['PRIVATE', 'OTHER'].includes(slug))
-    .map(([slug, label]) => ({
+  return SELECTABLE_EVENT_TYPES
+    .map(slug => ({
       slug,
-      label: label as string,
+      label: eventTypeLabels[slug] ?? slug,
     }))
     .sort((a, b) => a.label.localeCompare(b.label))
 })
