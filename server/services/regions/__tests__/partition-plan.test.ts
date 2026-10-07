@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { planPartitionWrite, findNameCollisions, type PartitionPlanInput } from '../partition-plan'
+import { planPartitionWrite, findNameCollisions, checkProposal, type PartitionPlanInput } from '../partition-plan'
 
 const t = (townKey: string) => [townKey, { townKey, city: townKey.split('|')[0]!, state: 'MA', lat: 42.5, lng: -70.9 }] as const
 
@@ -60,7 +60,47 @@ describe('planPartitionWrite', () => {
   })
 })
 
+describe('planPartitionWrite safety', () => {
+  it('does not move venues for a town key absent from towns', () => {
+    const plan = planPartitionWrite(input({ towns: new Map([t('salem|ma'), t('easthampton|ma')]) }))
+    expect(plan.venueMoves.map(m => m.venueId)).toEqual(['v1', 'v2'])
+  })
+})
+
+describe('checkProposal', () => {
+  const towns = ['salem|ma', 'beverly|ma', 'easthampton|ma'].map(k => t(k)[1])
+  const base = { towns, holdingRegionId: 'holding', existingRegionIds: new Set(['pv', 'holding']) }
+
+  it('lowercases and trims keys and treats falsy ids as new', () => {
+    const r = checkProposal({ ...base, regions: [{ existingRegionId: '' as unknown as null, name: 'A', townKeys: [' Salem|MA '] }] })
+    expect(r).toEqual({ ok: true, regions: [{ existingRegionId: null, name: 'A', townKeys: ['salem|ma'] }] })
+  })
+
+  it('merges new entries with the same normalized name', () => {
+    const r = checkProposal({ ...base, regions: [
+      { existingRegionId: null, name: 'the North Shore', townKeys: ['salem|ma'] },
+      { existingRegionId: null, name: 'North Shore', townKeys: ['beverly|ma'] },
+    ] })
+    expect(r).toEqual({ ok: true, regions: [{ existingRegionId: null, name: 'the North Shore', townKeys: ['salem|ma', 'beverly|ma'] }] })
+  })
+
+  it('rejects duplicate keys, unknown towns, holding and unknown region ids', () => {
+    const r = checkProposal({ ...base, regions: [
+      { existingRegionId: null, name: 'A', townKeys: ['salem|ma', 'nowhere|ma'] },
+      { existingRegionId: 'pv', name: 'B', townKeys: ['salem|ma'] },
+      { existingRegionId: 'holding', name: 'C', townKeys: [] },
+      { existingRegionId: 'zzz', name: 'D', townKeys: [] },
+    ] })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors).toHaveLength(4)
+  })
+})
+
 describe('findNameCollisions', () => {
+  it('treats a falsy existingRegionId as new', () => {
+    expect(findNameCollisions([{ existingRegionId: '' as unknown as null, name: 'Other', townKeys: [] }], ['other'])).toEqual(['Other'])
+  })
+
   const proposal = [
     { existingRegionId: null, name: 'the North Shore', townKeys: ['salem|ma'] },
     { existingRegionId: null, name: 'Cape Ann', townKeys: ['gloucester|ma'] },

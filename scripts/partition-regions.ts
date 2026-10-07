@@ -7,7 +7,7 @@
  *   add --recut to re-partition towns that are already mapped (ADMIN rows stay fixed)
  *   add --include-holding to also partition towns of venues currently in the holding region
  *
- * Without --write it prints a review and saves proposal.json for editing.
+ * Without --write it prints a review and saves proposal.json ({ regions, towns }) for editing.
  */
 import 'dotenv/config'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -18,7 +18,7 @@ import { HOLDING_REGION_SLUG, haversineDistance, selectCandidateRegions } from '
 import { cleanTownCity, normalizeStateCode, normalizeTownKey } from '../server/services/regions/town-key'
 import { buildPartitionPrompt } from '../server/services/regions/prompts'
 import { validatePartition } from '../server/services/regions/validate'
-import { findNameCollisions, planPartitionWrite } from '../server/services/regions/partition-plan'
+import { checkProposal, findNameCollisions, planPartitionWrite } from '../server/services/regions/partition-plan'
 import { createPrismaRegionStore } from '../server/services/regions/store'
 import type { CandidateRegion, PartitionRegion, TownInput } from '../server/services/regions/types'
 
@@ -46,7 +46,9 @@ async function loadTowns(): Promise<Map<string, TownInput>> {
     const st = normalizeStateCode(r.state ?? defaultState)
     if (!key || !city || !st) continue
     if (!towns.has(key)) towns.set(key, { townKey: key, city, state: st.toUpperCase(), lat: NaN, lng: NaN })
-    if (r.lat != null && r.lng != null) coords.set(key, [...(coords.get(key) ?? []), { lat: r.lat, lng: r.lng }])
+    const lat = r.lat == null ? NaN : Number(r.lat)
+    const lng = r.lng == null ? NaN : Number(r.lng)
+    if (Number.isFinite(lat) && Number.isFinite(lng)) coords.set(key, [...(coords.get(key) ?? []), { lat, lng }])
   }
   for (const town of towns.values()) {
     const pts = coords.get(town.townKey)
@@ -108,6 +110,7 @@ async function propose(towns: Map<string, TownInput>): Promise<PartitionRegion[]
 
 async function review(proposal: PartitionRegion[], towns: Map<string, TownInput>) {
   const plan = await buildPlan(proposal, towns)
+  const slugOfNew = new Map(plan.newRegions.map((r, i) => [i, r.slug]))
   const collisions = await nameCollisions(proposal)
   if (collisions.length) {
     console.log(`\nNAME COLLISIONS (new region names that match an existing region): ${collisions.join(', ')}`)
@@ -119,13 +122,15 @@ async function review(proposal: PartitionRegion[], towns: Map<string, TownInput>
     const cLat = pts.reduce((s, t) => s + t.lat, 0) / pts.length
     const cLng = pts.reduce((s, t) => s + t.lng, 0) / pts.length
     const far = [...pts].sort((a, b) => haversineDistance(b.lat, b.lng, cLat, cLng) - haversineDistance(a.lat, a.lng, cLat, cLng)).slice(0, 3)
-    const label = region.existingRegionId ? `${region.name} (existing)` : `${region.name} (NEW)`
+    const newIndex = proposal.filter(r => !r.existingRegionId).indexOf(region)
+    const label = region.existingRegionId ? `${region.name} (existing)` : `${region.name} (NEW, slug ${slugOfNew.get(newIndex)})`
     console.log(`\n${label}: ${pts.length} towns`)
     console.log(`  towns: ${region.townKeys.join(', ')}`)
     console.log(`  farthest from center: ${far.map(t => `${t.townKey} (${haversineDistance(t.lat, t.lng, cLat, cLng).toFixed(0)} mi)`).join(', ')}`)
   }
+  const oldSlugs = new Map((await prisma.venue.findMany({ select: { id: true, slug: true } })).map(v => [v.id, v.slug]))
   console.log(`\n${plan.venueMoves.length} venues would move; slug changes:`)
-  for (const m of plan.venueMoves.filter(m => m.newSlug)) console.log(`  venue ${m.venueId} -> ${m.newSlug}`)
+  for (const m of plan.venueMoves.filter(m => m.newSlug)) console.log(`  venue ${m.venueId}: ${oldSlugs.get(m.venueId)} -> ${m.newSlug}`)
 }
 
 async function nameCollisions(proposal: PartitionRegion[]): Promise<string[]> {
@@ -134,10 +139,11 @@ async function nameCollisions(proposal: PartitionRegion[]): Promise<string[]> {
 }
 
 async function buildPlan(proposal: PartitionRegion[], towns: Map<string, TownInput>) {
-  const keys = proposal.flatMap(r => r.townKeys)
-  const venues = (await prisma.venue.findMany({ where: { isActive: true }, select: { id: true, slug: true, regionId: true, city: true, state: true } }))
-    .map(v => ({ id: v.id, slug: v.slug, regionId: v.regionId, townKey: normalizeTownKey(v.city, v.state) ?? '' }))
-    .filter(v => keys.includes(v.townKey))
+  const keys = new Set(proposal.flatMap(r => r.townKeys))
+  const defaultState = arg('--default-state')
+  const venues = (await prisma.venue.findMany({ where: { isActive: true }, orderBy: { id: 'asc' }, select: { id: true, slug: true, regionId: true, city: true, state: true } }))
+    .map(v => ({ id: v.id, slug: v.slug, regionId: v.regionId, townKey: normalizeTownKey(v.city, v.state ?? defaultState) ?? '' }))
+    .filter(v => keys.has(v.townKey))
   const allVenues = await prisma.venue.findMany({ select: { slug: true, regionId: true } })
   const venueSlugsByRegion = new Map<string, Set<string>>()
   for (const v of allVenues) venueSlugsByRegion.set(v.regionId, (venueSlugsByRegion.get(v.regionId) ?? new Set()).add(v.slug))
@@ -182,27 +188,38 @@ async function write(proposal: PartitionRegion[], towns: Map<string, TownInput>)
     }
     for (const c of created) touchedIds.add(c.id)
     return [...touchedIds]
-  })
+  }, { timeout: 120_000 })
   await createPrismaRegionStore(prisma).recomputeRegionStats(touched)
   console.log(`Wrote ${plan.newRegions.length} new regions, ${plan.townUpserts.length} towns, ${plan.venueMoves.length} venue moves.`)
 }
 
+async function checked(regions: PartitionRegion[], towns: TownInput[]): Promise<PartitionRegion[]> {
+  const all = await prisma.region.findMany({ select: { id: true, slug: true } })
+  const holding = all.find(r => r.slug === HOLDING_REGION_SLUG)
+  const result = checkProposal({
+    regions,
+    towns,
+    holdingRegionId: holding?.id ?? '',
+    existingRegionIds: new Set(all.map(r => r.id)),
+  })
+  if (!result.ok) {
+    console.error(`Invalid proposal:\n  ${result.errors.join('\n  ')}`)
+    process.exit(1)
+  }
+  return result.regions
+}
+
 async function main() {
-  const towns = await loadTowns()
+  let towns: Map<string, TownInput>
   let proposal: PartitionRegion[]
   if (arg('--from')) {
-    proposal = JSON.parse(readFileSync(arg('--from')!, 'utf8'))
-    for (const k of proposal.flatMap(r => r.townKeys)) {
-      if (towns.has(k)) continue
-      const row = await prisma.regionTown.findUnique({ where: { townKey: k } })
-      const [city, st] = k.split('|')
-      const g = row?.latitude != null && row.longitude != null ? { lat: row.latitude, lng: row.longitude } : await geocodeAddress(`${row?.city ?? city}, ${st}`)
-      if (g) towns.set(k, { townKey: k, city: row?.city ?? city!, state: st!.toUpperCase(), lat: g.lat, lng: g.lng })
-      else console.warn(`Could not resolve ${k}; it will be skipped`)
-    }
+    const file = JSON.parse(readFileSync(arg('--from')!, 'utf8')) as { regions: PartitionRegion[]; towns: TownInput[] }
+    towns = new Map(file.towns.map(t => [t.townKey, t]))
+    proposal = await checked(file.regions, file.towns)
   } else {
-    proposal = await propose(towns)
-    writeFileSync('proposal.json', JSON.stringify(proposal, null, 2))
+    towns = await loadTowns()
+    proposal = await checked(await propose(towns), [...towns.values()])
+    writeFileSync('proposal.json', JSON.stringify({ regions: proposal, towns: [...towns.values()] }, null, 2))
     console.log('Saved proposal.json')
   }
   await review(proposal, towns)
