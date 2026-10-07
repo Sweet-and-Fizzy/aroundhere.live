@@ -1,5 +1,31 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeTownKey, normalizeRegionName, cleanRegionName } from '../town-key'
+import { normalizeTownKey, normalizeStateCode, normalizeRegionName, cleanRegionName } from '../town-key'
+
+describe('normalizeStateCode', () => {
+  it('accepts 2-letter codes', () => {
+    expect(normalizeStateCode('MA')).toBe('ma')
+    expect(normalizeStateCode('vt')).toBe('vt')
+  })
+  it('accepts full state names', () => {
+    expect(normalizeStateCode('Massachusetts')).toBe('ma')
+    expect(normalizeStateCode('vermont')).toBe('vt')
+  })
+  it('accepts common abbreviations', () => {
+    expect(normalizeStateCode('mass')).toBe('ma')
+    expect(normalizeStateCode('Mass.')).toBe('ma')
+    expect(normalizeStateCode('conn')).toBe('ct')
+    expect(normalizeStateCode('vt.')).toBe('vt')
+    expect(normalizeStateCode('n.y.')).toBe('ny')
+    expect(normalizeStateCode('d.c.')).toBe('dc')
+  })
+  it('strips periods before 2-letter test', () => {
+    expect(normalizeStateCode('M.A.')).toBe('ma')
+  })
+  it('rejects invalid codes', () => {
+    expect(normalizeStateCode('ZZ')).toBeNull()
+    expect(normalizeStateCode('Narnia')).toBeNull()
+  })
+})
 
 describe('normalizeTownKey', () => {
   it.each([
@@ -17,6 +43,24 @@ describe('normalizeTownKey', () => {
 
   it('leaves a suffix that does not match the state', () => {
     expect(normalizeTownKey('Kansas City MO', 'KS')).toBe('kansas city mo|ks')
+  })
+
+  it('strips state suffix when it follows a comma with no space', () => {
+    expect(normalizeTownKey('Northampton,MA', 'MA')).toBe('northampton|ma')
+  })
+
+  it('strips trailing ZIP codes and periods before suffix matching', () => {
+    expect(normalizeTownKey('Northampton, MA 01060', 'MA')).toBe('northampton|ma')
+    expect(normalizeTownKey('Northampton, MA.', 'MA')).toBe('northampton|ma')
+    expect(normalizeTownKey('Northampton 01060-1234', 'MA')).toBe('northampton|ma')
+  })
+
+  it('strips Mass. as a state suffix', () => {
+    expect(normalizeTownKey('Northampton, Mass.', 'MA')).toBe('northampton|ma')
+  })
+
+  it('strips state name only when preceded by comma', () => {
+    expect(normalizeTownKey('Port Washington', 'WA')).toBe('port washington|wa')
   })
 
   it.each([

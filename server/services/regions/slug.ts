@@ -13,6 +13,7 @@ export function deriveRegionSlug(name: string, takenSlugs: Set<string>): string 
     .trim()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
   return withSuffix(base || 'region', takenSlugs)
 }
 

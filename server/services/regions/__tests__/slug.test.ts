@@ -10,6 +10,9 @@ describe('deriveRegionSlug', () => {
     expect(deriveRegionSlug('the Berkshires', new Set(['berkshires']))).toBe('berkshires-2')
     expect(deriveRegionSlug('Berkshires', new Set(['berkshires', 'berkshires-2']))).toBe('berkshires-3')
   })
+  it('trims leading and trailing hyphens', () => {
+    expect(deriveRegionSlug('North Shore -', new Set())).toBe('north-shore')
+  })
 })
 
 describe('deriveVenueSlug', () => {
