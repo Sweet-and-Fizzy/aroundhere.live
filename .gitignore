@@ -27,3 +27,4 @@ logs
 CLAUDE.md
 
 /app/generated/prisma
+.superpowers/
