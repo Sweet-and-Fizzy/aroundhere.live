@@ -17,6 +17,10 @@ describe('buildAssignPrompt', () => {
     expect(p).toContain('town24|ma')
     expect(p).not.toContain('town25|ma')
   })
+  it('prints "(none)" when candidates is empty', () => {
+    const p = buildAssignPrompt(town, [])
+    expect(p).toContain('(none)')
+  })
 })
 
 describe('buildPartitionPrompt', () => {

@@ -19,7 +19,7 @@ ${GRANULARITY}
 Town: ${town.city}, ${town.state} (key ${town.townKey}, at ${town.lat.toFixed(3)}, ${town.lng.toFixed(3)})
 
 Candidate regions:
-${candidates.map(describeRegion).join('\n')}
+${candidates.map(describeRegion).join('\n') || '(none)'}
 
 If the town clearly belongs to one candidate region, answer with its id.
 If it does not belong to any of them, answer null. Do not invent a new region.

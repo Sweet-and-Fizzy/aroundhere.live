@@ -87,4 +87,41 @@ describe('validatePartition', () => {
     const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: keys }] })
     expect(validatePartition(raw, keys, offered, [{ townKey: 'easthampton|ma', regionId: 'pv' }]).ok).toBe(false)
   })
+
+  it('rejects when entry name conflicts with a different offered region', () => {
+    const offeredMulti = [{ id: 'pv', name: 'the Pioneer Valley' }, { id: 'bk', name: 'the Berkshires' }]
+    const raw = JSON.stringify({ regions: [{ name: 'the Berkshires', existingRegionId: 'pv', towns: ['salem|ma', 'beverly|ma', 'easthampton|ma'] }] })
+    expect(validatePartition(raw, keys, offeredMulti).ok).toBe(false)
+  })
+
+  it('accepts fixed towns with implicit region ids', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the Pioneer Valley', existingRegionId: 'pv', towns: ['easthampton|ma'] }] })
+    expect(validatePartition(raw, ['easthampton|ma'], [], [{ townKey: 'easthampton|ma', regionId: 'pv' }])).toEqual({
+      ok: true,
+      value: [{ existingRegionId: 'pv', name: 'the Pioneer Valley', townKeys: ['easthampton|ma'] }],
+    })
+  })
+
+  it('uses entry name as region name for fixed implicit region ids', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the Pioneer Valley', existingRegionId: 'pv', towns: ['easthampton|ma'] }] })
+    const r = validatePartition(raw, ['easthampton|ma'], [], [{ townKey: 'easthampton|ma', regionId: 'pv' }])
+    expect(r.ok && r.value[0]?.name).toBe('the Pioneer Valley')
+  })
+
+  it('normalizes town keys (trim and lowercase)', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: ['Salem|MA', 'Beverly|MA', 'EASTHAMPTON|ma'] }] })
+    const r = validatePartition(raw, ['salem|ma', 'beverly|ma', 'easthampton|ma'], offered)
+    expect(r.ok).toBe(true)
+    expect(r.ok && r.value[0]?.townKeys).toEqual(['salem|ma', 'beverly|ma', 'easthampton|ma'])
+  })
+
+  it('rejects non-string entries in towns array', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: ['salem|ma', 123, 'beverly|ma'] }] })
+    expect(validatePartition(raw, keys, offered).ok).toBe(false)
+  })
+
+  it('rejects non-array towns', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: 'salem|ma' }] })
+    expect(validatePartition(raw, keys, offered).ok).toBe(false)
+  })
 })
