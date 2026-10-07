@@ -161,6 +161,6 @@ describe('Auth Verify with Region', () => {
 
     expect(authVerify).toContain('getLocationFromIp')
     expect(authVerify).toContain('regionId')
-    expect(authVerify).toContain('haversineDistance')
+    expect(authVerify).toContain('findNearestRegion')
   })
 })
