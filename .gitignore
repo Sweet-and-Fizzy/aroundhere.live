@@ -28,3 +28,5 @@ CLAUDE.md
 
 /app/generated/prisma
 .superpowers/
+
+proposal.json
