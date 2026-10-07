@@ -72,6 +72,7 @@ const userMenuItems = computed(() => {
       { label: 'Venue Claims', icon: 'i-heroicons-shield-check', to: '/admin/venue-claims' },
       { label: 'Artists', icon: 'i-heroicons-user-group', to: '/admin/artists' },
       { label: 'Venues', icon: 'i-heroicons-building-storefront', to: '/admin/venues' },
+      { label: 'Regions', icon: 'i-heroicons-map', to: '/admin/regions' },
       { label: 'Scrapers', icon: 'i-heroicons-code-bracket', to: '/admin/scrapers' },
       { label: 'Spotify', icon: 'i-heroicons-musical-note', to: '/admin/spotify' },
       { label: 'Cancelled Events', icon: 'i-heroicons-x-circle', to: '/admin/events/cancelled' },
@@ -359,6 +360,17 @@ const userMenuItems = computed(() => {
                         class="w-4 h-4"
                       />
                       Venues
+                    </NuxtLink>
+                    <NuxtLink
+                      to="/admin/regions"
+                      class="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      active-class="text-white bg-gray-800 font-medium"
+                    >
+                      <UIcon
+                        name="i-heroicons-map"
+                        class="w-4 h-4"
+                      />
+                      Regions
                     </NuxtLink>
                     <NuxtLink
                       to="/admin/scrapers"
