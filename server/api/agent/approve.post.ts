@@ -8,6 +8,7 @@ import type { VenueType } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
 import { createPrismaRegionStore } from '../../services/regions/store'
+import { llmService } from '../../services/llm'
 import { resolveRegionForVenue } from '../../services/regions/resolve'
 import { notifyScraperApproved, notifyVenueApproved } from '../../services/notifications'
 
@@ -88,7 +89,7 @@ export default defineEventHandler(async (event) => {
     let resolvedRegionId: string | null = null
     if (session.sessionType === 'VENUE_INFO' && venueData) {
       const resolved = await resolveRegionForVenue(
-        { store: createPrismaRegionStore(prisma) },
+        { store: createPrismaRegionStore(prisma), llm: llmService },
         {
           city: venueData.city,
           state: venueData.state,
@@ -271,6 +272,10 @@ export default defineEventHandler(async (event) => {
 
       return { venue, source }
     })
+
+    if (resolvedRegionId) {
+      await createPrismaRegionStore(prisma).recomputeRegionStats([resolvedRegionId])
+    }
 
     // Send Slack notifications
     if (result.venue) {

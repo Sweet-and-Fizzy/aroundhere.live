@@ -1,5 +1,6 @@
 import prisma from '../../utils/prisma'
 import { createPrismaRegionStore } from '../../services/regions/store'
+import { llmService } from '../../services/llm'
 import { resolveRegionForVenue } from '../../services/regions/resolve'
 import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
 
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const { regionId } = await resolveRegionForVenue(
-    { store: createPrismaRegionStore(prisma) },
+    { store: createPrismaRegionStore(prisma), llm: llmService },
     { city: venueData.city, state: venueData.state, latitude, longitude },
   )
   const region = { id: regionId }
@@ -69,6 +70,8 @@ export default defineEventHandler(async (event) => {
       isActive: true,
     },
   })
+
+  await createPrismaRegionStore(prisma).recomputeRegionStats([region.id])
 
   return {
     success: true,

@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { generateSlug, slugify } from '../../utils/html'
 import { createPrismaRegionStore } from '../../services/regions/store'
+import { llmService } from '../../services/llm'
 import { resolveRegionForVenue } from '../../services/regions/resolve'
 import { geocodeAddress } from '../../services/geocoding'
 import { getOrCreateCommunitySource } from '../../utils/community-source'
@@ -125,7 +126,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const resolved = await resolveRegionForVenue(
-      { store: createPrismaRegionStore(prisma) },
+      { store: createPrismaRegionStore(prisma), llm: llmService },
       { city: eventLocationCity, state: eventLocationState, latitude: eventLocationLat, longitude: eventLocationLng },
     )
     regionId = resolved.regionId

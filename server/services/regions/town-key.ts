@@ -40,8 +40,7 @@ export function normalizeStateCode(state: string | null | undefined): string | n
     return validCodes.has(s) ? s : null
   }
   // Check common abbreviations
-  if (COMMON_ABBREVIATIONS[s]) return COMMON_ABBREVIATIONS[s]
-  return STATE_NAMES[s] ?? null
+  return COMMON_ABBREVIATIONS[s] ?? STATE_NAMES[s] ?? null
 }
 
 export function cleanTownCity(city: string | null | undefined, state: string | null | undefined): string | null {

@@ -63,7 +63,7 @@ export function validatePartition(
       }
       normalizedTowns.push(normalizeTownKey(t))
     }
-    if (errors.length > 0 && errors[errors.length - 1].startsWith('towns array contains non-string')) {
+    if (errors.length > 0 && errors[errors.length - 1]?.startsWith('towns array contains non-string')) {
       continue
     }
 
