@@ -184,10 +184,17 @@ export default defineEventHandler(async (event) => {
   // Catch model retirements before a user-facing call hits them
   let unavailableModels: string[] = []
   try {
-    const unavailable = await findUnavailableModels(
-      registeredModels(ANTHROPIC_MODELS.map(m => m.id)),
+    const { unavailable, uncheckable } = await findUnavailableModels(
+      registeredModels([
+        ...ANTHROPIC_MODELS.map(m => m.id),
+        process.env.SCRAPER_LLM_MODEL,
+        process.env.CLASSIFIER_MODEL,
+      ]),
       id => anthropic.models.retrieve(id),
     )
+    if (uncheckable.length > 0) {
+      console.warn('[ScraperHealth] Could not check models:', uncheckable)
+    }
     unavailableModels = unavailable.map(u => u.model)
     if (unavailable.length > 0) {
       await sendSlackNotification(

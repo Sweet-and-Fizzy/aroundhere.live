@@ -9,16 +9,19 @@ type AlertDeps = {
   windowMs?: number
 }
 
-/** A 404 from a model call means the model id no longer exists. */
+/**
+ * The API's answer for a retired or unknown model id: a 404 not_found_error.
+ * Other 404s (bad base URL, proxy) and model-related 400s (prompt too long,
+ * unsupported parameter) are different problems and must not page as retirements.
+ */
 export function isModelUnavailableError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false
-  // Anthropic SDK errors carry `status`; AI SDK (Vercel) errors carry `statusCode` + `responseBody`.
-  const e = error as { status?: unknown; statusCode?: unknown; message?: unknown; responseBody?: unknown; error?: { error?: { type?: unknown } } }
+  // Anthropic SDK errors carry `status` + parsed `error`; AI SDK (Vercel) errors carry `statusCode` + raw `responseBody`.
+  const e = error as { status?: unknown; statusCode?: unknown; responseBody?: unknown; error?: { error?: { type?: unknown } } }
   const status = e.status ?? e.statusCode
-  if (status === 404) return true
+  if (status !== 404) return false
   if (e.error?.error?.type === 'not_found_error') return true
-  if (typeof e.responseBody === 'string' && e.responseBody.includes('not_found_error')) return true
-  return status === 400 && typeof e.message === 'string' && /\bmodel\b/i.test(e.message)
+  return typeof e.responseBody === 'string' && e.responseBody.includes('not_found_error')
 }
 
 export function createModelAlerter({ notify, now = Date.now, windowMs = 6 * 60 * 60 * 1000 }: AlertDeps) {
@@ -39,22 +42,24 @@ export function createModelAlerter({ notify, now = Date.now, windowMs = 6 * 60 *
   }
 }
 
-/** Models the Models API no longer knows about. `retrieve` rejects with a 404 for retired ids. */
+/**
+ * Models the Models API no longer knows about. Transient failures (429, 5xx)
+ * are collected separately so one hiccup doesn't hide the remaining checks.
+ */
 export async function findUnavailableModels(
   models: string[],
   retrieve: (model: string) => Promise<unknown>,
-): Promise<{ model: string; error: string }[]> {
+): Promise<{ unavailable: { model: string; error: string }[]; uncheckable: { model: string; error: string }[] }> {
   const unavailable: { model: string; error: string }[] = []
+  const uncheckable: { model: string; error: string }[] = []
   for (const model of models) {
     try {
       await retrieve(model)
     } catch (error) {
-      if (isModelUnavailableError(error)) {
-        unavailable.push({ model, error: error instanceof Error ? error.message : String(error) })
-      } else {
-        throw error
-      }
+      const entry = { model, error: error instanceof Error ? error.message : String(error) }
+      if (isModelUnavailableError(error)) unavailable.push(entry)
+      else uncheckable.push(entry)
     }
   }
-  return unavailable
+  return { unavailable, uncheckable }
 }

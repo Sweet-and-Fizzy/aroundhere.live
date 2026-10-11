@@ -660,6 +660,9 @@ export class AgentService {
         caller: 'scraper agent',
       })
 
+      if (response.stopReason === 'max_tokens') {
+        return { success: false, error: 'Generated code was truncated (hit max_tokens); retry or raise maxTokens' }
+      }
       const code = extractCode(response.content)
       return { success: true, code }
     } catch (error) {

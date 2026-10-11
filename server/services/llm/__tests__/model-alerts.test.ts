@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createModelAlerter, findUnavailableModels, isModelUnavailableError } from '../model-alerts'
-import { acceptsSamplingParams, registeredModels, MODELS } from '../models'
+import { acceptsSamplingParams, currentModel, registeredModels, MODELS } from '../models'
 import { extractAnthropicText } from '../anthropic-response'
 
 const notFound = Object.assign(new Error('404 {"type":"error","error":{"type":"not_found_error","message":"model: claude-sonnet-4-20250514"}}'), {
@@ -13,8 +13,11 @@ describe('isModelUnavailableError', () => {
   it('flags a 404 not_found_error', () => {
     expect(isModelUnavailableError(notFound)).toBe(true)
   })
-  it('flags a 400 that names the model', () => {
-    expect(isModelUnavailableError(Object.assign(new Error('model: foo is not supported'), { status: 400 }))).toBe(true)
+  it('does not page on model-related 400s or non-model 404s', () => {
+    expect(isModelUnavailableError(Object.assign(new Error('prompt is too long for this model'), { status: 400 }))).toBe(false)
+    expect(isModelUnavailableError(Object.assign(new Error('`temperature` is deprecated for this model.'), { status: 400 }))).toBe(false)
+    expect(isModelUnavailableError(Object.assign(new Error('Not Found'), { status: 404 }))).toBe(false)
+    expect(isModelUnavailableError(Object.assign(new Error('Not Found'), { statusCode: 404, responseBody: '<html>nginx 404</html>' }))).toBe(false)
   })
   it('flags the AI SDK APICallError shape used by the chat endpoint', () => {
     expect(isModelUnavailableError(Object.assign(new Error('Not Found'), { statusCode: 404, responseBody: '{"type":"error","error":{"type":"not_found_error"}}' }))).toBe(true)
@@ -70,10 +73,16 @@ describe('findUnavailableModels', () => {
       if (m === 'gone-model') throw notFound
       return { id: m }
     })
-    expect(result.map(r => r.model)).toEqual(['gone-model'])
+    expect(result.unavailable.map(r => r.model)).toEqual(['gone-model'])
+    expect(result.uncheckable).toEqual([])
   })
-  it('rethrows unrelated failures so the cron does not report false retirements', async () => {
-    await expect(findUnavailableModels(['m'], async () => { throw rateLimited })).rejects.toThrow('429')
+  it('keeps checking after a transient failure and never calls it a retirement', async () => {
+    const result = await findUnavailableModels(['flaky', 'gone'], async (m) => {
+      if (m === 'flaky') throw rateLimited
+      throw notFound
+    })
+    expect(result.uncheckable.map(r => r.model)).toEqual(['flaky'])
+    expect(result.unavailable.map(r => r.model)).toEqual(['gone'])
   })
 })
 
@@ -83,7 +92,13 @@ describe('models registry', () => {
     expect(all).not.toContain('claude-sonnet-4-20250514')
     expect(all).toContain('extra-model')
     expect(new Set(all).size).toBe(all.length)
-    expect(MODELS.chat).toBe('claude-sonnet-5-5')
+    expect(MODELS.chat).toBe('claude-haiku-4-5-20251001')
+    expect(registeredModels([undefined, ''])).toEqual(registeredModels())
+  })
+  it('maps retired ids stored on old sessions to their replacements', () => {
+    expect(currentModel('claude-sonnet-4-20250514')).toBe(MODELS.scraperGeneration)
+    expect(currentModel('claude-3-haiku-20240307')).toBe(MODELS.classifier)
+    expect(currentModel('claude-haiku-4-5-20251001')).toBe('claude-haiku-4-5-20251001')
   })
   it('knows which models reject sampling params', () => {
     expect(acceptsSamplingParams('claude-sonnet-5-5')).toBe(false)

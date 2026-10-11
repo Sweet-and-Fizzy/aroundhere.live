@@ -30,6 +30,8 @@ export interface LLMCompletionResponse {
   }
   model: string
   provider: LLMProvider
+  /** Provider stop reason, e.g. 'end_turn' or 'max_tokens' (Anthropic only for now). */
+  stopReason?: string
 }
 
 export interface LLMProviderConfig {

@@ -12,7 +12,7 @@ import type {
   LLMCompletionResponse,
 } from './types'
 
-import { acceptsSamplingParams } from './models'
+import { acceptsSamplingParams, currentModel } from './models'
 import { createModelAlerter } from './model-alerts'
 import { extractAnthropicText } from './anthropic-response'
 import { sendSlackNotification } from '../notifications'
@@ -56,7 +56,12 @@ class LLMService {
   /**
    * Generate completion from any LLM provider
    */
-  async complete(options: LLMCompletionOptions): Promise<LLMCompletionResponse> {
+  async complete(requested: LLMCompletionOptions): Promise<LLMCompletionResponse> {
+    const model = currentModel(requested.model)
+    if (model !== requested.model) {
+      console.warn(`[LLM] ${requested.model} is retired; using ${model}`)
+    }
+    const options = { ...requested, model }
     switch (options.provider) {
       case 'anthropic':
         return this.completeAnthropic(options)
@@ -126,6 +131,7 @@ class LLMService {
       },
       model: response.model,
       provider: 'anthropic',
+      stopReason: response.stop_reason ?? undefined,
     }
   }
 
