@@ -5,6 +5,7 @@
 
 import { llmService } from '../../services/llm'
 import { ALL_MODELS } from '../../services/llm/types'
+import { MODELS } from '../../services/llm/models'
 
 export default defineEventHandler(async () => {
   // Get available providers
@@ -20,6 +21,6 @@ export default defineEventHandler(async () => {
   return {
     providers: providerModels,
     defaultProvider: availableProviders.includes('anthropic') ? 'anthropic' : availableProviders[0],
-    defaultModel: availableProviders.includes('anthropic') ? 'claude-sonnet-4-20250514' : undefined,
+    defaultModel: availableProviders.includes('anthropic') ? MODELS.scraperGeneration : undefined,
   }
 })

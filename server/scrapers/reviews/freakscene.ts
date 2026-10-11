@@ -5,6 +5,8 @@
 
 import * as cheerio from 'cheerio'
 import type { PrismaClient } from '@prisma/client'
+import { MODELS } from '../../services/llm/models'
+import { reportModelFailure } from '../../services/llm'
 
 const RSS_URL = 'https://buttondown.com/freakscene/rss'
 
@@ -152,14 +154,16 @@ If no clear featured artists, return: []`
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: MODELS.reviews,
         max_tokens: 200,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
 
     if (!response.ok) {
-      console.error('LLM API error:', response.status, await response.text())
+      const body = await response.text()
+      console.error('LLM API error:', response.status, body)
+      await reportModelFailure(Object.assign(new Error(body), { status: response.status }), MODELS.reviews, 'freakscene reviews')
       return []
     }
 

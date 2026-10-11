@@ -4,6 +4,7 @@
  */
 
 import prisma from '../server/utils/prisma'
+import { MODELS } from '../server/services/llm/models'
 
 async function importSession(filePath: string) {
   const fs = await import('fs')
@@ -49,7 +50,7 @@ async function importSession(filePath: string) {
       sessionType: data.sessionType,
       status: 'SUCCESS',
       llmProvider: 'anthropic',
-      llmModel: 'claude-sonnet-4-20250514',
+      llmModel: MODELS.scraperGeneration,
       maxIterations: 1,
       currentIteration: 1,
       generatedCode: data.generatedCode,

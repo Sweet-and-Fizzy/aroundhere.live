@@ -12,7 +12,14 @@ import type {
   LLMCompletionResponse,
 } from './types'
 
+import { acceptsSamplingParams, currentModel } from './models'
+import { createModelAlerter } from './model-alerts'
+import { extractAnthropicText } from './anthropic-response'
+import { sendSlackNotification } from '../notifications'
+
 export * from './types'
+
+export const reportModelFailure = createModelAlerter({ notify: sendSlackNotification })
 
 class LLMService {
   private anthropicClient?: Anthropic
@@ -49,7 +56,12 @@ class LLMService {
   /**
    * Generate completion from any LLM provider
    */
-  async complete(options: LLMCompletionOptions): Promise<LLMCompletionResponse> {
+  async complete(requested: LLMCompletionOptions): Promise<LLMCompletionResponse> {
+    const model = currentModel(requested.model)
+    if (model !== requested.model) {
+      console.warn(`[LLM] ${requested.model} is retired; using ${model}`)
+    }
+    const options = { ...requested, model }
     switch (options.provider) {
       case 'anthropic':
         return this.completeAnthropic(options)
@@ -83,24 +95,35 @@ class LLMService {
       systemMessages.map((m) => m.content).join('\n\n') ||
       undefined
 
-    const response = await this.anthropicClient.messages.create({
-      model: options.model,
-      max_tokens: options.maxTokens || 8192,
-      temperature: options.temperature ?? 0.7,
-      system: systemPrompt,
-      messages: conversationMessages.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-    })
+    let response: Anthropic.Message
+    try {
+      // Streaming avoids HTTP timeouts now that thinking tokens count toward max_tokens.
+      response = await this.anthropicClient.messages
+        .stream({
+          model: options.model,
+          max_tokens: options.maxTokens || 8192,
+          ...(acceptsSamplingParams(options.model) ? { temperature: options.temperature ?? 0.7 } : {}),
+          system: systemPrompt,
+          messages: conversationMessages.map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          })),
+        })
+        .finalMessage()
+    } catch (error) {
+      await reportModelFailure(error, options.model, options.caller ?? 'llmService')
+      throw error
+    }
 
-    const content = response.content[0]
-    if (!content || content.type !== 'text') {
-      throw new Error('Unexpected response type from Anthropic')
+    if (response.stop_reason === 'refusal') {
+      throw new Error(`Anthropic declined the request (model ${options.model})`)
+    }
+    if (response.stop_reason === 'max_tokens') {
+      console.warn(`[LLM] ${options.model} hit max_tokens (${options.maxTokens || 8192}); output may be truncated`)
     }
 
     return {
-      content: content.text as string,
+      content: extractAnthropicText(response.content),
       usage: {
         promptTokens: response.usage.input_tokens,
         completionTokens: response.usage.output_tokens,
@@ -108,6 +131,7 @@ class LLMService {
       },
       model: response.model,
       provider: 'anthropic',
+      stopReason: response.stop_reason ?? undefined,
     }
   }
 

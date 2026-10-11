@@ -5,6 +5,7 @@
 
 import type { PrismaClient } from '@prisma/client'
 import { llmService } from '../llm'
+import { MODELS } from '../llm/models'
 
 // Approximate miles per degree at mid-latitudes (kept for reference)
 // const MILES_PER_DEGREE_LAT = 69
@@ -274,7 +275,8 @@ Return ONLY the region name exactly as it should appear after "in", nothing else
   try {
     const response = await llmService.complete({
       provider: 'anthropic',
-      model: 'claude-haiku-4-5-20251001',
+      model: MODELS.clustering,
+      caller: 'region clustering',
       messages: [{ role: 'user', content: prompt }],
       maxTokens: 50,
       temperature: 0.3,

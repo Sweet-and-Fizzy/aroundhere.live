@@ -1,4 +1,6 @@
 import anthropic from '../../utils/anthropic'
+import { MODELS } from '../llm/models'
+import { reportModelFailure } from '../llm'
 import type {
   ClassificationInput,
   ClassificationResult,
@@ -8,7 +10,7 @@ import type {
 import { CANONICAL_GENRES, EVENT_TYPES } from './types'
 import { CLASSIFICATION_SYSTEM_PROMPT, buildClassificationPrompt } from './prompts'
 
-const MODEL = process.env.CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001'
+const MODEL = process.env.CLASSIFIER_MODEL || MODELS.classifier
 
 export class EventClassifier {
   /**
@@ -46,6 +48,7 @@ export class EventClassifier {
       return results.map((r) => this.validateResult(r))
     } catch (error) {
       console.error('[Classifier] Error calling Claude API:', error)
+      await reportModelFailure(error, MODEL, 'event classifier')
       throw error
     }
   }

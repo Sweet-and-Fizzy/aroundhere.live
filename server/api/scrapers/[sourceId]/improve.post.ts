@@ -6,6 +6,7 @@
 import { prisma } from '../../../utils/prisma'
 import { addScraperJob } from '../../../queues/scraper'
 import type { LLMProvider } from '../../../services/llm/types'
+import { MODELS } from '../../../services/llm/models'
 
 export default defineEventHandler(async (event) => {
   // Check authentication
@@ -96,7 +97,7 @@ export default defineEventHandler(async (event) => {
 
     // Use environment-configured LLM or fallback to default
     const llmProvider = (process.env.SCRAPER_LLM_PROVIDER || 'anthropic') as LLMProvider
-    const llmModel = process.env.SCRAPER_LLM_MODEL || 'claude-sonnet-4-5-20250929'
+    const llmModel = process.env.SCRAPER_LLM_MODEL || MODELS.scraperGeneration
 
     // Create agent session first
     const agentSession = await prisma.agentSession.create({

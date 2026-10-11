@@ -5,6 +5,7 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { getRequestIP } from 'h3'
 import prisma from '../utils/prisma'
 import { calculateCost, CHAT_MODEL } from '../utils/llm-cost'
+import { reportModelFailure } from '../services/llm'
 import { createChatTools } from '../mcp/tools'
 import { validateConversation, sanitizeMessages } from '../utils/chat-validation'
 import { getChatSystemPrompt } from '../utils/chat-system-prompt'
@@ -22,8 +23,9 @@ interface ChatRequest {
 }
 
 // Chat thresholds for alerting
-// Based on Claude Sonnet 4 pricing: $3/1M input, $15/1M output
-// Typical chat with ~2K input + ~500 output tokens = ~$0.0135
+// Based on Claude Haiku 4.5 pricing: $1/1M input, $5/1M output
+// Typical chat with ~2K input + ~500 output tokens = ~$0.0045 (thresholds kept
+// from Sonnet-era pricing until there's a baseline of real Haiku traffic)
 const THRESHOLDS = {
   SINGLE_CHAT_COST_WARNING: 0.03, // $0.03 per chat (~2x typical)
   SINGLE_CHAT_COST_CRITICAL: 0.10, // $0.10 per chat (unusually expensive)
@@ -109,10 +111,12 @@ export default defineEventHandler(async (event) => {
     const responseText = result.text || 'Sorry, I could not generate a response.'
     const latencyMs = Date.now() - startTime
 
-    // Extract token usage from result (AI SDK v4 uses different property names)
-    const usage = result.usage as { promptTokens?: number; completionTokens?: number } | undefined
-    const inputTokens = usage?.promptTokens || 0
-    const outputTokens = usage?.completionTokens || 0
+    // totalUsage sums every tool-loop step; usage is the last step only
+    const inputTokens = result.totalUsage?.inputTokens ?? 0
+    const outputTokens = result.totalUsage?.outputTokens ?? 0
+    if (result.finishReason !== 'stop' && result.finishReason !== 'tool-calls') {
+      console.warn(`[Chat] finishReason=${result.finishReason} session=${sessionId}`)
+    }
     const estimatedCost = calculateCost(CHAT_MODEL, inputTokens, outputTokens)
 
     // Extract tool usage info
@@ -179,6 +183,7 @@ export default defineEventHandler(async (event) => {
     return response
   } catch (err) {
     console.error('Chat API error:', err)
+    await reportModelFailure(err, CHAT_MODEL, 'chat')
     throw createError({
       statusCode: 500,
       statusMessage: err instanceof Error ? err.message : 'Chat request failed',
