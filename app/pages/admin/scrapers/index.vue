@@ -41,7 +41,7 @@ interface ScraperData {
 // State
 const url = ref('')
 const selectedProvider = ref('anthropic')
-const selectedModel = ref('claude-sonnet-4-20250514') // Use Claude Sonnet 4 as default
+const selectedModel = ref('claude-sonnet-5-5') // Keep in sync with MODELS.scraperGeneration (server/services/llm/models.ts)
 const maxIterations = ref(2)
 
 // Mode: 'new' for new venues, 'update' for existing venue scraper update

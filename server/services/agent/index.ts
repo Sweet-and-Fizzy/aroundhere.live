@@ -655,8 +655,9 @@ export class AgentService {
         model: llmModel,
         messages: [{ role: 'user', content: userPrompt }],
         systemPrompt,
-        temperature: 0.3, // Lower temperature for more deterministic code generation
-        maxTokens: 8000,
+        temperature: 0.3, // Ignored by models that reject sampling params (see llm/models.ts)
+        maxTokens: 32000, // Leaves room for thinking on Sonnet 5.5
+        caller: 'scraper agent',
       })
 
       const code = extractCode(response.content)

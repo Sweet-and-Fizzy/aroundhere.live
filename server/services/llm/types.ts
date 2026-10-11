@@ -17,6 +17,8 @@ export interface LLMCompletionOptions {
   temperature?: number
   maxTokens?: number
   systemPrompt?: string
+  /** Names the feature in model-failure alerts, e.g. 'scraper-agent'. */
+  caller?: string
 }
 
 export interface LLMCompletionResponse {
@@ -51,29 +53,20 @@ export interface LLMModelInfo {
 // Available models by provider
 export const ANTHROPIC_MODELS: LLMModelInfo[] = [
   {
-    id: 'claude-sonnet-4-20250514',
-    name: 'Claude Sonnet 4',
+    id: 'claude-sonnet-5-5',
+    name: 'Claude Sonnet 5.5',
     description: 'Most capable model for complex reasoning and code generation',
-    contextWindow: 200000,
-    maxOutputTokens: 8192,
-    costPer1kInputTokens: 0.003,
-    costPer1kOutputTokens: 0.015,
-  },
-  {
-    id: 'claude-3-5-sonnet-20241022',
-    name: 'Claude 3.5 Sonnet',
-    description: 'Balanced quality and speed for most tasks',
-    contextWindow: 200000,
-    maxOutputTokens: 8192,
-    costPer1kInputTokens: 0.003,
-    costPer1kOutputTokens: 0.015,
+    contextWindow: 1000000,
+    maxOutputTokens: 128000,
+    costPer1kInputTokens: 0.002,
+    costPer1kOutputTokens: 0.01,
   },
   {
     id: 'claude-haiku-4-5-20251001',
-    name: 'Claude 4.5 Haiku',
+    name: 'Claude Haiku 4.5',
     description: 'Fast and cost-effective for simpler tasks',
     contextWindow: 200000,
-    maxOutputTokens: 8192,
+    maxOutputTokens: 64000,
     costPer1kInputTokens: 0.001,
     costPer1kOutputTokens: 0.005,
   },

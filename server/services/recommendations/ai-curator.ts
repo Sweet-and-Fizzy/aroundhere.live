@@ -6,6 +6,7 @@
  */
 
 import { llmService } from '../llm'
+import { MODELS } from '../llm/models'
 import type { ScoredEvent, UserProfile } from './index'
 
 export interface CuratedEvent {
@@ -51,7 +52,8 @@ export async function curateEvents(
   try {
     const response = await llmService.complete({
       provider: 'anthropic',
-      model: 'claude-haiku-4-5-20251001',
+      model: MODELS.curator,
+      caller: 'recommendations curator',
       systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
       temperature: 0.7,

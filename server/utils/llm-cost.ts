@@ -1,30 +1,23 @@
-// LLM pricing per token (as of Dec 2024)
-// Prices are per token, not per 1K tokens
+import { MODELS } from '../services/llm/models'
 
+// LLM pricing per token (Anthropic list prices, 2026-10)
 const PRICING: Record<string, { input: number; output: number }> = {
-  // Claude 3.5 Sonnet
-  'claude-sonnet-4-20250514': {
-    input: 3.0 / 1_000_000, // $3 per 1M input tokens
-    output: 15.0 / 1_000_000, // $15 per 1M output tokens
+  'claude-sonnet-5-5': {
+    input: 2.0 / 1_000_000,
+    output: 10.0 / 1_000_000,
   },
-  'claude-3-5-sonnet-20241022': {
+  'claude-sonnet-4-5-20250929': {
     input: 3.0 / 1_000_000,
     output: 15.0 / 1_000_000,
   },
-  // Claude 4.5 Haiku (cheaper option)
   'claude-haiku-4-5-20251001': {
-    input: 0.8 / 1_000_000, // $0.80 per 1M input tokens
-    output: 4.0 / 1_000_000, // $4 per 1M output tokens
-  },
-  // Claude 3 Haiku (cheapest)
-  'claude-3-haiku-20240307': {
-    input: 0.25 / 1_000_000,
-    output: 1.25 / 1_000_000,
+    input: 1.0 / 1_000_000,
+    output: 5.0 / 1_000_000,
   },
 }
 
-// Default to Sonnet pricing if model not found
-const DEFAULT_PRICING = PRICING['claude-sonnet-4-20250514']!
+// Unknown models are priced as Sonnet so cost alerts err high, not low
+const DEFAULT_PRICING = PRICING['claude-sonnet-5-5']!
 
 export function calculateCost(
   model: string,
@@ -43,4 +36,4 @@ export function formatCost(cost: number): string {
 }
 
 // Get the model we use for chat
-export const CHAT_MODEL = 'claude-sonnet-4-20250514'
+export const CHAT_MODEL = MODELS.chat

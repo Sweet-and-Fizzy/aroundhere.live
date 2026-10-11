@@ -15,7 +15,11 @@
 
 import prisma from '../../utils/prisma'
 import { verifyCronAuth } from '../../utils/cron-auth'
-import { notifyScraperHealthDigest, type StaleScraperInfo } from '../../services/notifications'
+import { notifyScraperHealthDigest, sendSlackNotification, type StaleScraperInfo } from '../../services/notifications'
+import anthropic from '../../utils/anthropic'
+import { registeredModels } from '../../services/llm/models'
+import { ANTHROPIC_MODELS } from '../../services/llm/types'
+import { findUnavailableModels } from '../../services/llm/model-alerts'
 import { findGoneQuiet } from '../../utils/scraper-health'
 
 // List of hardcoded scraper slugs for reference
@@ -177,9 +181,27 @@ export default defineEventHandler(async (event) => {
       : undefined,
   })
 
+  // Catch model retirements before a user-facing call hits them
+  let unavailableModels: string[] = []
+  try {
+    const unavailable = await findUnavailableModels(
+      registeredModels(ANTHROPIC_MODELS.map(m => m.id)),
+      id => anthropic.models.retrieve(id),
+    )
+    unavailableModels = unavailable.map(u => u.model)
+    if (unavailable.length > 0) {
+      await sendSlackNotification(
+        `:rotating_light: ${unavailable.length} Claude model(s) are no longer available: ${unavailableModels.map(m => `\`${m}\``).join(', ')}. Update server/services/llm/models.ts.`,
+      )
+    }
+  } catch (error) {
+    console.error('[ScraperHealth] Model availability check failed:', error)
+  }
+
   return {
     success: true,
     timestamp: now.toISOString(),
+    unavailableModels,
     summary: {
       total: sources.length,
       stale: staleScrapers.length,
