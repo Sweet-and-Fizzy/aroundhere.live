@@ -6,20 +6,20 @@ import { slugify } from '../../utils/html'
 /**
  * Scraper for Haze Northampton
  *
- * The venue replaced its old PHP site with a Next.js site (www subdomain)
- * in early 2026. The events calendar is server-rendered on the homepage in
- * a section with id="calendar": a month header ("August 2026"), then day
- * blocks ("Sunday, Aug 9") each containing events identified by
- * aria-label="Event details: <title>" with a time span ("7:00 PM").
+ * The events calendar is server-rendered on the homepage (www subdomain) in a
+ * section with id="calendar". Since October 2026 it is a single month grid:
+ * each day cell holds <time datetime="YYYY-MM-DD">, followed by event blocks
+ * <div tabindex="0" aria-label="<title>"> holding a time span ("7:00 PM")
+ * and a title span. Cells for adjacent months appear too, so a run can cover a few
+ * days either side of the month in progress.
  *
- * IMPORTANT: the server-rendered day headings and times are in UTC, not
- * Eastern — the site's SSR formats dates without a timezone and the client
- * only fixes them up in the hydrated desktop grid. "Wednesday, Aug 12,
- * 12:00 AM" in the scraped HTML is really Tuesday Aug 11 8:00 PM Eastern
- * (verified against the rendered desktop calendar, 2026-08-11). We therefore
- * parse date+time as UTC to recover the true instant. If the venue ever
- * fixes their SSR to render Eastern times, the fixture test will catch the
- * shift.
+ * IMPORTANT: the server-rendered dates and times are in UTC, not Eastern; the
+ * client only converts them after hydration. "2026-10-14, 1:00 AM" in the
+ * scraped HTML is really Tuesday Oct 13 9:00 PM Eastern (verified against the
+ * hydrated calendar, 2026-10-12; the same was true of the August 2026 layout).
+ * We therefore parse date+time as UTC to recover the true instant. If the
+ * venue ever fixes their SSR to render Eastern times, the fixture test will
+ * catch the shift.
  *
  * Only the current month is server-rendered (month paging is client-side),
  * so each daily run covers the month in progress.
@@ -38,10 +38,7 @@ export const hazeConfig: ScraperConfig = {
   defaultAgeRestriction: 'TWENTY_ONE_PLUS', // Bar venue
 }
 
-const MONTHS: Record<string, number> = {
-  Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
-  Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
-}
+const TIME = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
 
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -56,51 +53,31 @@ export function parseHazeCalendar(html: string): ScrapedEvent[] {
   const calendar = $('#calendar')
   if (calendar.length === 0) return []
 
-  // Month header, e.g. "August 2026"
-  const monthHeader = calendar
-    .find('p')
-    .filter((_, el) => /^[A-Z][a-z]+ \d{4}$/.test($(el).text().trim()))
-    .first()
-    .text()
-    .trim()
-  const headerMatch = monthHeader.match(/^([A-Z][a-z]+) (\d{4})$/)
-  if (!headerMatch) return []
-  const year = parseInt(headerMatch[2]!, 10)
-
   const events: ScrapedEvent[] = []
+  const seen = new Set<string>()
 
-  // The mobile list view contains one block per day; the desktop grid
-  // duplicates every event, so we only parse the mobile container.
-  const mobileList = calendar.find('div[class*="md:hidden"]').first()
+  calendar.find('time[datetime]').each((_, timeEl) => {
+    // UTC date of the cell (see module comment)
+    const dateStr = ($(timeEl).attr('datetime') || '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return
 
-  mobileList.children('div').each((_, dayEl) => {
-    const $day = $(dayEl)
-
-    // Day heading, e.g. "Sunday, Aug 9"
-    const heading = $day.find('p').first().text().trim()
-    const dayMatch = heading.match(/([A-Z][a-z]{2})\s+(\d{1,2})$/)
-    if (!dayMatch) return
-    const month = MONTHS[dayMatch[1]!]
-    if (!month) return
-    const day = parseInt(dayMatch[2]!, 10)
-
-    $day.find('[aria-label^="Event details:"]').each((_, evEl) => {
+    $(timeEl).parent().find('[tabindex][aria-label]').each((_, evEl) => {
       const $ev = $(evEl)
-      const title = ($ev.attr('aria-label') || '')
-        .replace(/^Event details:\s*/, '')
-        .trim()
+      // The visible title span; the aria-label sometimes adds a UI prefix such as "Get tickets: "
+      const spans = $ev.find('span').map((_, s) => $(s).text().trim()).get()
+      const title = spans.find(t => t && !TIME.test(t)) || ($ev.attr('aria-label') || '').trim()
       if (!title) return
 
       // Time span, e.g. "7:00 PM"; default to 23:00 UTC (~7 PM Eastern) when absent
       const timeText = $ev
         .find('span')
-        .filter((_, s) => /^\d{1,2}:\d{2}\s*(AM|PM)$/i.test($(s).text().trim()))
+        .filter((_, s) => TIME.test($(s).text().trim()))
         .first()
         .text()
         .trim()
       let hour = 23
       let minute = 0
-      const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+      const timeMatch = timeText.match(TIME)
       if (timeMatch) {
         hour = parseInt(timeMatch[1]!, 10)
         minute = parseInt(timeMatch[2]!, 10)
@@ -109,17 +86,17 @@ export function parseHazeCalendar(html: string): ScrapedEvent[] {
         if (ampm === 'AM' && hour === 12) hour = 0
       }
 
-      const dateStr = `${year}-${pad(month)}-${pad(day)}`
-      // The scraped date+time is UTC (see module comment)
-      const startsAt = new Date(`${dateStr}T${pad(hour)}:${pad(minute)}:00Z`)
+      const sourceEventId = `haze-${dateStr}-${slugify(title)}`
+      if (seen.has(sourceEventId)) return
+      seen.add(sourceEventId)
 
       // Note: calendar flyer images are pre-signed S3 URLs that expire within
       // an hour, so we deliberately do not store imageUrl.
       events.push({
         title,
-        startsAt,
+        startsAt: new Date(`${dateStr}T${pad(hour)}:${pad(minute)}:00Z`),
         sourceUrl: 'https://www.hazenorthampton.org/#calendar',
-        sourceEventId: `haze-${dateStr}-${slugify(title)}`,
+        sourceEventId,
       })
     })
   })
