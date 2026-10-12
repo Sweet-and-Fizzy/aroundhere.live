@@ -6,6 +6,7 @@ import { getRequestIP } from 'h3'
 import prisma from '../utils/prisma'
 import { calculateCost, CHAT_MODEL } from '../utils/llm-cost'
 import { reportModelFailure } from '../services/llm'
+import { reportProviderFailure } from '../services/alerting'
 import { createChatTools } from '../mcp/tools'
 import { validateConversation, sanitizeMessages } from '../utils/chat-validation'
 import { getChatSystemPrompt } from '../utils/chat-system-prompt'
@@ -184,6 +185,7 @@ export default defineEventHandler(async (event) => {
   } catch (err) {
     console.error('Chat API error:', err)
     await reportModelFailure(err, CHAT_MODEL, 'chat')
+    await reportProviderFailure('anthropic', 'chat', err)
     throw createError({
       statusCode: 500,
       statusMessage: err instanceof Error ? err.message : 'Chat request failed',

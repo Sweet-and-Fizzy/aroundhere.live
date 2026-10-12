@@ -908,3 +908,16 @@ model VenueModerator {
   @@unique([venueId, userId])
   @@map("venue_moderators")
 }
+
+// Last outcome of each /api/cron/* job, recorded by server/plugins/cron-monitor.ts
+model CronRun {
+  name           String    @id // e.g. "scrapers", "spotify:sync"
+  lastFinishedAt DateTime
+  lastStatus     Int
+  lastError      String?
+  lastDurationMs Int
+  lastSuccessAt  DateTime?
+  prevSuccessAt  DateTime?
+
+  @@map("cron_runs")
+}

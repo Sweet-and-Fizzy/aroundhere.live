@@ -16,6 +16,7 @@ import { acceptsSamplingParams, currentModel } from './models'
 import { createModelAlerter } from './model-alerts'
 import { extractAnthropicText } from './anthropic-response'
 import { sendSlackNotification } from '../notifications'
+import { reportProviderFailure } from '../alerting'
 
 export * from './types'
 
@@ -112,6 +113,7 @@ class LLMService {
         .finalMessage()
     } catch (error) {
       await reportModelFailure(error, options.model, options.caller ?? 'llmService')
+      await reportProviderFailure('anthropic', options.caller ?? 'llmService', error)
       throw error
     }
 

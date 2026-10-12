@@ -1,5 +1,7 @@
 import prisma from '../../utils/prisma'
 import { randomBytes } from 'crypto'
+import { createCheckedSend } from '../../utils/email-send'
+import { reportEmailFailure } from '../../services/alerting'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -66,11 +68,12 @@ export default defineEventHandler(async (event) => {
 
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY)
+  const sendEmail = createCheckedSend(options => resend.emails.send(options), reportEmailFailure)
 
   const logoUrl = `${baseUrl}/around-here-logo.svg`
 
   try {
-    await resend.emails.send({
+    await sendEmail('email change', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: newEmail.toLowerCase(),
       subject: 'Confirm your new email address',

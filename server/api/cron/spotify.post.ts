@@ -122,6 +122,12 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Tasks catch their own errors; fail the request so server/plugins/cron-monitor.ts records and alerts
+  const failed = results.filter(r => !r.success)
+  if (failed.length > 0) {
+    throw createError({ statusCode: 500, message: failed.map(r => `${r.task}: ${r.error}`).join('; ') })
+  }
+
   return {
     timestamp: new Date().toISOString(),
     results,

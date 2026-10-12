@@ -14,7 +14,7 @@ import { verifyCronAuth } from '../../utils/cron-auth'
 import { executeScraperCode } from '../../services/agent/executor'
 import { saveScrapedEvents, detectSuspiciousDuplicates, handleSuspiciousDuplicates } from '../../scrapers/save-events'
 import { classifyPendingEvents } from '../../scrapers/classify-events'
-import { recordScraperSuccess, recordScraperFailure } from '../../utils/scraper-run-status'
+import { recordScraperSuccess, recordScraperFailure, shouldAlertScraperFailure } from '../../utils/scraper-run-status'
 import { detectEventCollapse } from '../../utils/scraper-health'
 import type { ScrapedEvent } from '../../scrapers/types'
 
@@ -323,8 +323,8 @@ export default defineEventHandler(async (event) => {
 
   console.log(`[Cron] Scraper run complete: ${successful} succeeded, ${failed} failed, ${totalSaved} events saved in ${totalDuration}ms`)
 
-  // 6. Notify about failed scrapers
-  const failedResults = results.filter(r => !r.success)
+  // 6. Notify about failed scrapers (first failure and third in a row; the daily digest covers the rest)
+  const failedResults = results.filter(r => !r.success && shouldAlertScraperFailure(r.consecutiveFailures))
   for (const failure of failedResults) {
     try {
       await notifyScraperFailure({
