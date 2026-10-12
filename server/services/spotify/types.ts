@@ -6,7 +6,8 @@ export interface SpotifyArtist {
   id: string
   name: string
   uri: string
-  genres: string[]
+  // Spotify stopped returning genres on artist objects for apps like ours
+  genres?: string[]
   images: SpotifyImage[]
   external_urls: {
     spotify: string

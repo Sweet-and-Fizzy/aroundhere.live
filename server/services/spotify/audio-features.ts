@@ -78,11 +78,11 @@ export async function enrichArtistWithSpotifyData(artistId: string): Promise<{
     // Fetch genres
     const genres = await fetchSpotifyGenres(artist.spotifyId)
 
-    // Update artist record
+    // Spotify often returns no genres now, so an empty answer never replaces genres we already have
     await prisma.artist.update({
       where: { id: artistId },
       data: {
-        spotifyGenres: genres,
+        ...(genres.length > 0 ? { spotifyGenres: genres } : {}),
         spotifyFetchedAt: new Date(),
       },
     })
