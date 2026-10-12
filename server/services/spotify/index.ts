@@ -528,8 +528,9 @@ class SpotifyService {
         throw new Error(`Failed to get playlist tracks: ${error}`)
       }
 
-      const data = await response.json() as { items: { track: SpotifyTrack }[]; next: string | null }
-      tracks.push(...data.items.map((item) => item.track))
+      // `track` is deprecated in favor of `item` on the /items endpoints
+      const data = await response.json() as { items: { item?: SpotifyTrack; track?: SpotifyTrack }[]; next: string | null }
+      tracks.push(...data.items.map((entry) => entry.item ?? entry.track).filter((t): t is SpotifyTrack => !!t))
       url = data.next
     }
 
@@ -593,8 +594,9 @@ class SpotifyService {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          // The /items endpoints take `items`; the old /tracks body key `tracks` is rejected with "No uris provided"
           body: JSON.stringify({
-            tracks: batch.map((uri) => ({ uri })),
+            items: batch.map((uri) => ({ uri })),
           }),
         }
       )
