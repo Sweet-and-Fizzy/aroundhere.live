@@ -1031,8 +1031,11 @@ useSeoMeta({
                 <div class="font-medium text-gray-900">
                   {{ result.name }}
                 </div>
-                <div class="text-sm text-gray-500 truncate">
-                  {{ result.genres.slice(0, 3).join(', ') || 'No genres' }}
+                <div
+                  v-if="result.genres?.length"
+                  class="text-sm text-gray-500 truncate"
+                >
+                  {{ result.genres.slice(0, 3).join(', ') }}
                 </div>
               </div>
             </button>
