@@ -94,6 +94,10 @@ jobs:
             # Restart services with zero-downtime
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
+            # The crontab is a single-file bind mount installed at container start, and scp
+            # replaces the file, so the running cron container keeps the old schedule until recreated
+            docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps cron
+
             # Clean up old images
             docker image prune -f
 
