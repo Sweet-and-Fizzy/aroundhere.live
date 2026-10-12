@@ -40,7 +40,7 @@ Review the output for CONFLICT and NO KEY lines. Then re-run with `--write`:
 ssh deploy@138.197.34.3 "docker exec aroundhere-app npx tsx scripts/seed-region-towns.ts --write"
 ```
 
-Note: the seed's recompute (first maintenance run or first partition write) re-activates the Connecticut regions, because they have active venues. Confirm that is wanted before seeding; if not, set those venues inactive first.
+Note: the first weekly regions-maintenance run recomputes every region and re-activates the Connecticut regions, because they have active venues. A partition write only recomputes the regions it touches, so it does not. (Verified against a restored prod dump on 2026-10-11.) Confirm that is wanted before seeding; if not, set those venues inactive first.
 
 Note: Dry run and write should happen in one sitting. A redeploy recreates the container and discards the seed output.
 

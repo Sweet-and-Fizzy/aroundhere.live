@@ -12,7 +12,7 @@ export type LlmClient = {
     messages: { role: 'user'; content: string }[]
     temperature: number
     maxTokens: number
-  }): Promise<{ content: string }>
+  }): Promise<{ content: string; stopReason?: string }>
 }
 
 export type ResolveDeps = { store: RegionStore; llm: LlmClient }
@@ -51,11 +51,11 @@ export async function resolveRegionForVenue(deps: ResolveDeps, venue: VenueLocat
       model: ASSIGN_MODEL,
       messages: [{ role: 'user', content: buildAssignPrompt(town, candidates) }],
       temperature: 0,
-      maxTokens: 100,
+      maxTokens: 400,
     })
     const result = validateAssignment(response.content, candidates.map(c => c.id))
     if (!result.ok) {
-      console.warn(`[Regions] Invalid assignment for ${townKey}: ${result.errors.join('; ')}`)
+      console.warn(`[Regions] Invalid assignment for ${townKey}: ${result.errors.join('; ')} (stop: ${response.stopReason}) ${JSON.stringify(response.content.slice(0, 500))}`)
       return holding()
     }
     regionId = result.value

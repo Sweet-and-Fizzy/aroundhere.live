@@ -3,8 +3,11 @@ import type { PartitionRegion, Validation } from './types'
 
 export function parseJsonObject(raw: string): Validation<Record<string, unknown>> {
   let text = raw.trim()
-  const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/)
-  if (fence) text = fence[1]!.trim()
+  // A single fenced block, with or without prose around it: Sonnet 5.5 explains
+  // before answering, Haiku 4.5 after. Unfenced JSON must be the whole reply.
+  const fences = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)\s*```/g)]
+  if (fences.length > 1) return { ok: false, errors: ['response has more than one fenced block'] }
+  if (fences[0]) text = fences[0][1]!.trim()
   if (!text.startsWith('{') || !text.endsWith('}')) return { ok: false, errors: ['response is not a bare JSON object'] }
   try {
     const value = JSON.parse(text)

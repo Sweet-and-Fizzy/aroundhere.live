@@ -100,7 +100,7 @@ async function propose(towns: Map<string, TownInput>): Promise<PartitionRegion[]
     })
     const result = validatePartition(response.content, batch.map(t => t.townKey), nearby, batchFixed)
     if (!result.ok) {
-      console.error(`Batch ${i / BATCH + 1} invalid:\n  ${result.errors.join('\n  ')}`)
+      console.error(`Batch ${i / BATCH + 1} invalid:\n  ${result.errors.join('\n  ')}\n--- model response (stop: ${response.stopReason}) ---\n${response.content}`)
       process.exit(1)
     }
     all.push(...result.value)

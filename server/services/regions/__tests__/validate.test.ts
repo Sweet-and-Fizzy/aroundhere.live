@@ -8,8 +8,21 @@ describe('parseJsonObject', () => {
   it('strips a ```json fence', () => {
     expect(parseJsonObject('```json\n{"a":1}\n```')).toEqual({ ok: true, value: { a: 1 } })
   })
-  it('rejects prose around JSON', () => {
+  it('rejects prose around unfenced JSON', () => {
     expect(parseJsonObject('Sure! {"a":1}').ok).toBe(false)
+  })
+  it('takes the fenced block after reasoning prose', () => {
+    // Sonnet 5.5 explains its choices before the JSON
+    const raw = 'North Adams is in the Berkshires {roughly}.\n\n```json\n{"a":1}\n```'
+    expect(parseJsonObject(raw)).toEqual({ ok: true, value: { a: 1 } })
+  })
+  it('takes the fenced block before an explanation', () => {
+    // Haiku 4.5 answers first, then explains
+    const raw = '```json\n{"a":1}\n```\n\nPittsfield is a major town in the Berkshires.'
+    expect(parseJsonObject(raw)).toEqual({ ok: true, value: { a: 1 } })
+  })
+  it('rejects more than one fenced block', () => {
+    expect(parseJsonObject('```json\n{"a":1}\n```\nor\n```json\n{"a":2}\n```').ok).toBe(false)
   })
   it('rejects arrays and malformed JSON', () => {
     expect(parseJsonObject('[1]').ok).toBe(false)
