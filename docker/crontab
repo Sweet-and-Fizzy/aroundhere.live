@@ -26,7 +26,7 @@
 # Send weekly recommendations on Wednesday at 8am EST
 0 8 * * 3 curl -sX POST "http://app:3000/api/cron/weekly-recommendations?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
-# Cluster venues into regions weekly on Monday at 3am EST
-0 3 * * 1 curl -sX POST "http://app:3000/api/cron/cluster-regions?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
+# Weekly region maintenance (Mondays 3am)
+0 3 * * 1 curl -sX POST "http://app:3000/api/cron/regions-maintenance?token=$CRON_SECRET" >> /var/log/cron.log 2>&1
 
 # Empty line required at end

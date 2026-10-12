@@ -1,4 +1,8 @@
 import prisma from '../../utils/prisma'
+import { createPrismaRegionStore } from '../../services/regions/store'
+import { llmService } from '../../services/llm'
+import { resolveRegionForVenue } from '../../services/regions/resolve'
+import { geocodeAddress, buildFullAddress } from '../../services/geocoding'
 
 function generateSlug(name: string): string {
   return name
@@ -18,18 +22,22 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Get default region
-  const region = await prisma.region.findFirst({
-    where: { isActive: true },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  if (!region) {
-    throw createError({
-      statusCode: 400,
-      message: 'No active region found',
-    })
+  let latitude: number | null = venueData.latitude ?? null
+  let longitude: number | null = venueData.longitude ?? null
+  if (latitude == null || longitude == null) {
+    const fullAddress = buildFullAddress(venueData)
+    const geocoded = fullAddress ? await geocodeAddress(fullAddress) : null
+    if (geocoded) {
+      latitude = geocoded.lat
+      longitude = geocoded.lng
+    }
   }
+
+  const { regionId } = await resolveRegionForVenue(
+    { store: createPrismaRegionStore(prisma), llm: llmService },
+    { city: venueData.city, state: venueData.state, latitude, longitude },
+  )
+  const region = { id: regionId }
 
   // Generate unique slug
   let slug = generateSlug(venueData.name)
@@ -46,6 +54,8 @@ export default defineEventHandler(async (event) => {
       name: venueData.name,
       slug,
       regionId: region.id,
+      latitude,
+      longitude,
       website: venueData.website,
       address: venueData.address || null,
       city: venueData.city || null,
@@ -60,6 +70,12 @@ export default defineEventHandler(async (event) => {
       isActive: true,
     },
   })
+
+  try {
+    await createPrismaRegionStore(prisma).recomputeRegionStats([region.id])
+  } catch (err) {
+    console.warn('[Regions] recomputeRegionStats failed after venue commit:', err)
+  }
 
   return {
     success: true,

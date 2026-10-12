@@ -1,6 +1,11 @@
 import { prisma } from '../../utils/prisma'
 import { generateSlug, slugify } from '../../utils/html'
+import { createPrismaRegionStore } from '../../services/regions/store'
+import { llmService } from '../../services/llm'
+import { parseCityState } from '../../utils/parse-city-state'
 import { findNearestRegion } from '../../utils/find-nearest-region'
+import { normalizeTownKey } from '../../services/regions/town-key'
+import { resolveRegionForVenue } from '../../services/regions/resolve'
 import { geocodeAddress } from '../../services/geocoding'
 import { getOrCreateCommunitySource } from '../../utils/community-source'
 import { parseEndsAt } from '../../utils/event-times'
@@ -99,7 +104,7 @@ export default defineEventHandler(async (event) => {
     eventLocationLng = locationLng || null
 
     // If the form didn't supply coordinates, geocode the free-text location so
-    // the event lands in the correct region instead of falling back to "Other".
+    // the event can be placed in a region by town or by nearest-region distance.
     if (!eventLocationLat || !eventLocationLng) {
       const addressToGeocode = [eventLocationName, eventLocationAddress].filter(Boolean).join(', ')
       if (addressToGeocode) {
@@ -114,32 +119,29 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Use coordinates (supplied or geocoded) to find the nearest region.
-    if (eventLocationLat && eventLocationLng) {
-      const region = await findNearestRegion(prisma, eventLocationLat, eventLocationLng)
-      regionId = region.id
-      timezone = region.timezone
-    } else {
-      // Fallback: use first active region
-      const defaultRegion = await prisma.region.findFirst({
-        where: { isActive: true },
-        select: { id: true, timezone: true },
-      })
-      if (!defaultRegion) {
-        throw createError({ statusCode: 500, message: 'No active regions available' })
-      }
-      regionId = defaultRegion.id
-      timezone = defaultRegion.timezone
+    if (eventLocationAddress) {
+      const parsed = parseCityState(eventLocationAddress)
+      eventLocationCity = parsed.city
+      eventLocationState = parsed.state
     }
 
-    // Try to extract city/state from address
-    if (eventLocationAddress) {
-      const parts = eventLocationAddress.split(',').map((p: string) => p.trim())
-      if (parts.length >= 2) {
-        eventLocationCity = parts[parts.length - 2] || null
-        eventLocationState = parts[parts.length - 1]?.split(' ')[0] || null
-      }
+    // A parseable town goes through the town mapping (and LLM assignment). Without
+    // one, accept the nearest region only if it is within range, else holding.
+    const regionStore = createPrismaRegionStore(prisma)
+    if (normalizeTownKey(eventLocationCity, eventLocationState)) {
+      const resolved = await resolveRegionForVenue(
+        { store: regionStore, llm: llmService },
+        { city: eventLocationCity, state: eventLocationState, latitude: eventLocationLat, longitude: eventLocationLng },
+      )
+      regionId = resolved.regionId
+    } else {
+      const nearest = eventLocationLat != null && eventLocationLng != null
+        ? await findNearestRegion(prisma, eventLocationLat, eventLocationLng)
+        : null
+      regionId = nearest && nearest.distance <= 25 ? nearest.region.id : await regionStore.getHoldingRegionId()
     }
+    const regionRow = await prisma.region.findUniqueOrThrow({ where: { id: regionId }, select: { timezone: true } })
+    timezone = regionRow.timezone
   }
 
   // Get or create community source

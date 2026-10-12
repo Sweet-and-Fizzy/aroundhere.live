@@ -1,0 +1,140 @@
+import { describe, it, expect } from 'vitest'
+import { parseJsonObject, validateAssignment, validatePartition } from '../validate'
+
+describe('parseJsonObject', () => {
+  it('parses a bare object', () => {
+    expect(parseJsonObject('{"a":1}')).toEqual({ ok: true, value: { a: 1 } })
+  })
+  it('strips a ```json fence', () => {
+    expect(parseJsonObject('```json\n{"a":1}\n```')).toEqual({ ok: true, value: { a: 1 } })
+  })
+  it('rejects prose around unfenced JSON', () => {
+    expect(parseJsonObject('Sure! {"a":1}').ok).toBe(false)
+  })
+  it('takes the fenced block after reasoning prose', () => {
+    // Sonnet 5.5 explains its choices before the JSON
+    const raw = 'North Adams is in the Berkshires {roughly}.\n\n```json\n{"a":1}\n```'
+    expect(parseJsonObject(raw)).toEqual({ ok: true, value: { a: 1 } })
+  })
+  it('takes the fenced block before an explanation', () => {
+    // Haiku 4.5 answers first, then explains
+    const raw = '```json\n{"a":1}\n```\n\nPittsfield is a major town in the Berkshires.'
+    expect(parseJsonObject(raw)).toEqual({ ok: true, value: { a: 1 } })
+  })
+  it('rejects more than one fenced block', () => {
+    expect(parseJsonObject('```json\n{"a":1}\n```\nor\n```json\n{"a":2}\n```').ok).toBe(false)
+  })
+  it('rejects arrays and malformed JSON', () => {
+    expect(parseJsonObject('[1]').ok).toBe(false)
+    expect(parseJsonObject('{a:1}').ok).toBe(false)
+  })
+})
+
+describe('validateAssignment', () => {
+  it('accepts an offered id', () => {
+    expect(validateAssignment('{"regionId":"pv"}', ['pv', 'bk'])).toEqual({ ok: true, value: 'pv' })
+  })
+  it('accepts null as none', () => {
+    expect(validateAssignment('{"regionId":null}', ['pv'])).toEqual({ ok: true, value: null })
+  })
+  it('rejects an id that was not offered', () => {
+    expect(validateAssignment('{"regionId":"zz"}', ['pv']).ok).toBe(false)
+  })
+  it('rejects a new-region proposal', () => {
+    expect(validateAssignment('{"new":"the North Shore"}', ['pv']).ok).toBe(false)
+  })
+  it('rejects malformed JSON', () => {
+    expect(validateAssignment('nope', ['pv']).ok).toBe(false)
+  })
+})
+
+describe('validatePartition', () => {
+  const offered = [{ id: 'pv', name: 'the Pioneer Valley' }]
+  const keys = ['salem|ma', 'beverly|ma', 'easthampton|ma']
+
+  it('accepts a full partition with new and existing regions', () => {
+    const raw = JSON.stringify({ regions: [
+      { name: 'the North Shore', towns: ['salem|ma', 'beverly|ma'] },
+      { name: 'the Pioneer Valley', existingRegionId: 'pv', towns: ['easthampton|ma'] },
+    ] })
+    expect(validatePartition(raw, keys, offered)).toEqual({ ok: true, value: [
+      { existingRegionId: null, name: 'the North Shore', townKeys: ['salem|ma', 'beverly|ma'] },
+      { existingRegionId: 'pv', name: 'the Pioneer Valley', townKeys: ['easthampton|ma'] },
+    ] })
+  })
+
+  it('treats a new name matching an existing region (after in/the/case) as that region', () => {
+    const raw = JSON.stringify({ regions: [
+      { name: 'Pioneer Valley', towns: ['easthampton|ma'] },
+      { name: 'in the North Shore', towns: ['salem|ma', 'beverly|ma'] },
+    ] })
+    const r = validatePartition(raw, keys, offered)
+    expect(r.ok && r.value[0]).toEqual({ existingRegionId: 'pv', name: 'the Pioneer Valley', townKeys: ['easthampton|ma'] })
+    expect(r.ok && r.value[1]!.name).toBe('the North Shore')
+  })
+
+  it('merges two proposed regions with the same normalized name', () => {
+    const raw = JSON.stringify({ regions: [
+      { name: 'the North Shore', towns: ['salem|ma'] },
+      { name: 'North Shore', towns: ['beverly|ma'] },
+      { name: 'the Pioneer Valley', existingRegionId: 'pv', towns: ['easthampton|ma'] },
+    ] })
+    const r = validatePartition(raw, keys, offered)
+    expect(r.ok && r.value.filter(x => x.existingRegionId === null)).toEqual([
+      { existingRegionId: null, name: 'the North Shore', townKeys: ['salem|ma', 'beverly|ma'] },
+    ])
+  })
+
+  it.each([
+    ['a missing town', { regions: [{ name: 'the North Shore', towns: ['salem|ma', 'beverly|ma'] }] }],
+    ['a duplicated town', { regions: [{ name: 'A', towns: ['salem|ma', 'beverly|ma', 'easthampton|ma', 'salem|ma'] }] }],
+    ['an unknown town', { regions: [{ name: 'A', towns: [...keys, 'gloucester|ma'] }] }],
+    ['an unknown existing id', { regions: [{ name: 'A', existingRegionId: 'zz', towns: keys }] }],
+    ['an empty name', { regions: [{ name: '  ', towns: keys }] }],
+    ['a missing regions array', { foo: [] }],
+  ])('rejects %s and persists nothing', (_label, body) => {
+    expect(validatePartition(JSON.stringify(body), keys, offered).ok).toBe(false)
+  })
+
+  it('rejects a partition that moves a fixed (ADMIN) town', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: keys }] })
+    expect(validatePartition(raw, keys, offered, [{ townKey: 'easthampton|ma', regionId: 'pv' }]).ok).toBe(false)
+  })
+
+  it('rejects when entry name conflicts with a different offered region', () => {
+    const offeredMulti = [{ id: 'pv', name: 'the Pioneer Valley' }, { id: 'bk', name: 'the Berkshires' }]
+    const raw = JSON.stringify({ regions: [{ name: 'the Berkshires', existingRegionId: 'pv', towns: ['salem|ma', 'beverly|ma', 'easthampton|ma'] }] })
+    expect(validatePartition(raw, keys, offeredMulti).ok).toBe(false)
+  })
+
+  it('accepts fixed towns with implicit region ids', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the Pioneer Valley', existingRegionId: 'pv', towns: ['easthampton|ma'] }] })
+    expect(validatePartition(raw, ['easthampton|ma'], [], [{ townKey: 'easthampton|ma', regionId: 'pv' }])).toEqual({
+      ok: true,
+      value: [{ existingRegionId: 'pv', name: 'the Pioneer Valley', townKeys: ['easthampton|ma'] }],
+    })
+  })
+
+  it('uses entry name as region name for fixed implicit region ids', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the Pioneer Valley', existingRegionId: 'pv', towns: ['easthampton|ma'] }] })
+    const r = validatePartition(raw, ['easthampton|ma'], [], [{ townKey: 'easthampton|ma', regionId: 'pv' }])
+    expect(r.ok && r.value[0]?.name).toBe('the Pioneer Valley')
+  })
+
+  it('normalizes town keys (trim and lowercase)', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: ['Salem|MA', 'Beverly|MA', 'EASTHAMPTON|ma'] }] })
+    const r = validatePartition(raw, ['salem|ma', 'beverly|ma', 'easthampton|ma'], offered)
+    expect(r.ok).toBe(true)
+    expect(r.ok && r.value[0]?.townKeys).toEqual(['salem|ma', 'beverly|ma', 'easthampton|ma'])
+  })
+
+  it('rejects non-string entries in towns array', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: ['salem|ma', 123, 'beverly|ma'] }] })
+    expect(validatePartition(raw, keys, offered).ok).toBe(false)
+  })
+
+  it('rejects non-array towns', () => {
+    const raw = JSON.stringify({ regions: [{ name: 'the North Shore', towns: 'salem|ma' }] })
+    expect(validatePartition(raw, keys, offered).ok).toBe(false)
+  })
+})
