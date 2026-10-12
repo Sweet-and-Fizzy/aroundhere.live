@@ -15,11 +15,14 @@
 
 import prisma from '../../utils/prisma'
 import { verifyCronAuth } from '../../utils/cron-auth'
+import { readdir, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { notifyScraperHealthDigest, sendSlackNotification, type StaleScraperInfo } from '../../services/notifications'
 import anthropic from '../../utils/anthropic'
 import { registeredModels } from '../../services/llm/models'
 import { ANTHROPIC_MODELS } from '../../services/llm/types'
 import { findUnavailableModels } from '../../services/llm/model-alerts'
+import { assessBackups } from '../../utils/backup-status'
 import { findGoneQuiet } from '../../utils/scraper-health'
 
 // List of hardcoded scraper slugs for reference
@@ -205,10 +208,31 @@ export default defineEventHandler(async (event) => {
     console.error('[ScraperHealth] Model availability check failed:', error)
   }
 
+  // Backups are written on the host by scripts/backup.sh and mounted read-only
+  // at /backups. Skip quietly where the mount doesn't exist (local dev).
+  let backup: ReturnType<typeof assessBackups> | null = null
+  const backupDir = process.env.BACKUP_DIR || '/backups'
+  try {
+    const names = await readdir(backupDir)
+    const files = await Promise.all(names.map(async name => {
+      const s = await stat(join(backupDir, name))
+      return { name, mtime: s.mtime, size: s.size }
+    }))
+    backup = assessBackups(files, now)
+    if (!backup.ok) {
+      await sendSlackNotification(`:floppy_disk: Database backup problem: ${backup.problem}. See docs/runbooks/database-backup-restore.md.`)
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('[ScraperHealth] Backup check failed:', error)
+    }
+  }
+
   return {
     success: true,
     timestamp: now.toISOString(),
     unavailableModels,
+    backup,
     summary: {
       total: sources.length,
       stale: staleScrapers.length,

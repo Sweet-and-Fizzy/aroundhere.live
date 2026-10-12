@@ -35,6 +35,9 @@ services:
       # accepts unauthenticated requests
       - CRON_SECRET=${CRON_SECRET}
       - NODE_ENV=production
+    volumes:
+      # Read-only so the daily digest can check backup freshness (scripts/backup.sh writes here)
+      - ./backups:/backups:ro
     depends_on:
       db:
         condition: service_healthy
