@@ -39,7 +39,7 @@ export async function runRegionMaintenance(deps: ResolveDeps & { io: Maintenance
 export function formatMaintenanceReport(r: MaintenanceReport): string {
   const lines = [`Regions maintenance: Moved ${r.moved.length} ${r.moved.length === 1 ? 'venue' : 'venues'} out of the holding region.`]
   if (r.stillHolding.length) {
-    lines.push(`${r.stillHolding.length} ${r.stillHolding.length === 1 ? 'venue' : 'venues'} still need a partition run:`)
+    lines.push(`${r.stillHolding.length} ${r.stillHolding.length === 1 ? 'venue still needs' : 'venues still need'} a partition run:`)
     for (const h of r.stillHolding) lines.push(`• ${h.venue} (${h.townKey ?? 'no town key'})`)
   }
   if (r.failed.length) {

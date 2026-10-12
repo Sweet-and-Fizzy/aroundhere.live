@@ -303,7 +303,12 @@ export async function syncAllPlaylists(): Promise<SyncResult[]> {
     // Playlists that stay broken are listed by the daily digest.
     const change = playlistSyncChange(thrown !== null, playlist.lastSyncedAt, new Date())
     if (change === 'failing') {
-      await sendSlackNotification(`:rotating_light: Spotify playlist "${playlist.name}" stopped syncing: ${thrown!.slice(0, 300)}\nIf the token was revoked, reconnect at /api/spotify/authorize.`)
+      const hint = /refresh token|invalid_grant|401/i.test(thrown!)
+        ? '\nThe Spotify connection was revoked; reconnect at /api/spotify/authorize.'
+        : /\b403\b|forbidden/i.test(thrown!)
+          ? '\nThe connected Spotify account cannot edit this playlist; it is probably owned by another account.'
+          : ''
+      await sendSlackNotification(`:rotating_light: Spotify playlist "${playlist.name}" stopped syncing: ${thrown!.slice(0, 300)}${hint}`)
     } else if (change === 'recovered') {
       await sendSlackNotification(`:white_check_mark: Spotify playlist "${playlist.name}" is syncing again.`)
     }
