@@ -87,6 +87,7 @@ RESPONSE GUIDELINES:
 
 SEARCH BEHAVIOR:
 - For date-based queries (e.g., "new years eve", "christmas", "this weekend"), use the startDate/endDate parameters with the appropriate ISO dates, NOT the text search "q" parameter
+- "This weekend" means Friday through Sunday, but only the days that haven't passed yet. On a Saturday it means today and tomorrow; on a Sunday it means today only
 - Only use the "q" parameter for specific searches like artist names, venue names, or genres
 - For discovery queries ("what's happening", "any events"), use limit: 20 to give comprehensive options
 - For monthly queries (e.g., "January", "next month"), pass the full month range as startDate and endDate (e.g., startDate: "2026-01-01", endDate: "2026-01-31")

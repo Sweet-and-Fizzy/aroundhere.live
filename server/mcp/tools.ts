@@ -1,9 +1,10 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { format, addDays } from 'date-fns'
+import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
+import { upcomingStartDate, recommendationWindow } from '../utils/chat-dates'
 import {
   getUserProfile,
   findCandidateEvents,
@@ -46,7 +47,8 @@ export function createChatTools(userId?: string) {
       const params = new URLSearchParams()
 
       if (input.q) params.set('q', input.q)
-      if (input.startDate) params.set('startDate', input.startDate)
+      const startDate = upcomingStartDate(input.startDate, new Date(), DEFAULT_TIMEZONE)
+      if (startDate) params.set('startDate', startDate)
       if (input.endDate) params.set('endDate', input.endDate)
       if (input.genres && input.genres.length > 0) {
         params.set('genres', input.genres.join(','))
@@ -455,9 +457,7 @@ export function createChatTools(userId?: string) {
       }
 
       const limit = Math.min(input.limit || 10, 15)
-      const now = new Date()
-      const startDate = input.startDate ? new Date(input.startDate) : now
-      const endDate = input.endDate ? new Date(input.endDate) : addDays(now, 14)
+      const { start: startDate, end: endDate } = recommendationWindow(input.startDate, input.endDate, new Date(), DEFAULT_TIMEZONE)
 
       // Get user's profile with taste embedding and favorites
       const userProfile = await getUserProfile(userId)
