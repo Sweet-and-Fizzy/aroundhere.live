@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Merges seconds apart must deploy one after another: overlapping runs
+# copied an older compose file over a newer one on 2026-10-12.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}

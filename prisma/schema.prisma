@@ -394,6 +394,7 @@ model User {
   eventReports          EventReport[]
   moderatedVenues       VenueModerator[]
 
+  @@index([regionId])
   @@map("users")
 }
 
