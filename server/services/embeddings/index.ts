@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai'
+import { reportProviderFailure } from '../alerting'
 
 // OpenAI embedding model - small is cheap and good enough for similarity
 const EMBEDDING_MODEL = 'text-embedding-3-small'
@@ -31,6 +32,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     model: EMBEDDING_MODEL,
     input: text,
     dimensions: EMBEDDING_DIMENSIONS,
+  }).catch(async (error) => {
+    await reportProviderFailure('openai', 'embeddings', error)
+    throw error
   })
 
   return response.data[0]!.embedding
@@ -49,6 +53,9 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     model: EMBEDDING_MODEL,
     input: texts,
     dimensions: EMBEDDING_DIMENSIONS,
+  }).catch(async (error) => {
+    await reportProviderFailure('openai', 'embeddings', error)
+    throw error
   })
 
   // Sort by index to ensure order matches input

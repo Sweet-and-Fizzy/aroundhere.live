@@ -12,6 +12,8 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 import { spotifyService } from './index'
 import type { PopularTrack } from './types'
+import { sendSlackNotification } from '../notifications'
+import { playlistSyncChange } from '../../utils/cron-runs'
 
 // How many tracks to include based on days until event
 function getTrackCount(daysUntilEvent: number): number {
@@ -280,10 +282,12 @@ export async function syncAllPlaylists(): Promise<SyncResult[]> {
   const results: SyncResult[] = []
 
   for (const playlist of playlists) {
+    let thrown: string | null = null
     try {
       const result = await syncPlaylist(playlist.playlistId)
       results.push(result)
     } catch (err) {
+      thrown = `${err}`
       results.push({
         playlistId: playlist.playlistId,
         playlistName: playlist.name,
@@ -294,6 +298,14 @@ export async function syncAllPlaylists(): Promise<SyncResult[]> {
         eventsIncluded: 0,
         errors: [`Sync failed: ${err}`],
       })
+    }
+    // Post when a playlist starts failing or recovers; a revoked Spotify token once went unnoticed for seven months.
+    // Playlists that stay broken are listed by the daily digest.
+    const change = playlistSyncChange(thrown !== null, playlist.lastSyncedAt, new Date())
+    if (change === 'failing') {
+      await sendSlackNotification(`:rotating_light: Spotify playlist "${playlist.name}" stopped syncing: ${thrown!.slice(0, 300)}\nIf the token was revoked, reconnect at /api/spotify/authorize.`)
+    } else if (change === 'recovered') {
+      await sendSlackNotification(`:white_check_mark: Spotify playlist "${playlist.name}" is syncing again.`)
     }
   }
 

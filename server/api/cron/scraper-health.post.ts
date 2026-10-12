@@ -24,6 +24,7 @@ import { ANTHROPIC_MODELS } from '../../services/llm/types'
 import { findUnavailableModels } from '../../services/llm/model-alerts'
 import { assessBackups } from '../../utils/backup-status'
 import { findGoneQuiet } from '../../utils/scraper-health'
+import { assessCronRuns, stalePlaylists } from '../../utils/cron-runs'
 
 // List of hardcoded scraper slugs for reference
 const HARDCODED_SCRAPER_SLUGS = [
@@ -228,11 +229,64 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Cron jobs that failed or quietly stopped (recorded by server/plugins/cron-monitor.ts)
+  let cronProblems: string[] = []
+  let cronJobs = 0
+  try {
+    const runs = await prisma.cronRun.findMany()
+    cronJobs = runs.length
+    cronProblems = assessCronRuns(runs, now)
+    if (cronProblems.length > 0) {
+      await sendSlackNotification(`:alarm_clock: Cron problems:\n• ${cronProblems.join('\n• ')}`)
+    }
+  } catch (error) {
+    console.error('[ScraperHealth] Cron check failed:', error)
+  }
+
+  // Classification embeds every music event as it goes, so music events classified in the last day
+  // without an embedding mean embedding or classification calls are failing now. Older gaps are never
+  // backfilled, so counting them would repeat one blip every morning.
+  let missingEmbeddings: number | null = null
+  try {
+    const [row] = await prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) FROM events
+      WHERE embedding IS NULL AND "isMusic" = true AND "isCancelled" = false AND "startsAt" >= now()
+        AND "classifiedAt" >= now() - interval '26 hours'
+    `
+    missingEmbeddings = Number(row?.count ?? 0)
+    if (missingEmbeddings > 0) {
+      await sendSlackNotification(`:jigsaw: ${missingEmbeddings} music events classified in the last day have no embedding, so recommendations and chat search skip them. Check the scraper logs for embedding or classification errors.`)
+    }
+  } catch (error) {
+    console.error('[ScraperHealth] Embedding check failed:', error)
+  }
+
+  // Spotify playlists that have not synced in a day and a half (a revoked token stops all of them)
+  let brokenPlaylists: string[] = []
+  try {
+    brokenPlaylists = stalePlaylists(await prisma.spotifyPlaylist.findMany({ select: { name: true, syncEnabled: true, lastSyncedAt: true } }), now)
+    if (brokenPlaylists.length > 0) {
+      await sendSlackNotification(`:headphones: ${brokenPlaylists.length} Spotify playlist(s) have not synced in over 36h: ${brokenPlaylists.join(', ')}. See /admin/spotify; a revoked token needs a reconnect at /api/spotify/authorize.`)
+    }
+  } catch (error) {
+    console.error('[ScraperHealth] Playlist check failed:', error)
+  }
+
+  // Daily check-in: a missing 7am message means the alerting itself is down
+  const issueCount = staleScrapers.length + failingScrapers.length + silentScrapers.length + quietScrapers.length
+    + unavailableModels.length + cronProblems.length + brokenPlaylists.length + (backup && !backup.ok ? 1 : 0) + (missingEmbeddings ? 1 : 0)
+  await sendSlackNotification(issueCount === 0
+    ? `:white_check_mark: Daily check: all clear. ${sources.length} scrapers, ${cronJobs} cron jobs and models healthy${backup?.ok ? `, newest backup ${backup.ageHours}h old` : ''}.`
+    : `:clipboard: Daily check: ${issueCount} issue(s), details above.`)
+
   return {
     success: true,
     timestamp: now.toISOString(),
     unavailableModels,
     backup,
+    cronProblems,
+    missingEmbeddings,
+    brokenPlaylists,
     summary: {
       total: sources.length,
       stale: staleScrapers.length,

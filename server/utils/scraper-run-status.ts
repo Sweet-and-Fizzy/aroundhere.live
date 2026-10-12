@@ -41,3 +41,12 @@ export async function recordScraperFailure(
   })
   return updated.consecutiveFailures || 1
 }
+
+/**
+ * Slack a failing scraper on its first failure and when it reaches three in a
+ * row; after that the daily health digest keeps listing it. Without this a
+ * broken scraper posted twice a day until someone fixed it.
+ */
+export function shouldAlertScraperFailure(consecutiveFailures: number | undefined): boolean {
+  return consecutiveFailures === undefined || consecutiveFailures === 1 || consecutiveFailures === 3
+}

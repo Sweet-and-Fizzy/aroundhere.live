@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { recordScraperSuccess, recordScraperFailure } from '../scraper-run-status'
+import { recordScraperSuccess, recordScraperFailure, shouldAlertScraperFailure } from '../scraper-run-status'
 
 const mockPrisma = {
   source: {
@@ -65,5 +65,15 @@ describe('scraper-run-status', () => {
 
       expect(count).toBe(1)
     })
+  })
+})
+
+describe('shouldAlertScraperFailure', () => {
+  it('alerts on the first failure and at three in a row, then leaves it to the digest', () => {
+    expect([1, 2, 3, 4, 5, 10].map(shouldAlertScraperFailure)).toEqual([true, false, true, false, false, false])
+  })
+
+  it('alerts when the failure count could not be recorded', () => {
+    expect(shouldAlertScraperFailure(undefined)).toBe(true)
   })
 })

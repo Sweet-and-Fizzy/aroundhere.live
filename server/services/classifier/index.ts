@@ -1,6 +1,7 @@
 import anthropic from '../../utils/anthropic'
 import { MODELS } from '../llm/models'
 import { reportModelFailure } from '../llm'
+import { reportProviderFailure } from '../alerting'
 import type {
   ClassificationInput,
   ClassificationResult,
@@ -49,6 +50,7 @@ export class EventClassifier {
     } catch (error) {
       console.error('[Classifier] Error calling Claude API:', error)
       await reportModelFailure(error, MODEL, 'event classifier')
+      await reportProviderFailure('anthropic', 'event classifier', error)
       throw error
     }
   }

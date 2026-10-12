@@ -1,6 +1,9 @@
 import { Resend } from 'resend'
+import { createCheckedSend } from './email-send'
+import { reportEmailFailure } from '../services/alerting'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
+const sendEmail = createCheckedSend(options => resend.emails.send(options), reportEmailFailure)
 
 // Default timezone for formatting dates in emails (fallback if venue/region timezone not available)
 const DEFAULT_TIMEZONE = 'America/New_York'
@@ -158,7 +161,7 @@ export async function sendMagicLinkEmail(email: string, magicLink: string) {
   }
 
   try {
-    await resend.emails.send({
+    await sendEmail('magic link', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: email,
       subject: 'Sign in to AroundHere',
@@ -232,7 +235,7 @@ export async function sendPasswordResetEmail(email: string, resetLink: string) {
   }
 
   try {
-    await resend.emails.send({
+    await sendEmail('password reset', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: email,
       subject: 'Reset your password',
@@ -392,7 +395,7 @@ export async function sendFavoriteNotificationEmail(
   }
 
   try {
-    await resend.emails.send({
+    await sendEmail('favorite notification', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: email,
       subject: `${subjectCount} from your favorite artists`,
@@ -463,7 +466,7 @@ export async function sendEventReportAdminEmail(
   const logoUrl = `${baseUrl}/around-here-logo-email.png`
 
   try {
-    await resend.emails.send({
+    await sendEmail('event report (admin)', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: adminEmail,
       subject: `Event Report: ${params.eventTitle}`,
@@ -500,7 +503,7 @@ export async function sendEventSubmissionAdminEmail(
   const logoUrl = `${baseUrl}/around-here-logo-email.png`
 
   try {
-    await resend.emails.send({
+    await sendEmail('event submission (admin)', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: adminEmail,
       subject: `New Event Submission: ${params.eventTitle}`,
@@ -557,7 +560,7 @@ export async function sendSubmissionStatusEmail(
     `
 
   try {
-    await resend.emails.send({
+    await sendEmail('submission status', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: submitterEmail,
       subject,
@@ -782,7 +785,7 @@ export async function sendRecommendationEmail(
   }
 
   try {
-    await resend.emails.send({
+    await sendEmail('weekly recommendations', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: email,
       subject,
@@ -1221,7 +1224,7 @@ export async function sendVenueModeratorSubmissionEmail(
   const logoUrl = `${baseUrl}/around-here-logo-email.png`
 
   try {
-    await resend.emails.send({
+    await sendEmail('venue moderator submission', {
       from: config.emailFrom || 'AroundHere <whatsup@aroundhere.live>',
       to: moderatorEmail,
       subject: `New event submitted at ${params.venueName}: ${params.eventTitle}`,
