@@ -300,6 +300,8 @@ model Source {
   consecutiveFailures Int  @default(0) // Track consecutive failures for notifications
   lastFailureAt DateTime?  // When the last failure occurred
   lastEventCount Int?       // Event count from last successful run (for failure detection)
+  lastFoundCount Int?       // Events the scraper returned on its last successful run, past ones included
+  silentSince   DateTime?  // Start of the current run of successful scrapes with no upcoming events
   isActive      Boolean    @default(true)
 
   // Notification gating - pause notifications when duplicates detected

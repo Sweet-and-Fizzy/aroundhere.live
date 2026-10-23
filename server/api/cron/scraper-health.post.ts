@@ -6,7 +6,8 @@
  * - Stale (haven't run successfully in 3+ days)
  * - Failing (3+ consecutive failures)
  * - Disabled (isActive = false but should be running)
- * - Silent (runs succeed but return zero upcoming events)
+ * - Silent (runs succeed but return zero upcoming events). Listed daily for a
+ *   week after going silent, then only in the Monday reminder
  * - Gone quiet (still returning events, but no new ones for longer than usual)
  *
  * Add to crontab:
@@ -23,7 +24,7 @@ import { registeredModels } from '../../services/llm/models'
 import { ANTHROPIC_MODELS } from '../../services/llm/types'
 import { findUnavailableModels } from '../../services/llm/model-alerts'
 import { assessBackups } from '../../utils/backup-status'
-import { findGoneQuiet } from '../../utils/scraper-health'
+import { findGoneQuiet, isWeeklyReminderDay, splitSilentScrapers } from '../../utils/scraper-health'
 import { assessCronRuns, stalePlaylists } from '../../utils/cron-runs'
 
 // List of hardcoded scraper slugs for reference
@@ -68,6 +69,8 @@ export default defineEventHandler(async (event) => {
       lastRunStatus: true,
       consecutiveFailures: true,
       lastEventCount: true,
+      lastFoundCount: true,
+      silentSince: true,
     },
   })
 
@@ -149,7 +152,7 @@ export default defineEventHandler(async (event) => {
       source.lastEventCount === null
       && (daysSinceLastEvent === null || daysSinceLastEvent >= silentThresholdDays)
     if (source.lastRunStatus === 'success' && (silentByCount || silentByStaleness)) {
-      silentScrapers.push(info)
+      silentScrapers.push({ ...info, silentSince: source.silentSince, foundCount: source.lastFoundCount })
       continue
     }
 
@@ -168,17 +171,21 @@ export default defineEventHandler(async (event) => {
   // Sort by severity/age
   staleScrapers.sort((a, b) => (b.daysSinceLastRun || 999) - (a.daysSinceLastRun || 999))
   failingScrapers.sort((a, b) => b.consecutiveFailures - a.consecutiveFailures)
-  silentScrapers.sort((a, b) => (b.daysSinceLastEvent ?? 9999) - (a.daysSinceLastEvent ?? 9999))
+  // Newest silence first: a scraper that just went quiet is the one most likely broken
+  silentScrapers.sort((a, b) => (b.silentSince?.getTime() ?? Infinity) - (a.silentSince?.getTime() ?? Infinity))
+  const { recent: newlySilent, longQuiet } = splitSilentScrapers(silentScrapers, now)
+  const stillQuietScrapers = isWeeklyReminderDay(now) ? longQuiet : []
   quietScrapers.sort((a, b) => (b.daysSinceLastEvent ?? 0) - (a.daysSinceLastEvent ?? 0))
 
-  console.log(`[Cron] Health check: ${staleScrapers.length} stale, ${failingScrapers.length} failing, ${silentScrapers.length} silent, ${quietScrapers.length} quiet, ${disabledScrapers.length} disabled`)
+  console.log(`[Cron] Health check: ${staleScrapers.length} stale, ${failingScrapers.length} failing, ${newlySilent.length} newly silent, ${longQuiet.length} long silent, ${quietScrapers.length} quiet, ${disabledScrapers.length} disabled`)
 
   // Send notification if there are issues
   await notifyScraperHealthDigest({
     staleScrapers,
     failingScrapers,
     disabledScrapers,
-    silentScrapers,
+    silentScrapers: newlySilent,
+    stillQuietScrapers,
     quietScrapers,
     adminUrl: process.env.NUXT_PUBLIC_SITE_URL
       ? `${process.env.NUXT_PUBLIC_SITE_URL}/admin/scrapers`
@@ -273,7 +280,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Daily check-in: a missing 7am message means the alerting itself is down
-  const issueCount = staleScrapers.length + failingScrapers.length + silentScrapers.length + quietScrapers.length
+  const issueCount = staleScrapers.length + failingScrapers.length + newlySilent.length + quietScrapers.length
     + unavailableModels.length + cronProblems.length + brokenPlaylists.length + (backup && !backup.ok ? 1 : 0) + (missingEmbeddings ? 1 : 0)
   await sendSlackNotification(issueCount === 0
     ? `:white_check_mark: Daily check: all clear. ${sources.length} scrapers, ${cronJobs} cron jobs and models healthy${backup?.ok ? `, newest backup ${backup.ageHours}h old` : ''}.`
@@ -291,13 +298,15 @@ export default defineEventHandler(async (event) => {
       total: sources.length,
       stale: staleScrapers.length,
       failing: failingScrapers.length,
-      silent: silentScrapers.length,
+      silent: newlySilent.length,
+      longSilent: longQuiet.length,
       quiet: quietScrapers.length,
       disabled: disabledScrapers.length,
     },
     staleScrapers: staleScrapers.map(s => s.slug),
     failingScrapers: failingScrapers.map(s => s.slug),
-    silentScrapers: silentScrapers.map(s => s.slug),
+    silentScrapers: newlySilent.map(s => s.slug),
+    longSilentScrapers: longQuiet.map(s => s.slug),
     quietScrapers: quietScrapers.map(s => s.slug),
     disabledScrapers: disabledScrapers.map(s => s.slug),
   }

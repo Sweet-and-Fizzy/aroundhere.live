@@ -828,34 +828,51 @@ export interface StaleScraperInfo {
   isHardcoded: boolean
   daysSinceLastEvent?: number | null
   quietThresholdDays?: number
+  silentSince?: Date | null
+  foundCount?: number | null
 }
 
 export interface ScraperHealthDigest {
   staleScrapers: StaleScraperInfo[] // Haven't run successfully in 3+ days
   failingScrapers: StaleScraperInfo[] // 3+ consecutive failures
   disabledScrapers: StaleScraperInfo[] // isActive = false
-  silentScrapers: StaleScraperInfo[] // Runs report success but return zero events
+  silentScrapers: StaleScraperInfo[] // Went silent (zero upcoming events) within the last week
+  stillQuietScrapers: StaleScraperInfo[] // Silent longer than a week; only passed in on reminder day
   quietScrapers: StaleScraperInfo[] // Still returning events, but no new ones for longer than usual
   adminUrl?: string
+}
+
+// What the scraper still sees, so an empty calendar reads differently from a parser that lost the page
+function describeFoundCount(found: number | null | undefined): string {
+  if (found === null || found === undefined) return ''
+  if (found === 0) return ', page shows nothing'
+  return `, page shows ${found} past event${found === 1 ? '' : 's'}`
+}
+
+function formatDigestDate(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
 }
 
 /**
  * Send a daily digest of scraper health issues
  */
 export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Promise<void> {
-  const { staleScrapers, failingScrapers, disabledScrapers, silentScrapers, quietScrapers, adminUrl } = digest
+  const { staleScrapers, failingScrapers, disabledScrapers, silentScrapers, stillQuietScrapers, quietScrapers, adminUrl } = digest
 
+  // Long-quiet scrapers are a reminder, not an issue
   const totalIssues =
     staleScrapers.length + failingScrapers.length + disabledScrapers.length + silentScrapers.length + quietScrapers.length
 
   // Don't send if everything is healthy
-  if (totalIssues === 0) {
+  if (totalIssues === 0 && stillQuietScrapers.length === 0) {
     console.log('[Notifications] All scrapers healthy, skipping health digest')
     return
   }
 
-  const emoji = totalIssues >= 5 ? '🚨' : '⚠️'
-  const message = `${emoji} Scraper Health: ${totalIssues} issue${totalIssues === 1 ? '' : 's'}`
+  const emoji = totalIssues === 0 ? '🔕' : totalIssues >= 5 ? '🚨' : '⚠️'
+  const message = totalIssues === 0
+    ? `${emoji} Scraper Health: ${stillQuietScrapers.length} still quiet`
+    : `${emoji} Scraper Health: ${totalIssues} issue${totalIssues === 1 ? '' : 's'}`
 
   const sections: string[] = []
 
@@ -878,9 +895,9 @@ export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Pr
   if (silentScrapers.length > 0) {
     const silentList = silentScrapers
       .slice(0, 5)
-      .map(s => `• ${s.name} (last new event ${s.daysSinceLastEvent ?? '?'}d ago)${s.isHardcoded ? ' [hardcoded]' : ''}`)
+      .map(s => `• ${s.name} (silent since ${s.silentSince ? formatDigestDate(s.silentSince) : '?'}${describeFoundCount(s.foundCount)})${s.isHardcoded ? ' [hardcoded]' : ''}`)
       .join('\n')
-    sections.push(`*🤫 Silent (runs succeed but return zero events):*\n${silentList}${silentScrapers.length > 5 ? `\n_...and ${silentScrapers.length - 5} more_` : ''}`)
+    sections.push(`*🤫 Newly silent (runs succeed but return zero upcoming events):*\n${silentList}${silentScrapers.length > 5 ? `\n_...and ${silentScrapers.length - 5} more_` : ''}`)
   }
 
   if (quietScrapers.length > 0) {
@@ -889,6 +906,14 @@ export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Pr
       .map(s => `• ${s.name} (no new events in ${s.daysSinceLastEvent}d, flagged after ${s.quietThresholdDays}d)${s.isHardcoded ? ' [hardcoded]' : ''}`)
       .join('\n')
     sections.push(`*🔇 Gone quiet (no new events for longer than usual):*\n${quietList}${quietScrapers.length > 5 ? `\n_...and ${quietScrapers.length - 5} more_` : ''}`)
+  }
+
+  if (stillQuietScrapers.length > 0) {
+    // Weekly, and listed in full: this is the only place an empty-widget venue that broke would surface
+    const stillQuietList = stillQuietScrapers
+      .map(s => `• ${s.name} (since ${s.silentSince ? formatDigestDate(s.silentSince) : '?'}${describeFoundCount(s.foundCount)})${s.isHardcoded ? ' [hardcoded]' : ''}`)
+      .join('\n')
+    sections.push(`*🔕 Still quiet (weekly reminder, worth a glance at their calendars):*\n${stillQuietList}`)
   }
 
   if (disabledScrapers.length > 0) {
@@ -905,7 +930,7 @@ export async function notifyScraperHealthDigest(digest: ScraperHealthDigest): Pr
       text: {
         type: 'mrkdwn',
         text: [
-          `${emoji} *Daily Scraper Health Digest*`,
+          `${emoji} *${totalIssues === 0 ? 'Weekly Quiet Scraper Reminder' : 'Daily Scraper Health Digest'}*`,
           '',
           ...sections,
         ].join('\n\n'),

@@ -93,7 +93,7 @@ async function saveAndRecordRun(
     return { name: source.name, success: false, ...counts, error: collapseError, consecutiveFailures: failures }
   }
 
-  await recordScraperSuccess(prisma, source.id, saveResult.accepted)
+  await recordScraperSuccess(prisma, source.id, saveResult.accepted, events.length)
   return { name: source.name, success: true, ...counts }
 }
 

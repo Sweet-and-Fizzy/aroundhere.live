@@ -4,6 +4,7 @@ import { recordScraperSuccess, recordScraperFailure, shouldAlertScraperFailure }
 const mockPrisma = {
   source: {
     update: vi.fn(),
+    findUnique: vi.fn(),
   },
 }
 
@@ -13,10 +14,11 @@ describe('scraper-run-status', () => {
   })
 
   describe('recordScraperSuccess', () => {
-    it('resets failure tracking and records the event count', async () => {
+    it('resets failure tracking and records both counts', async () => {
+      mockPrisma.source.findUnique.mockResolvedValue({ silentSince: null, lastFoundCount: 40, lastRunStatus: 'success' })
       mockPrisma.source.update.mockResolvedValue({})
 
-      await recordScraperSuccess(mockPrisma as never, 'source-1', 42)
+      await recordScraperSuccess(mockPrisma as never, 'source-1', 42, 50)
 
       expect(mockPrisma.source.update).toHaveBeenCalledWith({
         where: { id: 'source-1' },
@@ -24,6 +26,8 @@ describe('scraper-run-status', () => {
           lastRunAt: expect.any(Date),
           lastRunStatus: 'success',
           lastEventCount: 42,
+          lastFoundCount: 50,
+          silentSince: null,
           consecutiveFailures: 0,
           lastFailureAt: null,
         },
@@ -31,12 +35,33 @@ describe('scraper-run-status', () => {
     })
 
     it('records a zero event count as zero, not null', async () => {
+      mockPrisma.source.findUnique.mockResolvedValue({ silentSince: null, lastFoundCount: 3, lastRunStatus: 'success' })
       mockPrisma.source.update.mockResolvedValue({})
 
-      await recordScraperSuccess(mockPrisma as never, 'source-1', 0)
+      await recordScraperSuccess(mockPrisma as never, 'source-1', 0, 0)
 
       const data = mockPrisma.source.update.mock.calls[0]![0].data
       expect(data.lastEventCount).toBe(0)
+      expect(data.lastFoundCount).toBe(0)
+    })
+
+    it('starts a silent stretch on the first run with no upcoming events', async () => {
+      mockPrisma.source.findUnique.mockResolvedValue({ silentSince: null, lastFoundCount: 12, lastRunStatus: 'success' })
+      mockPrisma.source.update.mockResolvedValue({})
+
+      await recordScraperSuccess(mockPrisma as never, 'source-1', 0, 12)
+
+      expect(mockPrisma.source.update.mock.calls[0]![0].data.silentSince).toEqual(expect.any(Date))
+    })
+
+    it('keeps an ongoing silent stretch', async () => {
+      const since = new Date('2026-09-01T12:00:00Z')
+      mockPrisma.source.findUnique.mockResolvedValue({ silentSince: since, lastFoundCount: 12, lastRunStatus: 'success' })
+      mockPrisma.source.update.mockResolvedValue({})
+
+      await recordScraperSuccess(mockPrisma as never, 'source-1', 0, 12)
+
+      expect(mockPrisma.source.update.mock.calls[0]![0].data.silentSince).toEqual(since)
     })
   })
 
