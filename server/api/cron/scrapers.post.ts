@@ -51,7 +51,7 @@ interface ScraperResult {
 
 /**
  * Save a successful scrape's events and record the run. A run whose events
- * collapsed to zero after a healthy previous run is recorded as a failure.
+ * collapsed to zero while saved events are still upcoming is recorded as a failure.
  */
 async function saveAndRecordRun(
   events: ScrapedEvent[],
@@ -87,7 +87,17 @@ async function saveAndRecordRun(
     duration: Date.now() - scraperStart,
   }
 
-  const collapseError = detectEventCollapse(source.lastEventCount, saveResult.accepted)
+  // Future events we already have but this run didn't return; only needed when it returned nothing
+  const strandedCount = saveResult.accepted > 0
+    ? 0
+    : await prisma.event.count({
+        where: {
+          startsAt: { gte: new Date() },
+          isCancelled: false,
+          eventSources: { some: { sourceId: source.id } },
+        },
+      })
+  const collapseError = detectEventCollapse(source.lastEventCount, saveResult.accepted, strandedCount)
   if (collapseError) {
     const failures = await recordScraperFailure(prisma, source.id)
     return { name: source.name, success: false, ...counts, error: collapseError, consecutiveFailures: failures }

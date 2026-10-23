@@ -6,20 +6,27 @@ const day = (iso: string) => new Date(`${iso}T12:00:00Z`)
 const daysAfter = (start: string, n: number) => new Date(day(start).getTime() + n * DAY)
 
 describe('detectEventCollapse', () => {
-  it('flags a drop to zero from a healthy previous run', () => {
-    expect(detectEventCollapse(21, 0)).toBe('Returned 0 upcoming events (previous run had 21)')
+  it('flags a drop to zero when events we already have are still in the future', () => {
+    expect(detectEventCollapse(21, 0, 18)).toBe(
+      'Returned 0 upcoming events, but 18 already saved from this source are still in the future (previous run had 21)'
+    )
+  })
+
+  it('treats a drop to zero as an empty calendar once every saved event has passed', () => {
+    // A festival weekend: all the upcoming shows happened at once
+    expect(detectEventCollapse(21, 0, 0)).toBeNull()
   })
 
   it('ignores venues that were already nearly empty', () => {
-    expect(detectEventCollapse(2, 0)).toBeNull()
+    expect(detectEventCollapse(2, 0, 2)).toBeNull()
   })
 
   it('ignores sources with no recorded history', () => {
-    expect(detectEventCollapse(null, 0)).toBeNull()
+    expect(detectEventCollapse(null, 0, 5)).toBeNull()
   })
 
   it('ignores runs that still return events', () => {
-    expect(detectEventCollapse(40, 1)).toBeNull()
+    expect(detectEventCollapse(40, 1, 39)).toBeNull()
   })
 })
 
