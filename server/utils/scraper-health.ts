@@ -53,3 +53,51 @@ export function findGoneQuiet(
   const quietDays = Math.floor(now.getTime() / DAY_MS) - last
   return quietDays > thresholdDays ? { quietDays, thresholdDays } : null
 }
+
+// Silent scrapers are listed daily for this long, then only in the weekly reminder
+const SILENT_RECENT_DAYS = 7
+const WEEKLY_REMINDER_DAY = 'Monday'
+const DIGEST_TIMEZONE = 'America/New_York'
+
+/**
+ * Track when a scraper's current run of zero upcoming events began. A zero
+ * alone can't tell an empty calendar from a broken parser, so the digest
+ * surfaces changes instead. The clock restarts when the scraper comes back
+ * from failing, when it stops seeing anything on the page, or when new
+ * entries appear and none are upcoming (unreadable new shows or a misread
+ * page). Old events dropping off the page is normal and keeps the clock.
+ *
+ * @param upcoming events accepted after past events are dropped
+ * @param found events the scraper returned, past ones included
+ */
+export function nextSilentSince(
+  prev: { silentSince: Date | null; lastFoundCount: number | null; lastRunStatus: string | null },
+  upcoming: number,
+  found: number,
+  now: Date
+): Date | null {
+  if (upcoming > 0) return null
+  if (!prev.silentSince || prev.lastRunStatus === 'failed') return now
+  if (prev.lastFoundCount === null) return prev.silentSince
+  if (found === 0 && prev.lastFoundCount > 0) return now
+  if (found > prev.lastFoundCount) return now
+  return prev.silentSince
+}
+
+/**
+ * Split silent scrapers into recent silences (listed every day) and long-quiet
+ * ones (listed only in the weekly reminder). A missing start counts as recent.
+ */
+export function splitSilentScrapers<T extends { silentSince?: Date | null }>(
+  rows: T[],
+  now: Date
+): { recent: T[]; longQuiet: T[] } {
+  const cutoff = now.getTime() - SILENT_RECENT_DAYS * DAY_MS
+  const recent = rows.filter(r => !r.silentSince || r.silentSince.getTime() >= cutoff)
+  const longQuiet = rows.filter(r => r.silentSince && r.silentSince.getTime() < cutoff)
+  return { recent, longQuiet }
+}
+
+export function isWeeklyReminderDay(now: Date): boolean {
+  return now.toLocaleDateString('en-US', { weekday: 'long', timeZone: DIGEST_TIMEZONE }) === WEEKLY_REMINDER_DAY
+}

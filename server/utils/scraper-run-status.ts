@@ -1,21 +1,33 @@
 import type { PrismaClient } from '@prisma/client'
+import { nextSilentSince } from './scraper-health'
 
 /**
  * Record a successful scraper run: resets failure tracking so the
- * scraper-health digest stops flagging the source, and stores the event
- * count for zero-event staleness detection.
+ * scraper-health digest stops flagging the source, and stores the counts
+ * the digest uses to tell an empty calendar from a broken parser.
+ *
+ * @param eventCount upcoming events accepted from the run
+ * @param foundCount events the scraper returned, past ones included
  */
 export async function recordScraperSuccess(
   prisma: PrismaClient,
   sourceId: string,
-  eventCount: number
+  eventCount: number,
+  foundCount: number
 ): Promise<void> {
+  const now = new Date()
+  const prev = await prisma.source.findUnique({
+    where: { id: sourceId },
+    select: { silentSince: true, lastFoundCount: true, lastRunStatus: true },
+  })
   await prisma.source.update({
     where: { id: sourceId },
     data: {
-      lastRunAt: new Date(),
+      lastRunAt: now,
       lastRunStatus: 'success',
       lastEventCount: eventCount,
+      lastFoundCount: foundCount,
+      silentSince: nextSilentSince(prev ?? { silentSince: null, lastFoundCount: null, lastRunStatus: null }, eventCount, foundCount, now),
       consecutiveFailures: 0,
       lastFailureAt: null,
     },

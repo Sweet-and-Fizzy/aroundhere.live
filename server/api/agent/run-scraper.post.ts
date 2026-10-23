@@ -90,6 +90,8 @@ export default defineEventHandler(async (event) => {
     let updatedCount = 0
     let filteredCount = 0
     let canceledCount = 0
+    // Without saving we can't tell past from upcoming, so count everything
+    let acceptedCount = scrapedEvents.length
 
     if (saveEvents && scrapedEvents.length > 0) {
       const venueData = { id: venue.id, regionId: venue.regionId }
@@ -101,12 +103,13 @@ export default defineEventHandler(async (event) => {
       updatedCount = saveResult.updated
       filteredCount = saveResult.filtered
       canceledCount = saveResult.canceled
+      acceptedCount = saveResult.accepted
 
       // Classify newly saved events
       await classifyPendingEvents(prisma)
     }
 
-    await recordScraperSuccess(prisma, sourceId, scrapedEvents.length)
+    await recordScraperSuccess(prisma, sourceId, acceptedCount, scrapedEvents.length)
 
     return {
       success: true,

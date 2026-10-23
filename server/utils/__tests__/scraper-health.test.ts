@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectEventCollapse, findGoneQuiet } from '../scraper-health'
+import { detectEventCollapse, findGoneQuiet, isWeeklyReminderDay, nextSilentSince, splitSilentScrapers } from '../scraper-health'
 
 const DAY = 24 * 60 * 60 * 1000
 const day = (iso: string) => new Date(`${iso}T12:00:00Z`)
@@ -67,5 +67,77 @@ describe('findGoneQuiet', () => {
 
   it('returns null for a source with no events', () => {
     expect(findGoneQuiet([], day('2026-09-01'))).toBeNull()
+  })
+})
+
+describe('nextSilentSince', () => {
+  const now = day('2026-10-22')
+  const earlier = day('2026-09-01')
+
+  it('clears the marker when upcoming events come back', () => {
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 5, lastRunStatus: 'success' }, 2, 8, now)).toBeNull()
+  })
+
+  it('starts the silent stretch on the first run with no upcoming events', () => {
+    expect(nextSilentSince({ silentSince: null, lastFoundCount: 8, lastRunStatus: 'success' }, 0, 8, now)).toEqual(now)
+  })
+
+  it('keeps the original start while the page looks the same', () => {
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 12, lastRunStatus: 'success' }, 0, 12, now)).toEqual(earlier)
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 0, lastRunStatus: 'success' }, 0, 0, now)).toEqual(earlier)
+  })
+
+  it('restarts the stretch when the scraper stops seeing anything on the page', () => {
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 12, lastRunStatus: 'success' }, 0, 0, now)).toEqual(now)
+  })
+
+  it('keeps the start when old events drop off the page', () => {
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 12, lastRunStatus: 'success' }, 0, 9, now)).toEqual(earlier)
+  })
+
+  it('restarts the stretch when new entries appear but none are upcoming', () => {
+    // The venue added shows we can't read, or the parser is misreading the page
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 12, lastRunStatus: 'success' }, 0, 15, now)).toEqual(now)
+  })
+
+  it('restarts the stretch when a scraper comes back from failing with nothing upcoming', () => {
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: 12, lastRunStatus: 'failed' }, 0, 12, now)).toEqual(now)
+  })
+
+  it('keeps the start when the found count was never recorded', () => {
+    expect(nextSilentSince({ silentSince: earlier, lastFoundCount: null, lastRunStatus: 'success' }, 0, 0, now)).toEqual(earlier)
+  })
+})
+
+describe('splitSilentScrapers', () => {
+  const now = day('2026-10-22')
+
+  it('lists recent silences daily and long ones only in the weekly reminder', () => {
+    const rows = [
+      { slug: 'old', silentSince: daysAfter('2026-10-22', -30) },
+      { slug: 'new', silentSince: daysAfter('2026-10-22', -2) },
+      { slug: 'edge', silentSince: daysAfter('2026-10-22', -7) },
+    ]
+    const { recent, longQuiet } = splitSilentScrapers(rows, now)
+    expect(recent.map(r => r.slug)).toEqual(['new', 'edge'])
+    expect(longQuiet.map(r => r.slug)).toEqual(['old'])
+  })
+
+  it('treats an unknown start as recent so it is never hidden', () => {
+    const { recent } = splitSilentScrapers([{ slug: 'x', silentSince: null }], now)
+    expect(recent.map(r => r.slug)).toEqual(['x'])
+  })
+})
+
+describe('isWeeklyReminderDay', () => {
+  it('is Monday in Eastern time', () => {
+    // 7am Eastern on Monday Oct 19 2026 is 11:00 UTC
+    expect(isWeeklyReminderDay(new Date('2026-10-19T11:00:00Z'))).toBe(true)
+    expect(isWeeklyReminderDay(new Date('2026-10-20T11:00:00Z'))).toBe(false)
+  })
+
+  it('uses the Eastern date, not UTC, near midnight', () => {
+    // Sunday 10pm Eastern is already Monday in UTC
+    expect(isWeeklyReminderDay(new Date('2026-10-19T02:00:00Z'))).toBe(false)
   })
 })

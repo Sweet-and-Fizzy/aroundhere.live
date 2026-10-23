@@ -21,6 +21,7 @@ import { StoneChurchScraper } from '../../scrapers/venues/stone-church'
 import { MarigoldBrattleboroScraper } from '../../scrapers/venues/marigold-brattleboro'
 import { LuthiersScraper } from '../../scrapers/venues/luthiers'
 import { FameScraper } from '../../scrapers/venues/fame'
+import { recordScraperSuccess } from '../../utils/scraper-run-status'
 
 // Map of venue slugs to scraper classes
 const scraperRegistry: Record<string, () => BaseScraper> = {
@@ -132,11 +133,7 @@ export default defineEventHandler(async (event) => {
     // Classify newly saved events
     await classifyPendingEvents(prisma)
 
-    // Update source last run
-    await prisma.source.update({
-      where: { id: source.id },
-      data: { lastRunAt: new Date(), lastRunStatus: 'success' },
-    })
+    await recordScraperSuccess(prisma, source.id, saveResult.accepted, result.events.length)
 
     console.log(`[RUN-HARDCODED] Completed: ${result.events.length} events, saved ${saveResult.saved}, updated ${saveResult.updated}, canceled ${saveResult.canceled}`)
 
