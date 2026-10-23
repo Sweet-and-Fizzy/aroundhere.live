@@ -11,17 +11,24 @@ const QUIET_MIN_HISTORY_DAYS = 5
 
 /**
  * Detect a scraper whose results collapsed to zero after a healthy run, the
- * signature of a moved page, soft-404, or broken selector. Returns an error
- * message, or null when the run looks fine.
+ * signature of a moved page, soft-404, or broken selector. A drop to zero only
+ * counts while events already saved from the source are still in the future:
+ * once they have all passed, the calendar simply ran out (a festival weekend,
+ * a season's last shows) and the zero is left to silent tracking. This also
+ * lets a collapse clear itself once the stranded events' dates go by.
+ *
+ * @param strandedCount saved, non-canceled future events linked to the source
+ * @returns an error message, or null when the run looks fine
  */
 export function detectEventCollapse(
   previousCount: number | null,
-  acceptedCount: number
+  acceptedCount: number,
+  strandedCount: number
 ): string | null {
-  if (acceptedCount > 0 || previousCount === null || previousCount < COLLAPSE_MIN_PREVIOUS) {
+  if (acceptedCount > 0 || previousCount === null || previousCount < COLLAPSE_MIN_PREVIOUS || strandedCount === 0) {
     return null
   }
-  return `Returned 0 upcoming events (previous run had ${previousCount})`
+  return `Returned 0 upcoming events, but ${strandedCount} already saved from this source are still in the future (previous run had ${previousCount})`
 }
 
 /**
