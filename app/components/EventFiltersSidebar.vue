@@ -1044,7 +1044,7 @@ defineExpose({
     </div>
 
     <!-- Map Modal -->
-    <Teleport to="body">
+    <Teleport to="#teleports">
       <div
         v-if="showMapModal"
         class="map-modal-overlay"

@@ -89,8 +89,9 @@ const stacks = [
   },
 ]
 
-// Random levels for each stack (0-1, representing how "full" the meter is)
-const levels = ref<number[]>(stacks.map(() => Math.random() * 0.6 + 0.2))
+// Levels for each stack (0-1, representing how "full" the meter is). Fixed so the
+// server and client render the same bars; the animation randomizes them after mount.
+const levels = ref<number[]>([0.5, 0.75, 0.45, 0.6, 0.8, 0.55])
 
 // Animation interval
 let animationInterval: ReturnType<typeof setInterval> | null = null
@@ -115,25 +116,21 @@ function isBarVisible(stackIndex: number, barIndex: number): boolean {
   return threshold < level
 }
 
-// Start/stop animation based on playing prop (client-side only)
-watch(
-  () => props.playing,
-  (playing) => {
-    if (!import.meta.client) return
-    if (playing) {
-      // Start animation
-      updateLevels()
-      animationInterval = setInterval(updateLevels, 150)
-    } else {
-      // Stop animation
-      if (animationInterval) {
-        clearInterval(animationInterval)
-        animationInterval = null
-      }
-    }
-  },
-  { immediate: true }
-)
+// Start/stop animation based on playing prop, after hydration so the first
+// client render matches the server
+function setPlaying(playing: boolean | undefined) {
+  if (animationInterval) {
+    clearInterval(animationInterval)
+    animationInterval = null
+  }
+  if (playing) {
+    updateLevels()
+    animationInterval = setInterval(updateLevels, 150)
+  }
+}
+
+onMounted(() => setPlaying(props.playing))
+watch(() => props.playing, setPlaying)
 
 onUnmounted(() => {
   if (animationInterval) {
