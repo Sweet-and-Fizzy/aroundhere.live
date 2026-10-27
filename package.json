@@ -34,7 +34,7 @@
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@nuxt/ui": "~4.9.0",
     "@nuxt/ui-pro": "^3.3.7",
-    "@nuxtjs/mdc": "^0.19.1",
+    "@nuxtjs/mdc": "^0.23.2",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@types/leaflet": "^1.9.21",
