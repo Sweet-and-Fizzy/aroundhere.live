@@ -304,8 +304,8 @@ describe('sanitizeMessages', () => {
     ]
 
     const sanitized = sanitizeMessages(messages)
-    expect(sanitized[0].content).toBe('HelloWorld')
-    expect(sanitized[1].content).toBe('Response')
+    expect(sanitized[0]?.content).toBe('HelloWorld')
+    expect(sanitized[1]?.content).toBe('Response')
   })
 
   it('should not modify assistant messages', () => {
@@ -314,7 +314,7 @@ describe('sanitizeMessages', () => {
     ]
 
     const sanitized = sanitizeMessages(messages)
-    expect(sanitized[0].content).toBe('System\x00Info') // Not sanitized
+    expect(sanitized[0]?.content).toBe('System\x00Info') // Not sanitized
   })
 
   it('should preserve message structure', () => {
@@ -324,7 +324,7 @@ describe('sanitizeMessages', () => {
 
     const sanitized = sanitizeMessages(messages)
     expect(sanitized).toHaveLength(1)
-    expect(sanitized[0].role).toBe('user')
+    expect(sanitized[0]?.role).toBe('user')
     expect(sanitized[0]).toHaveProperty('content')
   })
 

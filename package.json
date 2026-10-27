@@ -32,7 +32,7 @@
     "@guolao/vue-monaco-editor": "^1.6.0",
     "@internationalized/date": "^3.10.0",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@nuxt/ui": "^4.2.1",
+    "@nuxt/ui": "~4.9.0",
     "@nuxt/ui-pro": "^3.3.7",
     "@nuxtjs/mdc": "^0.19.1",
     "@prisma/adapter-pg": "^7.0.0",
@@ -44,10 +44,11 @@
     "cheerio": "^1.1.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "h3": "^1.15.11",
     "ioredis": "^5.6.1",
     "leaflet": "^1.9.4",
     "monaco-editor": "^0.55.1",
-    "nuxt": "^4.2.1",
+    "nuxt": "^4.6.3",
     "nuxt-auth-utils": "^0.5.25",
     "openai": "^6.9.1",
     "pg": "^8.16.3",
@@ -87,7 +88,7 @@
     "typescript": "^5.9.3",
     "vitest": "^2.1.9",
     "vue-eslint-parser": "^10.2.0",
-    "vue-tsc": "^3.3.9"
+    "vue-tsc": "3.3.9"
   },
   "lint-staged": {
     "*.{js,ts,vue}": "eslint --fix",
