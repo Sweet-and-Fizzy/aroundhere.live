@@ -96,7 +96,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     },
   },
 
-  modules: ['@nuxt/ui', '@nuxt/ui-pro', '@nuxtjs/mdc', 'nuxt-auth-utils'],
+  modules: ['@nuxt/ui', '@nuxtjs/mdc', 'nuxt-auth-utils'],
 
   // Force light mode by default
   colorMode: {
