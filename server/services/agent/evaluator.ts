@@ -121,8 +121,7 @@ function formatEventSample(events: Record<string, unknown>[], maxEvents: number 
   const sample = events.slice(0, maxEvents)
   const lines: string[] = ['', 'Sample of extracted data:']
 
-  for (let i = 0; i < sample.length; i++) {
-    const event = sample[i]
+  for (const [i, event] of sample.entries()) {
     lines.push(`  Event ${i + 1}:`)
 
     // Show key fields with truncation for long values
@@ -241,8 +240,7 @@ export function evaluateEventData(events: Record<string, unknown>[] | null | und
   // Collect quality issues across sample events
   const allQualityIssues: DataQualityIssue[] = []
 
-  for (let i = 0; i < sampleSize; i++) {
-    const event = events[i]
+  for (const event of events.slice(0, sampleSize)) {
 
     // Check for quality issues
     const issues = detectEventQualityIssues(event)

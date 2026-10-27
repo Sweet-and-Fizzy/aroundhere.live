@@ -57,8 +57,8 @@ describe('analyzeEventFields', () => {
 
       const analysis = analyzeEventFields(events)
 
-      expect(analysis.coverage.title.count).toBe(2)
-      expect(analysis.coverage.title.percentage).toBe(100)
+      expect(analysis.coverage.title?.count).toBe(2)
+      expect(analysis.coverage.title?.percentage).toBe(100)
       expect(analysis.requiredFieldsCoverage).toBe(1) // All required fields present
     })
   })
@@ -79,8 +79,8 @@ describe('analyzeEventFields', () => {
 
       const analysis = analyzeEventFields(events)
 
-      expect(analysis.coverage.title.count).toBe(1)
-      expect(analysis.coverage.title.percentage).toBe(50)
+      expect(analysis.coverage.title?.count).toBe(1)
+      expect(analysis.coverage.title?.percentage).toBe(50)
       expect(analysis.requiredFieldsCoverage).toBeLessThan(1)
     })
 
@@ -94,8 +94,8 @@ describe('analyzeEventFields', () => {
 
       const analysis = analyzeEventFields(events)
 
-      expect(analysis.coverage.startsAt.percentage).toBe(0)
-      expect(analysis.coverage.sourceUrl.percentage).toBe(0)
+      expect(analysis.coverage.startsAt?.percentage).toBe(0)
+      expect(analysis.coverage.sourceUrl?.percentage).toBe(0)
       // Required fields are weighted 70%, so missing 2/3 required fields hurts the score significantly
       expect(analysis.completenessScore).toBeLessThan(0.5)
     })
@@ -152,8 +152,8 @@ describe('analyzeEventFields', () => {
       ]
 
       const analysis = analyzeEventFields(events)
-      expect(analysis.coverage.title.count).toBe(0)
-      expect(analysis.coverage.title.percentage).toBe(0)
+      expect(analysis.coverage.title?.count).toBe(0)
+      expect(analysis.coverage.title?.percentage).toBe(0)
     })
 
     it('should not count empty strings', () => {
@@ -166,8 +166,8 @@ describe('analyzeEventFields', () => {
       ]
 
       const analysis = analyzeEventFields(events)
-      expect(analysis.coverage.title.count).toBe(0)
-      expect(analysis.coverage.startsAt.count).toBe(0)
+      expect(analysis.coverage.title?.count).toBe(0)
+      expect(analysis.coverage.startsAt?.count).toBe(0)
     })
 
     it('should not count empty arrays', () => {
@@ -182,8 +182,8 @@ describe('analyzeEventFields', () => {
       ]
 
       const analysis = analyzeEventFields(events)
-      expect(analysis.coverage.genres.count).toBe(0)
-      expect(analysis.coverage.artists.count).toBe(0)
+      expect(analysis.coverage.genres?.count).toBe(0)
+      expect(analysis.coverage.artists?.count).toBe(0)
     })
 
     it('should count arrays with values', () => {
@@ -198,8 +198,8 @@ describe('analyzeEventFields', () => {
       ]
 
       const analysis = analyzeEventFields(events)
-      expect(analysis.coverage.genres.count).toBe(1)
-      expect(analysis.coverage.artists.count).toBe(1)
+      expect(analysis.coverage.genres?.count).toBe(1)
+      expect(analysis.coverage.artists?.count).toBe(1)
     })
   })
 
@@ -237,12 +237,12 @@ describe('analyzeEventFields', () => {
 
       const analysis = analyzeEventFields(events)
 
-      expect(analysis.coverage.title.count).toBe(3)
-      expect(analysis.coverage.title.percentage).toBe(75) // 3/4 = 75%
-      expect(analysis.coverage.startsAt.count).toBe(3)
-      expect(analysis.coverage.startsAt.percentage).toBe(75)
-      expect(analysis.coverage.sourceUrl.count).toBe(4)
-      expect(analysis.coverage.sourceUrl.percentage).toBe(100)
+      expect(analysis.coverage.title?.count).toBe(3)
+      expect(analysis.coverage.title?.percentage).toBe(75) // 3/4 = 75%
+      expect(analysis.coverage.startsAt?.count).toBe(3)
+      expect(analysis.coverage.startsAt?.percentage).toBe(75)
+      expect(analysis.coverage.sourceUrl?.count).toBe(4)
+      expect(analysis.coverage.sourceUrl?.percentage).toBe(100)
     })
 
     it('should mark required vs optional fields correctly', () => {
@@ -257,14 +257,14 @@ describe('analyzeEventFields', () => {
       const analysis = analyzeEventFields(events)
 
       // Required fields
-      expect(analysis.coverage.title.isRequired).toBe(true)
-      expect(analysis.coverage.startsAt.isRequired).toBe(true)
-      expect(analysis.coverage.sourceUrl.isRequired).toBe(true)
+      expect(analysis.coverage.title?.isRequired).toBe(true)
+      expect(analysis.coverage.startsAt?.isRequired).toBe(true)
+      expect(analysis.coverage.sourceUrl?.isRequired).toBe(true)
 
       // Optional fields
-      expect(analysis.coverage.description.isRequired).toBe(false)
-      expect(analysis.coverage.coverCharge.isRequired).toBe(false)
-      expect(analysis.coverage.imageUrl.isRequired).toBe(false)
+      expect(analysis.coverage.description?.isRequired).toBe(false)
+      expect(analysis.coverage.coverCharge?.isRequired).toBe(false)
+      expect(analysis.coverage.imageUrl?.isRequired).toBe(false)
     })
   })
 })
@@ -384,7 +384,7 @@ describe('getSampleEvents', () => {
     const sample = getSampleEvents(events, 2)
     expect(sample).toHaveLength(2)
     // First event should be the most complete one
-    expect(sample[0].title).toBe('Complete')
+    expect(sample[0]?.title).toBe('Complete')
   })
 
   it('should handle default limit of 5', () => {
@@ -464,11 +464,11 @@ describe('getSampleEvents', () => {
     // Should return top 3 events by coverage
     expect(sample).toHaveLength(3)
     // The first event should be the most complete one
-    expect(sample[0].title).toBe('Complete')
+    expect(sample[0]?.title).toBe('Complete')
     // Medium should be second (5 fields vs Minimal's 3 and Low's 4)
-    expect(sample[1].title).toBe('Medium')
+    expect(sample[1]?.title).toBe('Medium')
     // Low should be third (4 fields)
-    expect(sample[2].title).toBe('Low')
+    expect(sample[2]?.title).toBe('Low')
     // Minimal should not be included (only 3 fields, lowest coverage)
     expect(sample.find(e => e.title === 'Minimal')).toBeUndefined()
   })

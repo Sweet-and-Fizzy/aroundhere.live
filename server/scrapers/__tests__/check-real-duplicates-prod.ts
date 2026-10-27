@@ -82,8 +82,8 @@ async function findDuplicates() {
     // Compare each pair of events on the same day
     for (let i = 0; i < events.length; i++) {
       for (let j = i + 1; j < events.length; j++) {
-        const e1 = events[i]
-        const e2 = events[j]
+        const e1 = events[i]!
+        const e2 = events[j]!
 
         // Skip if not on the same day
         if (!isSameDay(e1.startsAt, e2.startsAt)) continue
