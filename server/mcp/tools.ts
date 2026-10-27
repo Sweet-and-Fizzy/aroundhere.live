@@ -5,6 +5,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
 import { upcomingStartDate, recommendationWindow } from '../utils/chat-dates'
+import { eventLocationName, eventLocationCity, type EventLocationFields } from '../../shared/utils/eventLocation'
 import {
   getUserProfile,
   findCandidateEvents,
@@ -75,8 +76,8 @@ export function createChatTools(userId?: string) {
           return {
             title: e.title,
             date: formatEventDate(e.startsAt as string),
-            venue: venue?.name || (e.locationName as string | undefined) || 'TBA',
-            city: venue?.city || (e.locationCity as string | undefined) || '',
+            venue: eventLocationName(e as EventLocationFields) ?? 'TBA',
+            city: eventLocationCity(e as EventLocationFields) ?? '',
             state: venue?.state || '',
             genres: (e.canonicalGenres as string[])?.slice(0, 3) || [],
             coverCharge: e.coverCharge || 'Check venue',
@@ -209,15 +210,13 @@ export function createChatTools(userId?: string) {
         return { error: `Event "${input.eventTitle}" not found. Try search_events with different terms.` }
       }
 
-      const venue = event.venue as Record<string, unknown> | undefined
-
       return {
         title: event.title,
         description: event.summary || (event.description as string)?.slice(0, 500) || null,
         date: format(new Date(event.startsAt as string), "EEEE, MMMM d, yyyy 'at' h:mm a"),
         doorsAt: event.doorsAt ? format(new Date(event.doorsAt as string), "h:mm a") : null,
-        venue: venue?.name || (event.locationName as string | undefined) || 'TBA',
-        address: venue ? `${venue.city || ''}` : (event.locationCity as string | undefined) || null,
+        venue: eventLocationName(event as EventLocationFields) ?? 'TBA',
+        address: eventLocationCity(event as EventLocationFields),
         genres: event.canonicalGenres || [],
         coverCharge: event.coverCharge || 'Check venue',
         ageRestriction: event.ageRestriction || 'ALL_AGES',

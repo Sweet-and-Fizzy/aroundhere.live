@@ -92,8 +92,7 @@ useSeoMeta({ title: 'Admin - Submissions' })
               </UBadge>
             </div>
             <div class="text-sm text-gray-600 mb-1">
-              <span v-if="submission.venue">{{ submission.venue.name }}</span>
-              <span v-else-if="submission.locationName">{{ submission.locationName }}</span>
+              <span v-if="eventLocationName(submission)">{{ eventLocationName(submission) }}</span>
               <span class="mx-2">-</span>
               <span>{{ formatDate(submission.startsAt) }}</span>
             </div>

@@ -17,6 +17,9 @@ const { getGenreLabel, getGenreColor } = useGenreLabels()
 const { getEventTypeLabel, getEventTypeColor } = useEventTypeLabels()
 const { formatTime } = useEventTime()
 
+const venueName = computed(() => eventLocationName(props.event) ?? 'TBA')
+const venueCity = computed(() => eventLocationCity(props.event))
+
 // Get full badge classes with colors
 const eventTypeBadgeClass = computed(() => {
   const color = getEventTypeColor(props.event.eventType)
@@ -199,21 +202,21 @@ const eventTypeLabel = computed(() => {
       <div class="flex items-center gap-1">
         <div
           class="text-sm text-gray-900 truncate flex-1"
-          :title="event.venue?.name || 'TBA'"
+          :title="venueName"
         >
           <UIcon
             name="i-heroicons-map-pin"
             class="w-3.5 h-3.5 inline mr-1"
             aria-hidden="true"
           />
-          {{ event.venue?.name || 'TBA' }}
+          {{ venueName }}
         </div>
         <span
-          v-if="event.venue?.city"
+          v-if="venueCity"
           class="flex-shrink-0 text-xs text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded"
-          :title="event.venue.city"
+          :title="venueCity"
         >
-          {{ event.venue.city }}
+          {{ venueCity }}
         </span>
       </div>
     </td>
