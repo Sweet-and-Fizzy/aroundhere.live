@@ -217,10 +217,11 @@ onMounted(async () => {
     )
   }
 
-  // Add CARTO Voyager tiles (cleaner, modern look without terrain markers)
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+  // Add CARTO Voyager tiles (cleaner, modern look without terrain markers).
+  // CARTO serves "API key required" placeholder tiles without a key.
+  const cartoKey = useRuntimeConfig().public.cartoApiKey
+  L.tileLayer(`https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${encodeURIComponent(cartoKey)}`, {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
     maxZoom: 20
   }).addTo(map.value as LeafletMap)
 

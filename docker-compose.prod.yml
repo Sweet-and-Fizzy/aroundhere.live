@@ -22,6 +22,7 @@ services:
       - NUXT_SESSION_PASSWORD=${NUXT_SESSION_PASSWORD}
       - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
       - NUXT_PUBLIC_SITE_URL=https://aroundhere.live
+      - NUXT_PUBLIC_CARTO_API_KEY=${CARTO_API_KEY}
       - NUXT_OAUTH_GOOGLE_CLIENT_ID=${NUXT_OAUTH_GOOGLE_CLIENT_ID}
       - NUXT_OAUTH_GOOGLE_CLIENT_SECRET=${NUXT_OAUTH_GOOGLE_CLIENT_SECRET}
       # NUXT_ prefix is required for Nitro to override runtimeConfig at runtime;
