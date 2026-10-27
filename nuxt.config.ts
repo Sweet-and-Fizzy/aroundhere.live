@@ -91,6 +91,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     public: {
       regionName: 'Western Massachusetts',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://aroundhere.live',
+      // Set at runtime via NUXT_PUBLIC_CARTO_API_KEY; restrict the key to our domains in CARTO's dashboard
+      cartoApiKey: '',
     },
   },
 
