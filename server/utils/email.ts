@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { createCheckedSend } from './email-send'
 import { reportEmailFailure } from '../services/alerting'
+import { eventLocationName, eventLocationCity } from '../../shared/utils/eventLocation'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const sendEmail = createCheckedSend(options => resend.emails.send(options), reportEmailFailure)
@@ -864,8 +865,8 @@ function renderEventCard(
     minute: '2-digit',
     timeZone: timezone,
   })
-  const venue = event.venue?.name || event.locationName || 'TBA'
-  const cityValue = event.venue?.city || event.locationCity
+  const venue = eventLocationName(event) ?? 'TBA'
+  const cityValue = eventLocationCity(event)
   const city = cityValue ? `, ${cityValue}` : ''
 
   // Show AI explanation for non-favorites
@@ -949,8 +950,8 @@ function renderAttendanceCard(
     minute: '2-digit',
     timeZone: timezone,
   })
-  const venue = event.venue?.name || event.locationName || 'TBA'
-  const cityValue = event.venue?.city || event.locationCity
+  const venue = eventLocationName(event) ?? 'TBA'
+  const cityValue = eventLocationCity(event)
   const city = cityValue ? `, ${cityValue}` : ''
   const statusIcon = event.status === 'GOING' ? '✓' : '⭐'
   const statusLabel = event.status === 'GOING' ? 'Going' : 'Interested'
@@ -1109,7 +1110,7 @@ function generateRecommendationPlainText(
           hour: 'numeric',
           minute: '2-digit',
         })
-        const venue = event.venue?.name || event.locationName || 'TBA'
+        const venue = eventLocationName(event) ?? 'TBA'
         const statusIcon = event.status === 'GOING' ? '[Going]' : '[Interested]'
         return `  ${statusIcon} ${event.title}\n    ${date} @ ${time} - ${venue}\n    ${baseUrl}/events/${event.slug}`
       })
@@ -1125,7 +1126,7 @@ function generateRecommendationPlainText(
           month: 'short',
           day: 'numeric',
         })
-        const venue = item.event.venue?.name || item.event.locationName || 'TBA'
+        const venue = eventLocationName(item.event) ?? 'TBA'
         const detail = item.event.summary || ''
         return `  - ${item.event.title}\n    ${date} @ ${venue}${detail ? `\n    ${detail}` : ''}\n    ${baseUrl}/events/${item.event.slug}`
       })
@@ -1141,7 +1142,7 @@ function generateRecommendationPlainText(
           month: 'short',
           day: 'numeric',
         })
-        const venue = item.event.venue?.name || item.event.locationName || 'TBA'
+        const venue = eventLocationName(item.event) ?? 'TBA'
         const details: string[] = []
         if (item.event.summary) details.push(item.event.summary)
         if (item.explanation) details.push(item.explanation)
@@ -1160,7 +1161,7 @@ function generateRecommendationPlainText(
           month: 'short',
           day: 'numeric',
         })
-        const venue = item.event.venue?.name || item.event.locationName || 'TBA'
+        const venue = eventLocationName(item.event) ?? 'TBA'
         const details: string[] = []
         if (item.event.summary) details.push(item.event.summary)
         if (item.explanation) details.push(item.explanation)

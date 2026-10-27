@@ -12,10 +12,6 @@ function statusColor(reviewStatus: string) {
   if (reviewStatus === 'REJECTED') return 'error'
   return 'warning'
 }
-
-function venueName(submission: any) {
-  return submission.venue?.name || submission.locationName || null
-}
 </script>
 
 <template>
@@ -69,10 +65,10 @@ function venueName(submission: any) {
           <div class="flex items-center gap-2 mt-0.5">
             <span class="text-xs text-gray-500">{{ formatDate(submission.startsAt) }}</span>
             <span
-              v-if="venueName(submission)"
+              v-if="eventLocationName(submission)"
               class="text-xs text-gray-400"
             >
-              &middot; {{ venueName(submission) }}
+              &middot; {{ eventLocationName(submission) }}
             </span>
           </div>
         </div>

@@ -86,6 +86,8 @@ const nuxtGlobals = {
   stripHtmlAndClean: 'readonly',
   sendMagicLinkEmail: 'readonly',
   sendPasswordResetEmail: 'readonly',
+  eventLocationName: 'readonly',
+  eventLocationCity: 'readonly',
   // nuxt-auth-utils OAuth handlers
   defineOAuthGoogleEventHandler: 'readonly',
   // h3 utilities
