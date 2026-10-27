@@ -79,7 +79,7 @@ onBeforeUnmount(() => {
     </button>
 
     <!-- Chat Drawer -->
-    <Teleport to="body">
+    <Teleport to="#teleports">
       <!-- Backdrop -->
       <div
         v-if="showChat"
