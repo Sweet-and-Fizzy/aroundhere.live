@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue'
-import { VueMonacoEditor, VueMonacoDiffEditor } from '@guolao/vue-monaco-editor'
+import { VueMonacoEditor, VueMonacoDiffEditor, loader } from '@guolao/vue-monaco-editor'
 import type {
   ScraperVersion,
   SourceInfo,
@@ -16,6 +16,11 @@ definePageMeta({
   layout: 'admin',
   middleware: 'admin',
 })
+
+// The editor loads Monaco from the CDN, not the npm package, and the loader's
+// default is 0.55.1, whose bundled DOMPurify has a known XSS. Keep this version
+// in sync with monaco-editor in package.json.
+loader.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.57.0/min/vs' } })
 
 const route = useRoute()
 const toast = useToast()
