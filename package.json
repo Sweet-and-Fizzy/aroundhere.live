@@ -46,7 +46,7 @@
     "h3": "^1.15.11",
     "ioredis": "^5.6.1",
     "leaflet": "^1.9.4",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.57.0",
     "nuxt": "^4.6.3",
     "nuxt-auth-utils": "^0.5.25",
     "openai": "^6.9.1",
