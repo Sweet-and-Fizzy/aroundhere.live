@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Prisma } from '@prisma/client'
-import { generateText, stepCountIs } from 'ai'
+import { generateText, isStepCount } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { getRequestIP } from 'h3'
 import prisma from '../utils/prisma'
@@ -83,16 +83,15 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Use AI SDK's generateText with tools
-    // AI SDK 5 uses stopWhen instead of maxSteps for multi-step tool calls
     const result = await generateText({
       model: anthropic(CHAT_MODEL),
-      system: getChatSystemPrompt(regionName, isLoggedIn, timezone),
+      instructions: getChatSystemPrompt(regionName, isLoggedIn, timezone),
       messages: cleanMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
       tools,
-      stopWhen: stepCountIs(5), // Allow up to 5 steps for tool calls and follow-up
+      stopWhen: isStepCount(5), // Allow up to 5 steps for tool calls and follow-up
       toolChoice: 'auto', // Let the model decide when to use tools
     })
 
@@ -112,9 +111,9 @@ export default defineEventHandler(async (event) => {
     const responseText = result.text || 'Sorry, I could not generate a response.'
     const latencyMs = Date.now() - startTime
 
-    // totalUsage sums every tool-loop step; usage is the last step only
-    const inputTokens = result.totalUsage?.inputTokens ?? 0
-    const outputTokens = result.totalUsage?.outputTokens ?? 0
+    // usage sums every tool-loop step
+    const inputTokens = result.usage.inputTokens ?? 0
+    const outputTokens = result.usage.outputTokens ?? 0
     if (result.finishReason !== 'stop' && result.finishReason !== 'tool-calls') {
       console.warn(`[Chat] finishReason=${result.finishReason} session=${sessionId}`)
     }
