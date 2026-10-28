@@ -97,6 +97,27 @@ const sidebarRef = ref<{
   openChatWithMessage: (message: string) => void
 } | null>(null)
 
+// Ref to compact filters component (mobile/tablet)
+const compactFiltersRef = ref<{
+  clearFiltersKeepSearch: () => void
+} | null>(null)
+
+// Both filter panels are rendered at every width and hidden with CSS, so only the
+// one visible at the lg breakpoint applies filters and drives the event list
+const desktopQuery = '(min-width: 1024px)'
+const isDesktop = ref(import.meta.client && window.matchMedia(desktopQuery).matches)
+let stopDesktopListener: (() => void) | undefined
+onMounted(() => {
+  const media = window.matchMedia(desktopQuery)
+  const update = () => {
+    isDesktop.value = media.matches
+  }
+  update()
+  media.addEventListener('change', update)
+  stopDesktopListener = () => media.removeEventListener('change', update)
+})
+onBeforeUnmount(() => stopDesktopListener?.())
+
 // Ref to floating chat button for calling methods (mobile/tablet)
 const floatingChatRef = ref<{
   openWithMessage: (message: string) => void
@@ -255,8 +276,12 @@ async function handleFilter(filters: Record<string, any>) {
 
 // Clear filters and search again (for "search all events" hint)
 function searchAllEvents() {
-  // Call sidebar method to clear filters (which will trigger applyFilters and emit new filter event)
-  sidebarRef.value?.clearFiltersKeepSearch()
+  // Clear filters in the visible panel, which applies them and emits a new filter event
+  if (isDesktop.value) {
+    sidebarRef.value?.clearFiltersKeepSearch()
+  } else {
+    compactFiltersRef.value?.clearFiltersKeepSearch()
+  }
 }
 
 async function loadMore() {
@@ -480,6 +505,7 @@ useHead({
               :genre-labels="genreLabels"
               :facets="facets"
               :result-count="events.length"
+              :filters-active="isDesktop"
               @filter="handleFilter"
               @tab-change="handleTabChange"
             />
@@ -520,10 +546,12 @@ useHead({
         <!-- Compact Filters - Mobile/Tablet only -->
         <div class="lg:hidden">
           <EventFilters
+            ref="compactFiltersRef"
             :venues="venues"
             :genres="genres"
             :genre-labels="genreLabels"
             :facets="facets"
+            :active="!isDesktop"
             @filter="handleFilter"
           />
         </div>

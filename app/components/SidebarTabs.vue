@@ -16,6 +16,7 @@ defineProps<{
     nonMusicCount: number
   }
   resultCount?: number
+  filtersActive: boolean
 }>()
 
 const emit = defineEmits<{
@@ -146,6 +147,7 @@ function handleFilter(filters: Record<string, any>) {
           :genre-labels="genreLabels"
           :facets="facets"
           :result-count="resultCount"
+          :active="filtersActive"
           @filter="handleFilter"
         />
       </div>
