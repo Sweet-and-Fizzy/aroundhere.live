@@ -88,4 +88,41 @@ describe('useEventFilters', () => {
     expect(window.location.search).toBe('?utm_source=mail&venues=iron-horse')
     expect(JSON.parse(localStorage.getItem('eventFilters')!).selectedVenueIds).toEqual(['v1'])
   })
+
+  it('applies URL filters from a link even after an earlier restore', () => {
+    const { filters, restore } = useEventFilters()
+    restore(venues)
+    filters.value.searchQuery = 'jazz'
+    // Coming back to the page through a link mounts it again
+    currentQuery = { myEvents: 'recommended' }
+    useEventFilters().restore(venues)
+    expect(filters.value.recommended).toBe(true)
+    expect(filters.value.searchQuery).toBe('')
+  })
+
+  it('does not reread saved filters on a later restore without URL filters', () => {
+    const { filters, restore } = useEventFilters()
+    restore(venues)
+    filters.value.searchQuery = 'blues'
+    localStorage.setItem('eventFilters', JSON.stringify({ searchQuery: 'saved' }))
+    restore(venues)
+    expect(filters.value.searchQuery).toBe('blues')
+  })
+
+  it('auto-selects the detected region once when nothing else is selected', () => {
+    const { filters, autoSelectRegion } = useEventFilters()
+    autoSelectRegion('pioneer-valley')
+    expect(filters.value.selectedRegions).toEqual(['pioneer-valley'])
+    filters.value.selectedRegions = []
+    autoSelectRegion('pioneer-valley')
+    expect(filters.value.selectedRegions).toEqual([])
+  })
+
+  it('does not auto-select a region while venue slugs are pending', () => {
+    currentQuery = { venues: 'iron-horse' }
+    const { filters, restore, autoSelectRegion } = useEventFilters()
+    restore([])
+    autoSelectRegion('pioneer-valley')
+    expect(filters.value.selectedRegions).toEqual([])
+  })
 })

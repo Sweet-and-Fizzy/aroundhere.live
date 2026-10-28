@@ -85,12 +85,11 @@ watch(viewMode, (newMode) => {
 
 // Shared filter state; the panels edit it and this page fetches when it changes
 const {
-  filters,
   apiFilters,
   pendingVenueSlugs,
-  regionAutoSelected,
   restore,
   resolvePendingVenues,
+  autoSelectRegion,
   persist,
   clearFiltersKeepSearch,
 } = useEventFilters()
@@ -261,11 +260,12 @@ const facets = computed(() => facetsData.value ?? undefined)
 
 // Fetch only when the filters actually differ from the last request, since the
 // computed filters re-evaluate on unrelated changes (favorites loading, restores)
-let lastRequestKey = ''
+// Kept across navigations, since the loaded events persist in useState too
+const lastRequestKey = useState('event-filters-last-request', () => '')
 async function requestEvents(filters: EventFilters) {
   const key = JSON.stringify(filters)
-  if (key === lastRequestKey) return
-  lastRequestKey = key
+  if (key === lastRequestKey.value) return
+  lastRequestKey.value = key
   currentFilters.value = filters
   if (filters.q) {
     await searchEvents(filters)
@@ -302,9 +302,9 @@ onMounted(() => {
   // Reflect the restored filters in the URL right away, so it can be shared
   persist(venues.value)
 
-  // Events persist across navigations via useState, so a return trip shows them as-is
-  if (events.value.length > 0) {
-    lastRequestKey = JSON.stringify(apiFilters.value)
+  // Events persist across navigations via useState, so a return trip with the same
+  // filters shows them as-is; a link with new filters fetches
+  if (events.value.length > 0 && JSON.stringify(apiFilters.value) === lastRequestKey.value) {
     currentFilters.value = apiFilters.value
   } else if (pendingVenueSlugs.value.length === 0) {
     requestEvents(apiFilters.value)
@@ -325,15 +325,8 @@ onMounted(() => {
 
   watch(venues, (list) => resolvePendingVenues(list))
 
-  // First-time visitors see their detected region; once per session, so clearing
-  // the region sticks across navigations
   watch(currentRegionLoaded, (loaded) => {
-    if (!loaded || regionAutoSelected.value) return
-    regionAutoSelected.value = true
-    const current = filters.value
-    if (currentRegion.value?.slug && current.selectedRegions.length === 0 && current.selectedCities.length === 0 && current.selectedVenueIds.length === 0) {
-      filters.value = { ...current, selectedRegions: [currentRegion.value.slug] }
-    }
+    if (loaded) autoSelectRegion(currentRegion.value?.slug)
   }, { immediate: true })
 })
 

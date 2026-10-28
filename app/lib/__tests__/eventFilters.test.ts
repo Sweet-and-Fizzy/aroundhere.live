@@ -47,6 +47,12 @@ describe('toApiFilters', () => {
     const state = { ...defaultFilterState(), selectedVenueIds: ['a', 'b'] }
     expect(toApiFilters(state, { mapFilteredVenueIds: ['b', 'c'], favorites: noFavs }).venueIds).toEqual(['b'])
   })
+  it('copies selected venues so later edits to the state do not change requested filters', () => {
+    const state = { ...defaultFilterState(), selectedVenueIds: ['a'] }
+    const api = toApiFilters(state, { mapFilteredVenueIds: null, favorites: noFavs })
+    state.selectedVenueIds.push('b')
+    expect(api.venueIds).toEqual(['a'])
+  })
   it('sends recommended as myEvents', () => {
     const state = { ...defaultFilterState(), recommended: true, myEvents: 'going' }
     expect(toApiFilters(state, { mapFilteredVenueIds: null, favorites: noFavs }).myEvents).toBe('recommended')

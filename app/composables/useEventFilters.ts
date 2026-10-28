@@ -55,11 +55,12 @@ export function useEventFilters() {
     return restoring.value
   }
 
-  // Apply URL filters, or saved ones when the URL has none. Runs once per app session.
+  // Apply URL filters whenever the page is opened with them (shared links, in-app
+  // links like ?myEvents=recommended); saved filters are read once per app session
   function restore(venues: FilterVenue[] | undefined) {
-    if (restored.value) return
-    restoring.value = true
     const fromUrl = parseFiltersFromQuery(route.query)
+    if (restored.value && !fromUrl) return
+    restoring.value = true
     let stored: Partial<EventFilterState> | null = null
     if (!fromUrl) {
       try {
@@ -85,6 +86,17 @@ export function useEventFilters() {
       .filter((id): id is string => !!id)
     filters.value = { ...filters.value, selectedVenueIds: ids }
     pendingVenueSlugs.value = []
+  }
+
+  // First-time visitors see their detected region; once per session, so clearing it
+  // sticks across navigations. Waits while a venue link is still resolving.
+  function autoSelectRegion(slug: string | undefined) {
+    if (!slug || regionAutoSelected.value || pendingVenueSlugs.value.length > 0) return
+    regionAutoSelected.value = true
+    const current = filters.value
+    if (current.selectedRegions.length === 0 && current.selectedCities.length === 0 && current.selectedVenueIds.length === 0) {
+      filters.value = { ...current, selectedRegions: [slug] }
+    }
   }
 
   function persist(venues: FilterVenue[] | undefined) {
@@ -157,11 +169,11 @@ export function useEventFilters() {
     mapCenter,
     pendingVenueSlugs,
     restored,
-    regionAutoSelected,
     apiFilters,
     isRestoring,
     restore,
     resolvePendingVenues,
+    autoSelectRegion,
     persist,
     resetFilters,
     clearFiltersKeepSearch,

@@ -142,7 +142,7 @@ export function toApiFilters(state: EventFilterState, ctx: { mapFilteredVenueIds
   if (state.selectedVenueIds.length > 0 && mapFilteredVenueIds !== null) {
     venueIds = state.selectedVenueIds.filter(id => mapFilteredVenueIds.includes(id))
   } else if (state.selectedVenueIds.length > 0) {
-    venueIds = state.selectedVenueIds
+    venueIds = [...state.selectedVenueIds]
   } else if (mapFilteredVenueIds !== null) {
     venueIds = mapFilteredVenueIds
   }
