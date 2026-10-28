@@ -40,7 +40,16 @@ function loadActiveTab(): 'filters' | 'chat' {
   return 'filters'
 }
 
-const activeTab = ref<'filters' | 'chat'>(loadActiveTab())
+// The server can't see localStorage, so while hydrating render the default tab
+// and switch to the saved one after mount
+const deferSavedTab = import.meta.client && useNuxtApp().isHydrating
+const activeTab = ref<'filters' | 'chat'>(deferSavedTab ? 'filters' : loadActiveTab())
+
+onMounted(() => {
+  if (deferSavedTab) {
+    activeTab.value = loadActiveTab()
+  }
+})
 
 // Save active tab to localStorage and scroll chat to bottom
 watch(activeTab, (newTab) => {
