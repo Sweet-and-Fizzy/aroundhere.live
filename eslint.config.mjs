@@ -99,6 +99,7 @@ const nuxtGlobals = {
   useEventTypeLabels: 'readonly',
   useLocationFilter: 'readonly',
   useFavorites: 'readonly',
+  useEventFilters: 'readonly',
   useEventTime: 'readonly',
   useEventAttendance: 'readonly',
   useChat: 'readonly',

@@ -10,6 +10,7 @@ import {
   parseStoredFilters,
   serializeFilters,
   toApiFilters,
+  venuesWithinRadius,
 } from '../eventFilters'
 
 describe('eventTypesToApi', () => {
@@ -105,5 +106,16 @@ describe('filtersToQuery', () => {
 describe('mergeFilterQuery', () => {
   it('keeps unrelated params and replaces filter params', () => {
     expect(mergeFilterQuery('?utm_source=mail&venueIds=a&q=old', { q: 'jazz' })).toBe('utm_source=mail&q=jazz')
+  })
+})
+
+describe('venuesWithinRadius', () => {
+  it('keeps venues inside the radius and skips ones without coordinates', () => {
+    const venues = [
+      { id: 'noho', latitude: 42.3251, longitude: -72.6412 },
+      { id: 'boston', latitude: 42.3601, longitude: -71.0589 },
+      { id: 'nowhere', latitude: null, longitude: null },
+    ]
+    expect(venuesWithinRadius(venues, { lat: 42.32, lng: -72.63 }, 10)).toEqual(['noho'])
   })
 })
