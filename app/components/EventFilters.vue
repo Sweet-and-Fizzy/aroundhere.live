@@ -43,6 +43,8 @@ const props = defineProps<{
     musicCount: number
     nonMusicCount: number
   }
+  // Only the panel visible at the current breakpoint applies filters
+  active: boolean
 }>()
 
 // LocalStorage key for persisting filters
@@ -437,6 +439,20 @@ function resetFilters() {
   applyFilters()
 }
 
+// Clear everything but the search (for the "search all events" hint). Assigning
+// a new event types array always triggers the auto-apply watcher, which applies once.
+function clearFiltersKeepSearch() {
+  selectedVenueIds.value = []
+  selectedGenres.value = []
+  selectedEventTypes.value = []
+  datePreset.value = 'all'
+  mapFilteredVenueIds.value = null
+  mapCenter.value = null
+  if (import.meta.client) {
+    localStorage.removeItem(MAP_BOUNDS_KEY)
+  }
+}
+
 // Date preset labels for display
 const datePresetLabels: Record<string, string> = {
   all: 'All Dates',
@@ -572,6 +588,8 @@ function getDateRange(range: string) {
 }
 
 function applyFilters() {
+  if (!props.active) return
+
   const { startDate, endDate } = getDateRange(datePreset.value)
 
   // Combine location filter (selectedVenueIds) and map filters
@@ -703,6 +721,11 @@ function updateUrlFromFilters(filters: Record<string, any>) {
   }
 }
 
+// Crossing the breakpoint makes this panel the one the list follows
+watch(() => props.active, (active) => {
+  if (active) applyFilters()
+})
+
 // Watch for complete range selection (both start and end dates selected)
 watch(customDateRange, (newRange) => {
   if (restoringSavedFilters) return
@@ -770,6 +793,10 @@ watch(regionLoaded, (loaded) => {
     applyFilters()
   }
 }, { immediate: true })
+
+defineExpose({
+  clearFiltersKeepSearch,
+})
 </script>
 
 <template>

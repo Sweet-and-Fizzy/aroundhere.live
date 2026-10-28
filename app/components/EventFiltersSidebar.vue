@@ -48,6 +48,8 @@ const props = defineProps<{
     nonMusicCount: number
   }
   resultCount?: number
+  // Only the panel visible at the current breakpoint applies filters
+  active: boolean
 }>()
 
 // LocalStorage key for persisting filters
@@ -832,6 +834,8 @@ function getDateRange(range: string) {
 }
 
 function applyFilters() {
+  if (!props.active) return
+
   const { startDate, endDate } = getDateRange(datePreset.value)
 
   let venueIds: string[] | undefined
@@ -887,6 +891,11 @@ function applyFilters() {
   saveFilters()
   updateUrl()
 }
+
+// Crossing the breakpoint makes this panel the one the list follows
+watch(() => props.active, (active) => {
+  if (active) applyFilters()
+})
 
 // Watch for custom range selection
 watch(customDateRange, (newRange) => {
