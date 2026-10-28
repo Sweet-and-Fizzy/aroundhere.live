@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { EVENT_TYPE_GROUPS } from '~/lib/eventFilters'
+
 const props = defineProps<{
   modelValue: string[]
   facets?: {
@@ -16,10 +18,7 @@ const emit = defineEmits<{
 const { getEventTypeLabel } = useEventTypeLabels()
 
 // Event type hierarchy - three tiers
-const eventTypeHierarchy = {
-  ALL_MUSIC: ['MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE'],
-  OTHER_EVENTS: ['COMEDY', 'THEATER', 'TRIVIA', 'GAMES', 'PRIVATE', 'FILM', 'SPOKEN_WORD', 'DANCE', 'MARKET', 'WORKSHOP', 'PARTY', 'SPORTS', 'COMMUNITY', 'FOOD', 'DRAG', 'FITNESS', 'OTHER'],
-}
+const eventTypeHierarchy = EVENT_TYPE_GROUPS
 
 const allEventTypes = [
   'ALL_EVENTS',

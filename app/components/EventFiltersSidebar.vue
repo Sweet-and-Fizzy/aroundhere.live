@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, toRef } from 'vue'
 import type { DateRange } from 'reka-ui'
-import { CalendarDate } from '@internationalized/date'
+import { isDefaultEventTypes, type EventFilterState } from '~/lib/eventFilters'
 
 // Import filter sub-components
 import FilterSection from '~/components/filters/FilterSection.vue'
@@ -14,25 +14,11 @@ import LocationFilter from '~/components/filters/LocationFilter.vue'
 
 type CalendarDateRange = DateRange | any
 
-// Format date as YYYY-MM-DD for cleaner URLs (using local date components)
-function formatDateParam(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const { updateRegion, region: currentRegion, loaded: regionLoaded } = useCurrentRegion()
+const { region: currentRegion } = useCurrentRegion()
 
 // User session for favorites filter
 const { loggedIn } = useUserSession()
 const { favorites } = useFavorites()
-
-const emit = defineEmits<{
-  filter: [filters: Record<string, any>]
-}>()
-
-const route = useRoute()
 
 const props = defineProps<{
   venues?: { id: string; name: string; slug: string; city?: string | null; latitude?: number | null; longitude?: number | null }[]
@@ -48,246 +34,35 @@ const props = defineProps<{
     nonMusicCount: number
   }
   resultCount?: number
-  // Only the panel visible at the current breakpoint applies filters
-  active: boolean
 }>()
 
 // LocalStorage key for persisting filters
-const STORAGE_KEY = 'eventFilters'
+const {
+  filters,
+  mapFilteredVenueIds,
+  isRestoring,
+  resetFilters: resetSharedFilters,
+  onMapVisibleVenues: setMapVisibleVenues,
+  onMapCenterChanged: setMapCenter,
+  clearMapFilter,
+} = useEventFilters()
 
-// Valid event types for URL validation
-const validEventTypes = ['ALL_MUSIC', 'ALL_EVENTS', 'MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE', 'COMEDY', 'THEATER', 'TRIVIA']
-const validDatePresets = ['today', 'tomorrow', 'weekend', 'week', 'all', 'custom']
-
-// Valid myEvents options
-const validMyEventsOptions = ['interested', 'going', 'all']
-
-// Parse date from YYYY-MM-DD format
-function parseDateParam(dateStr: string): Date | null {
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return null
-  return new Date(parseInt(match[1]!), parseInt(match[2]!) - 1, parseInt(match[3]!))
+// Writable view of one field of the shared filter state
+function filterField<K extends keyof EventFilterState>(key: K) {
+  return computed<EventFilterState[K]>({
+    get: () => filters.value[key],
+    set: (value) => {
+      filters.value = { ...filters.value, [key]: value }
+    },
+  })
 }
 
-// Load filters from URL params (takes priority over localStorage)
-function loadFiltersFromUrl() {
-  const query = route.query
-  const hasUrlFilters = query.q || query.venues || query.genres || query.types || query.date || query.cities || query.regions || query.myEvents || query.recommended || query.dateStart || query.dateEnd
+// Which section is open is this panel's own UI state, saved separately from the filters
+const SECTION_STORAGE_KEY = 'eventFiltersSection'
 
-  if (!hasUrlFilters) return null
-
-  // Validate and filter event types to only valid values
-  const urlTypes = query.types ? (query.types as string).split(',') : []
-  const validatedTypes = urlTypes.filter(t => validEventTypes.includes(t))
-
-  // Validate date preset
-  const urlDate = query.date as string
-  let validatedDate = validDatePresets.includes(urlDate) ? urlDate : 'all'
-
-  // Parse custom date range from URL
-  let customRange: CalendarDateRange | undefined
-  const dateStart = query.dateStart as string
-  const dateEnd = query.dateEnd as string
-  if (dateStart && dateEnd) {
-    const startDate = parseDateParam(dateStart)
-    const endDate = parseDateParam(dateEnd)
-    if (startDate && endDate) {
-      customRange = {
-        start: new CalendarDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate()),
-        end: new CalendarDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()),
-      }
-      validatedDate = 'custom'
-    }
-  }
-
-  // Validate myEvents (attendance only - interested/going/all)
-  const urlMyEvents = query.myEvents as string
-  const validatedMyEvents = validMyEventsOptions.includes(urlMyEvents) ? urlMyEvents : null
-
-  // Handle recommended filter (can come from ?recommended=true or legacy ?myEvents=recommended)
-  const isRecommended = query.recommended === 'true' || urlMyEvents === 'recommended'
-
-  return {
-    searchQuery: (query.q as string) || '',
-    // Venues are stored by slug in URL, we'll need to map them to IDs later
-    venueSlug: query.venues ? (query.venues as string).split(',') : [],
-    selectedGenres: query.genres ? (query.genres as string).split(',') : [],
-    selectedEventTypes: validatedTypes.length > 0 ? validatedTypes : ['ALL_MUSIC'],
-    datePreset: validatedDate,
-    customDateRange: customRange,
-    selectedRegions: query.regions ? (query.regions as string).split(',') : [],
-    selectedCities: query.cities ? (query.cities as string).split(',') : [],
-    myEvents: validatedMyEvents,
-    recommended: isRecommended,
-  }
-}
-
-// Load saved filters from localStorage
-function loadSavedFilters({ skipStorage = false } = {}) {
-  // URL params take priority
-  const urlFilters = loadFiltersFromUrl()
-  if (urlFilters) return urlFilters
-
-  if (import.meta.client && !skipStorage) {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const filters = JSON.parse(saved)
-        // Parse custom date range from localStorage
-        if (filters.customDateRangeData?.startDate && filters.customDateRangeData?.endDate) {
-          const startDate = parseDateParam(filters.customDateRangeData.startDate)
-          const endDate = parseDateParam(filters.customDateRangeData.endDate)
-          if (startDate && endDate) {
-            filters.customDateRange = {
-              start: new CalendarDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate()),
-              end: new CalendarDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()),
-            }
-          }
-        }
-        return filters
-      }
-    } catch {
-      // Ignore parse errors
-    }
-  }
-  return null
-}
-
-// Save filters to localStorage
-function saveFilters() {
-  if (import.meta.client) {
-    // Serialize custom date range to simple object for JSON storage
-    // Use CalendarDate properties directly to avoid any timezone issues
-    let customDateRangeData = null
-    if (customDateRange.value?.start && customDateRange.value?.end) {
-      const start = customDateRange.value.start
-      const end = customDateRange.value.end
-      customDateRangeData = {
-        startDate: `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`,
-        endDate: `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`,
-      }
-    }
-
-    const filters = {
-      datePreset: datePreset.value,
-      customDateRangeData,
-      selectedVenueIds: selectedVenueIds.value,
-      selectedRegions: selectedRegions.value,
-      selectedCities: selectedCities.value,
-      selectedGenres: selectedGenres.value,
-      selectedEventTypes: selectedEventTypes.value,
-      searchQuery: searchQuery.value,
-      expandedSection: expandedSection.value,
-      filterByFavoriteArtists: filterByFavoriteArtists.value,
-      filterByFavoriteVenues: filterByFavoriteVenues.value,
-      filterByFavoriteGenres: filterByFavoriteGenres.value,
-      myEvents: myEvents.value,
-      recommended: recommended.value,
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
-  }
-}
-
-// Update URL with current filters (for shareable links)
-function updateUrl() {
-  if (!import.meta.client) return
-
-  const query: Record<string, string> = {}
-
-  // Search query
-  if (searchQuery.value) {
-    query.q = searchQuery.value
-  }
-
-  // Regions
-  if (selectedRegions.value.length > 0) {
-    query.regions = selectedRegions.value.join(',')
-  }
-
-  // Cities
-  if (selectedCities.value.length > 0) {
-    query.cities = selectedCities.value.join(',')
-  }
-
-  // Venues - use slugs for readable URLs
-  if (selectedVenueIds.value.length > 0) {
-    const venueSlugs = selectedVenueIds.value
-      .map(id => props.venues?.find(v => v.id === id)?.slug)
-      .filter(Boolean) as string[]
-    if (venueSlugs.length > 0) {
-      query.venues = venueSlugs.join(',')
-    }
-  }
-
-  // Genres
-  if (selectedGenres.value.length > 0) {
-    query.genres = selectedGenres.value.join(',')
-  }
-
-  // Event types (only if not default)
-  if (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') {
-    query.types = selectedEventTypes.value.join(',')
-  }
-
-  // Date preset (only if not default)
-  if (datePreset.value !== 'all') {
-    query.date = datePreset.value
-  }
-
-  // Custom date range (when preset is 'custom')
-  // Use CalendarDate properties directly to avoid any timezone issues
-  if (datePreset.value === 'custom' && customDateRange.value?.start && customDateRange.value?.end) {
-    const start = customDateRange.value.start
-    const end = customDateRange.value.end
-    query.dateStart = `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`
-    query.dateEnd = `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`
-  }
-
-  // My Events filter (attendance)
-  if (myEvents.value) {
-    query.myEvents = myEvents.value
-  }
-
-  // Recommended filter
-  if (recommended.value) {
-    query.recommended = 'true'
-  }
-
-  // Use History API directly to avoid Vue Router navigation which resets scroll
-  const url = new URL(window.location.href)
-  url.search = new URLSearchParams(query).toString()
-  window.history.replaceState({}, '', url.toString())
-}
-
-// The server can't see localStorage, so while hydrating start from the same state
-// it rendered and restore the saved filters after mount
-const deferStoredFilters = import.meta.client && useNuxtApp().isHydrating
-const savedFilters = loadSavedFilters({ skipStorage: deferStoredFilters })
-let restoringStoredFilters = false
-
-// Normalize saved filters (URL or localStorage) into initial ref values
-function filterState(saved: ReturnType<typeof loadSavedFilters>) {
-  return {
-    expandedSection: (saved?.expandedSection || null) as string | null,
-    datePreset: saved?.datePreset || 'all',
-    customDateRange: (saved?.customDateRange || undefined) as CalendarDateRange | undefined,
-    selectedVenueIds: (saved?.selectedVenueIds || saved?.selectedVenues?.map((v: any) => v.value || v) || []) as string[],
-    searchQuery: saved?.searchQuery || '',
-    selectedGenres: (saved?.selectedGenres?.map((g: any) => g.value || g) || []) as string[],
-    selectedEventTypes: (saved?.selectedEventTypes?.map((e: any) => e.value || e) || ['ALL_MUSIC']) as string[],
-    selectedRegions: (saved?.selectedRegions || []) as string[],
-    selectedCities: (saved?.selectedCities || []) as string[],
-    filterByFavoriteArtists: saved?.filterByFavoriteArtists || false,
-    filterByFavoriteVenues: saved?.filterByFavoriteVenues || false,
-    filterByFavoriteGenres: saved?.filterByFavoriteGenres || false,
-    myEvents: (saved?.myEvents || null) as string | null,
-    recommended: saved?.recommended || false,
-  }
-}
-const initial = filterState(savedFilters)
-
-// Collapsible sections state - accordion style (only one section open at a time)
-const expandedSection = ref<string | null>(initial.expandedSection)
+// Collapsible sections state - accordion style (only one section open at a time).
+// Restored after mount so hydration matches the server render.
+const expandedSection = ref<string | null>(null)
 
 function toggleSection(section: string) {
   // Accordion: clicking expanded section collapses it, clicking collapsed expands it (and collapses others)
@@ -296,7 +71,15 @@ function toggleSection(section: string) {
   } else {
     expandedSection.value = section
   }
-  saveFilters()
+  try {
+    if (expandedSection.value) {
+      localStorage.setItem(SECTION_STORAGE_KEY, expandedSection.value)
+    } else {
+      localStorage.removeItem(SECTION_STORAGE_KEY)
+    }
+  } catch {
+    // Storage can be unavailable
+  }
 }
 
 function isSectionExpanded(section: string) {
@@ -304,60 +87,26 @@ function isSectionExpanded(section: string) {
 }
 
 // Date range state - default to 'all' since we have pagination
-const datePreset = ref(initial.datePreset)
-const customDateRange = ref<CalendarDateRange | undefined>(initial.customDateRange)
+const datePreset = filterField('datePreset')
+const customDateRange = computed<CalendarDateRange | undefined>({
+  get: () => filters.value.customDateRange ?? undefined,
+  set: (value) => {
+    filters.value = { ...filters.value, customDateRange: value?.start && value?.end ? value : null }
+  },
+})
 const showCustomCalendar = ref(false)
 
-// Track if we have pending URL venue slugs to resolve
-const pendingVenueSlugs = ref<string[]>(savedFilters?.venueSlug || [])
-
-// Multi-select for venues - now stored as string array of IDs
-const selectedVenueIds = ref<string[]>(initial.selectedVenueIds)
-const searchQuery = ref(initial.searchQuery)
-const selectedGenres = ref<string[]>(initial.selectedGenres)
-// Event types as simple string array for checkboxes
-const selectedEventTypes = ref<string[]>(initial.selectedEventTypes)
-
-// Location filters: regions and cities
-const selectedRegions = ref<string[]>(initial.selectedRegions)
-const selectedCities = ref<string[]>(initial.selectedCities)
-
-// Favorites filters
-const filterByFavoriteArtists = ref(initial.filterByFavoriteArtists)
-const filterByFavoriteVenues = ref(initial.filterByFavoriteVenues)
-const filterByFavoriteGenres = ref(initial.filterByFavoriteGenres)
-
-// My Events filter - 'interested', 'going', 'all', or null (disabled)
-const myEvents = ref<string | null>(initial.myEvents)
-
-// Recommended filter (part of "For You" section)
-const recommended = ref(initial.recommended)
-
-// Apply filters saved in localStorage once hydration is done. Watchers that would
-// apply filters on these changes skip until the next tick; onMounted applies once.
-function restoreStoredFilters() {
-  const saved = loadSavedFilters()
-  if (!saved) return
-  const state = filterState(saved)
-  restoringStoredFilters = true
-  expandedSection.value = state.expandedSection
-  datePreset.value = state.datePreset
-  customDateRange.value = state.customDateRange
-  selectedVenueIds.value = state.selectedVenueIds
-  searchQuery.value = state.searchQuery
-  selectedGenres.value = state.selectedGenres
-  selectedEventTypes.value = state.selectedEventTypes
-  selectedRegions.value = state.selectedRegions
-  selectedCities.value = state.selectedCities
-  filterByFavoriteArtists.value = state.filterByFavoriteArtists
-  filterByFavoriteVenues.value = state.filterByFavoriteVenues
-  filterByFavoriteGenres.value = state.filterByFavoriteGenres
-  myEvents.value = state.myEvents
-  recommended.value = state.recommended
-  nextTick(() => {
-    restoringStoredFilters = false
-  })
-}
+const selectedVenueIds = filterField('selectedVenueIds')
+const searchQuery = filterField('searchQuery')
+const selectedGenres = filterField('selectedGenres')
+const selectedEventTypes = filterField('selectedEventTypes')
+const selectedRegions = filterField('selectedRegions')
+const selectedCities = filterField('selectedCities')
+const filterByFavoriteArtists = filterField('filterByFavoriteArtists')
+const filterByFavoriteVenues = filterField('filterByFavoriteVenues')
+const filterByFavoriteGenres = filterField('filterByFavoriteGenres')
+const myEvents = filterField('myEvents')
+const recommended = filterField('recommended')
 
 // Use location filter composable for hierarchical filtering
 const {
@@ -382,10 +131,8 @@ const {
 )
 
 // Map filter state
-const mapFilteredVenueIds = ref<string[] | null>(null)
 const showMap = ref(false)
 const showMapModal = ref(false)
-const mapCenter = ref<{ lat: number; lng: number; radius: number | 'view' } | null>(null)
 
 // Shared localStorage key for map bounds
 const MAP_BOUNDS_KEY = 'mapBounds'
@@ -414,85 +161,20 @@ const availableGenres = computed(() => {
     })
 })
 
-// Calculate distance between two points in miles (Haversine formula)
-function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 3959
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLng = (lng2 - lng1) * Math.PI / 180
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
-}
-
-function filterVenuesByRadius() {
-  if (!mapCenter.value || mapCenter.value.radius === 'view') {
-    return
-  }
-
-  const { lat, lng, radius } = mapCenter.value
-  const venuesInRadius = venuesWithCoords.value.filter(v => {
-    if (!v.latitude || !v.longitude) return false
-    const distance = getDistanceMiles(lat, lng, v.latitude, v.longitude)
-    return distance <= (radius as number)
-  })
-
-  mapFilteredVenueIds.value = venuesInRadius.map(v => v.id)
-}
-
 function onMapVisibleVenues(venueIds: string[]) {
-  // Always update filtered venues when we receive visible venues from the map
-  // This is called on initial load and whenever the map view changes
-
-  // If we're showing most/all venues (>90% of total), treat as "no filter"
-  // This prevents the location filter from disappearing when zoomed out
-  const totalVenues = venuesWithCoords.value.length
-  const visibleRatio = venueIds.length / totalVenues
-
-  if (visibleRatio > 0.9) {
-    // Showing nearly all venues - disable map filter
-    mapFilteredVenueIds.value = null
-  } else {
-    mapFilteredVenueIds.value = venueIds
-    // Clear any selected venues that are no longer visible on the map
-    selectedVenueIds.value = selectedVenueIds.value.filter(id =>
-      venueIds.includes(id)
-    )
-  }
-  applyFilters()
+  setMapVisibleVenues(venueIds, venuesWithCoords.value)
 }
 
 function onMapCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
-  mapCenter.value = center
-  // Update global region based on map center
-  updateRegion(center.lat, center.lng)
-  if (center.radius === 'view') {
-    // In 'view' mode, mapFilteredVenueIds will be set by onMapVisibleVenues
-    // Don't clear it here - just wait for the visible venues event
-  } else {
-    filterVenuesByRadius()
-    // Clear any selected venues that are no longer in the geographic area
-    if (mapFilteredVenueIds.value !== null) {
-      selectedVenueIds.value = selectedVenueIds.value.filter(id =>
-        mapFilteredVenueIds.value!.includes(id)
-      )
-    }
-    applyFilters()
-  }
+  setMapCenter(center, venuesWithCoords.value)
 }
 
 function resetMap() {
-  mapFilteredVenueIds.value = null
-  mapCenter.value = null
-  if (import.meta.client) {
-    localStorage.removeItem(MAP_BOUNDS_KEY)
-  }
+  clearMapFilter()
   showMap.value = false
   nextTick(() => {
     showMap.value = true
   })
-  applyFilters()
 }
 
 // Check if any filters are active
@@ -501,7 +183,7 @@ const hasActiveFilters = computed(() => {
     searchQuery.value !== '' ||
     selectedVenueIds.value.length > 0 ||
     selectedGenres.value.length > 0 ||
-    (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') ||
+    !isDefaultEventTypes(selectedEventTypes.value) ||
     datePreset.value !== 'all' ||
     mapFilteredVenueIds.value !== null ||
     selectedRegions.value.length > 0 ||
@@ -520,7 +202,7 @@ const activeFilterCount = computed(() => {
   if (searchQuery.value !== '') count++
   if (selectedVenueIds.value.length > 0) count++
   if (selectedGenres.value.length > 0) count++
-  if (selectedEventTypes.value.length !== 1 || selectedEventTypes.value[0] !== 'ALL_MUSIC') count++
+  if (!isDefaultEventTypes(selectedEventTypes.value)) count++
   if (datePreset.value !== 'all') count++
   if (mapFilteredVenueIds.value !== null) count++
   if (selectedRegions.value.length > 0) count++
@@ -530,29 +212,10 @@ const activeFilterCount = computed(() => {
   return count
 })
 
+// Reset all filters to defaults, keeping the current region
 function resetFilters() {
-  searchQuery.value = ''
-  selectedVenueIds.value = []
-  selectedGenres.value = []
-  selectedEventTypes.value = ['ALL_MUSIC']
-  // Reset to current region as the default
-  selectedRegions.value = currentRegion.value?.slug ? [currentRegion.value.slug] : []
-  selectedCities.value = []
-  datePreset.value = 'all'
-  customDateRange.value = undefined
-  mapFilteredVenueIds.value = null
-  mapCenter.value = null
+  resetSharedFilters(currentRegion.value?.slug)
   showMapModal.value = false
-  filterByFavoriteArtists.value = false
-  filterByFavoriteVenues.value = false
-  filterByFavoriteGenres.value = false
-  recommended.value = false
-  myEvents.value = null
-  if (import.meta.client) {
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(MAP_BOUNDS_KEY)
-  }
-  applyFilters()
 }
 
 // Music-related event types
@@ -597,6 +260,8 @@ const nonMusicEventTypes = computed(() => {
 
 // Check if any music-related type is selected (for showing genre filter)
 const hasMusicTypeSelected = computed(() => {
+  // No selection means all events, which includes music
+  if (isDefaultEventTypes(selectedEventTypes.value)) return true
   const musicTypes = ['ALL_MUSIC', 'MUSIC', 'DJ', 'OPEN_MIC', 'KARAOKE']
   return selectedEventTypes.value.some(t => musicTypes.includes(t))
 })
@@ -700,10 +365,9 @@ function toggleCity(city: string) {
   }
 }
 
-// Wrapper functions that use the composable and call applyFilters
+// Wrapper functions around the composable's selection toggles
 function toggleCitySelection(city: string) {
   composableToggleCitySelection(city)
-  applyFilters()
 }
 
 // Region-level functions
@@ -717,11 +381,7 @@ function toggleRegion(region: string) {
 
 function toggleRegionSelection(region: string) {
   composableToggleRegionSelection(region)
-  applyFilters()
 }
-
-// Show more venues toggle
-const showAllVenues = ref(false)
 
 // Venue search/autocomplete
 const venueSearchQuery = ref('')
@@ -730,7 +390,7 @@ const showVenueDropdown = ref(false)
 // Use selectedVenueObjects from composable
 const selectedVenueObjects = locationSelectedVenueObjects
 
-async function selectVenueFromSearch(venueId: string) {
+function selectVenueFromSearch(venueId: string) {
   if (!selectedVenueIds.value.includes(venueId)) {
     // Adding a venue - clear region/city filters if this is the first venue selection
     if (selectedVenueIds.value.length === 0) {
@@ -738,9 +398,6 @@ async function selectVenueFromSearch(venueId: string) {
       selectedCities.value = []
     }
     selectedVenueIds.value.push(venueId)
-    // Use nextTick to ensure reactivity has processed the venue selection
-    await nextTick()
-    applyFilters()
   }
   venueSearchQuery.value = ''
   showVenueDropdown.value = false
@@ -750,7 +407,6 @@ function removeVenue(venueId: string) {
   const index = selectedVenueIds.value.indexOf(venueId)
   if (index !== -1) {
     selectedVenueIds.value.splice(index, 1)
-    applyFilters()
   }
 }
 
@@ -768,232 +424,24 @@ function toggleVenue(venueId: string) {
   } else {
     selectedVenueIds.value.splice(index, 1)
   }
-  applyFilters()
 }
-
-function getDateRange(range: string) {
-  const now = new Date()
-  const startDate = new Date(now)
-  startDate.setHours(0, 0, 0, 0)
-
-  let endDate: Date | undefined
-
-  switch (range) {
-    case 'today':
-      endDate = new Date(startDate)
-      endDate.setHours(23, 59, 59, 999)
-      break
-    case 'tomorrow':
-      startDate.setDate(startDate.getDate() + 1)
-      endDate = new Date(startDate)
-      endDate.setHours(23, 59, 59, 999)
-      break
-    case 'weekend': {
-      const dayOfWeek = now.getDay()
-      if (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) {
-        // Already weekend
-      } else {
-        const daysUntilFriday = 5 - dayOfWeek
-        startDate.setDate(now.getDate() + daysUntilFriday)
-      }
-      const endDayOfWeek = startDate.getDay()
-      const daysUntilSunday = endDayOfWeek === 0 ? 0 : 7 - endDayOfWeek
-      endDate = new Date(startDate)
-      endDate.setDate(startDate.getDate() + daysUntilSunday)
-      endDate.setHours(23, 59, 59, 999)
-      break
-    }
-    case 'week':
-      endDate = new Date(startDate)
-      endDate.setDate(startDate.getDate() + 7)
-      break
-    case 'month':
-      endDate = new Date(startDate)
-      endDate.setDate(startDate.getDate() + 30)
-      break
-    case 'custom':
-      if (customDateRange.value) {
-        const start = customDateRange.value.start
-        const end = customDateRange.value.end
-        if (start && end) {
-          return {
-            startDate: formatDateParam(new Date(start.year, start.month - 1, start.day)),
-            endDate: formatDateParam(new Date(end.year, end.month - 1, end.day)),
-          }
-        }
-      }
-      break
-    case 'all':
-      break
-  }
-
-  return {
-    startDate: formatDateParam(startDate),
-    endDate: endDate ? formatDateParam(endDate) : undefined,
-  }
-}
-
-function applyFilters() {
-  if (!props.active) return
-
-  const { startDate, endDate } = getDateRange(datePreset.value)
-
-  let venueIds: string[] | undefined
-  if (selectedVenueIds.value.length > 0 && mapFilteredVenueIds.value !== null) {
-    venueIds = selectedVenueIds.value.filter(id => mapFilteredVenueIds.value!.includes(id))
-  } else if (selectedVenueIds.value.length > 0) {
-    venueIds = selectedVenueIds.value
-  } else if (mapFilteredVenueIds.value !== null) {
-    venueIds = mapFilteredVenueIds.value
-  }
-
-  let eventTypes = [...selectedEventTypes.value]
-  const showAllEvents = eventTypes.includes('ALL_EVENTS')
-
-  if (!showAllEvents && eventTypes.includes('ALL_MUSIC')) {
-    const otherTypes = eventTypes.filter(t => t !== 'ALL_MUSIC')
-    const musicTypes = allMusicEventTypes.map(t => t.value)
-    eventTypes = [...new Set([...musicTypes, ...otherTypes])]
-  }
-
-  const musicOnly = (eventTypes.length === 0 || showAllEvents) ? false : undefined
-
-  // Build favorite IDs if filtering by favorites is enabled
-  const favoriteArtistIds = filterByFavoriteArtists.value && favorites.value.artists.length > 0
-    ? favorites.value.artists.map(a => a.id)
-    : undefined
-  const favoriteVenueIds = filterByFavoriteVenues.value && favorites.value.venues.length > 0
-    ? favorites.value.venues.map(v => v.id)
-    : undefined
-  const favoriteGenreSlugs = filterByFavoriteGenres.value && favorites.value.genres.length > 0
-    ? favorites.value.genres
-    : undefined
-
-  const filters = {
-    startDate,
-    endDate,
-    venueIds: venueIds && venueIds.length > 0 ? venueIds : undefined,
-    regions: selectedRegions.value.length > 0 ? [...selectedRegions.value] : undefined,
-    cities: selectedCities.value.length > 0 ? [...selectedCities.value] : undefined,
-    q: searchQuery.value || undefined,
-    genres: selectedGenres.value.length > 0 ? selectedGenres.value : undefined,
-    eventTypes: (!showAllEvents && eventTypes.length > 0) ? eventTypes : undefined,
-    musicOnly,
-    // Favorites filters
-    favoriteArtistIds,
-    favoriteVenueIds,
-    favoriteGenres: favoriteGenreSlugs,
-    // My Events filter - 'recommended' if recommended is active, otherwise attendance status
-    myEvents: recommended.value ? 'recommended' : (myEvents.value || undefined),
-  }
-  emit('filter', filters)
-
-  saveFilters()
-  updateUrl()
-}
-
-// Crossing the breakpoint makes this panel the one the list follows
-watch(() => props.active, (active) => {
-  if (active) applyFilters()
-})
 
 // Watch for custom range selection
 watch(customDateRange, (newRange) => {
-  if (restoringStoredFilters) return
+  if (isRestoring()) return
   if (newRange?.start && newRange?.end) {
     datePreset.value = 'custom'
     showCustomCalendar.value = false
-    applyFilters()
   }
 }, { deep: true })
 
-// Watch for venues to resolve URL slugs to IDs
-watch(() => props.venues, (venues) => {
-  if (venues && pendingVenueSlugs.value.length > 0) {
-    const resolvedIds = pendingVenueSlugs.value
-      .map(slug => venues.find(v => v.slug === slug)?.id)
-      .filter(Boolean) as string[]
-    if (resolvedIds.length > 0) {
-      selectedVenueIds.value = resolvedIds
-      pendingVenueSlugs.value = []
-      applyFilters()
-    }
-  }
-}, { immediate: true })
-
-// Debounce search input
-let searchTimeout: ReturnType<typeof setTimeout>
-watch(searchQuery, () => {
-  if (restoringStoredFilters) return
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(applyFilters, 300)
-})
-
-// Get events state to check if data already exists
-const { events: existingEvents } = useEvents()
-
+// Which section was open is browser-only state, so restore it after hydration
 onMounted(() => {
-  if (deferStoredFilters) {
-    restoreStoredFilters()
+  try {
+    expandedSection.value = localStorage.getItem(SECTION_STORAGE_KEY)
+  } catch {
+    // Storage can be unavailable
   }
-
-  // Only fetch if no events exist (events persist via useState across navigations)
-  // BUT: Don't fetch yet if we have pending venue slugs that need to be resolved first
-  if (existingEvents.value.length === 0 && pendingVenueSlugs.value.length === 0) {
-    applyFilters()
-  }
-  // If we have pending venue slugs, wait for the watch to resolve them and call applyFilters
-
-  // Initialize region from saved map bounds or default center
-  if (import.meta.client) {
-    try {
-      const savedBounds = localStorage.getItem(MAP_BOUNDS_KEY)
-      if (savedBounds) {
-        const bounds = JSON.parse(savedBounds)
-        // Calculate center from bounds (format: { north, south, east, west })
-        const centerLat = (bounds.north + bounds.south) / 2
-        const centerLng = (bounds.east + bounds.west) / 2
-        updateRegion(centerLat, centerLng, true)
-      } else {
-        // Use default center (Northampton area)
-        updateRegion(42.32, -72.63, true)
-      }
-    } catch {
-      // Fallback to default center
-      updateRegion(42.32, -72.63, true)
-    }
-  }
-})
-
-// Auto-select current region when it's loaded and no region is explicitly selected
-// This ensures first-time users see events from their detected region
-watch(regionLoaded, (loaded) => {
-  if (loaded && currentRegion.value?.slug && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
-    selectedRegions.value = [currentRegion.value.slug]
-    applyFilters()
-  }
-}, { immediate: true })
-
-// Clear filters but keep search query (for "search all events" action)
-function clearFiltersKeepSearch() {
-  selectedVenueIds.value = []
-  selectedGenres.value = []
-  selectedEventTypes.value = ['ALL_EVENTS']
-  datePreset.value = 'all'
-  mapFilteredVenueIds.value = null
-  mapCenter.value = null
-  showAllVenues.value = false
-  if (import.meta.client) {
-    localStorage.removeItem(MAP_BOUNDS_KEY)
-  }
-  saveFilters()
-  applyFilters()
-}
-
-// Expose methods for parent component
-defineExpose({
-  resetFilters,
-  clearFiltersKeepSearch,
 })
 </script>
 
@@ -1021,7 +469,7 @@ defineExpose({
       <DateRangeFilter
         :model-value="datePreset"
         :custom-range="customDateRange"
-        @update:model-value="val => { datePreset = val; applyFilters() }"
+        @update:model-value="val => { datePreset = val }"
         @update:custom-range="val => { customDateRange = val }"
       />
     </FilterSection>
@@ -1178,7 +626,7 @@ defineExpose({
       <EventTypeFilter
         :model-value="selectedEventTypes"
         :facets="facets"
-        @update:model-value="val => { selectedEventTypes = val; applyFilters() }"
+        @update:model-value="val => { selectedEventTypes = val }"
       />
     </FilterSection>
 
@@ -1196,7 +644,7 @@ defineExpose({
         :genres="genres"
         :genre-labels="genreLabels"
         :facets="facets"
-        @update:model-value="val => { selectedGenres = val; applyFilters() }"
+        @update:model-value="val => { selectedGenres = val }"
       />
     </FilterSection>
 
@@ -1217,10 +665,10 @@ defineExpose({
         :artist-count="favorites.artists.length"
         :venue-count="favorites.venues.length"
         :genre-count="favorites.genres.length"
-        @update:recommended="val => { recommended = val; applyFilters() }"
-        @update:filter-by-artists="val => { filterByFavoriteArtists = val; applyFilters() }"
-        @update:filter-by-venues="val => { filterByFavoriteVenues = val; applyFilters() }"
-        @update:filter-by-genres="val => { filterByFavoriteGenres = val; applyFilters() }"
+        @update:recommended="val => { recommended = val }"
+        @update:filter-by-artists="val => { filterByFavoriteArtists = val }"
+        @update:filter-by-venues="val => { filterByFavoriteVenues = val }"
+        @update:filter-by-genres="val => { filterByFavoriteGenres = val }"
       />
       <NuxtLink
         to="/interests"
@@ -1245,7 +693,7 @@ defineExpose({
     >
       <MyEventsFilter
         :model-value="myEvents"
-        @update:model-value="val => { myEvents = val; applyFilters() }"
+        @update:model-value="val => { myEvents = val }"
       />
     </FilterSection>
 

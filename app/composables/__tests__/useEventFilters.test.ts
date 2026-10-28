@@ -1,0 +1,154 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { ref, type Ref } from 'vue'
+import { useEventFilters } from '../useEventFilters'
+
+// Stub the Nuxt auto-imports the composable uses as globals
+const store = new Map<string, Ref>()
+let currentQuery: Record<string, string> = {}
+vi.stubGlobal('useState', (key: string, init?: () => unknown) => {
+  if (!store.has(key)) store.set(key, ref(init?.()))
+  return store.get(key)
+})
+vi.stubGlobal('useRoute', () => ({ query: currentQuery }))
+vi.stubGlobal('useFavorites', () => ({ favorites: ref({ artists: [], venues: [], genres: [] }) }))
+vi.stubGlobal('useCurrentRegion', () => ({ updateRegion: vi.fn() }))
+
+const venues = [{ id: 'v1', slug: 'iron-horse' }]
+
+beforeEach(() => {
+  store.clear()
+  localStorage.clear()
+  currentQuery = {}
+})
+
+describe('useEventFilters', () => {
+  it('restores saved filters once', () => {
+    localStorage.setItem('eventFilters', JSON.stringify({ searchQuery: 'jazz' }))
+    const { filters, restore, restored } = useEventFilters()
+    restore(venues)
+    expect(filters.value.searchQuery).toBe('jazz')
+    expect(restored.value).toBe(true)
+    filters.value.searchQuery = 'blues'
+    restore(venues)
+    expect(filters.value.searchQuery).toBe('blues')
+  })
+
+  it('URL filters win over saved filters', () => {
+    localStorage.setItem('eventFilters', JSON.stringify({ searchQuery: 'a' }))
+    currentQuery = { q: 'b' }
+    const { filters, restore } = useEventFilters()
+    restore(venues)
+    expect(filters.value.searchQuery).toBe('b')
+  })
+
+  it('keeps venue slugs pending while venues are empty', () => {
+    currentQuery = { venues: 'iron-horse' }
+    const { pendingVenueSlugs, restore, resolvePendingVenues } = useEventFilters()
+    restore([])
+    resolvePendingVenues([])
+    expect(pendingVenueSlugs.value).toEqual(['iron-horse'])
+  })
+
+  it('resolves known slugs and drops unknown ones once venues load', () => {
+    currentQuery = { venues: 'iron-horse,nope' }
+    const { filters, pendingVenueSlugs, restore, resolvePendingVenues } = useEventFilters()
+    restore(undefined)
+    resolvePendingVenues(venues)
+    expect(pendingVenueSlugs.value).toEqual([])
+    expect(filters.value.selectedVenueIds).toEqual(['v1'])
+  })
+
+  it('shares state between callers', () => {
+    useEventFilters().filters.value.searchQuery = 'x'
+    expect(useEventFilters().filters.value.searchQuery).toBe('x')
+  })
+
+  it('resetFilters defaults to all events in the current region', () => {
+    const { filters, resetFilters } = useEventFilters()
+    filters.value.selectedEventTypes = ['ALL_MUSIC']
+    filters.value.selectedGenres = ['jazz']
+    resetFilters('pioneer-valley')
+    expect(filters.value.selectedEventTypes).toEqual([])
+    expect(filters.value.selectedGenres).toEqual([])
+    expect(filters.value.selectedRegions).toEqual(['pioneer-valley'])
+  })
+
+  it('clearFiltersKeepSearch keeps search and location', () => {
+    const { filters, clearFiltersKeepSearch } = useEventFilters()
+    Object.assign(filters.value, { searchQuery: 'jazz', selectedRegions: ['pioneer-valley'], selectedGenres: ['rock'], datePreset: 'week' })
+    clearFiltersKeepSearch()
+    expect(filters.value).toMatchObject({ searchQuery: 'jazz', selectedRegions: ['pioneer-valley'], selectedGenres: [], datePreset: 'all' })
+  })
+
+  it('clearFiltersKeepSearch keeps For You and My Events', () => {
+    const { filters, clearFiltersKeepSearch } = useEventFilters()
+    Object.assign(filters.value, { recommended: true, myEvents: 'going', filterByFavoriteArtists: true, selectedGenres: ['rock'] })
+    clearFiltersKeepSearch()
+    expect(filters.value).toMatchObject({ recommended: true, myEvents: 'going', filterByFavoriteArtists: true, selectedGenres: [] })
+  })
+
+  it('keeps pending venue slugs in the URL until they resolve', () => {
+    window.history.replaceState({}, '', '/?venues=iron-horse')
+    currentQuery = { venues: 'iron-horse' }
+    const { restore, persist } = useEventFilters()
+    restore([])
+    persist([])
+    expect(window.location.search).toBe('?venues=iron-horse')
+  })
+
+  it('persists to storage and keeps unrelated query params', () => {
+    window.history.replaceState({}, '', '/?utm_source=mail')
+    const { filters, persist } = useEventFilters()
+    filters.value.selectedVenueIds = ['v1']
+    persist(venues)
+    expect(window.location.search).toBe('?utm_source=mail&venues=iron-horse')
+    expect(JSON.parse(localStorage.getItem('eventFilters')!).selectedVenueIds).toEqual(['v1'])
+  })
+
+  it('applies URL filters from a link even after an earlier restore', () => {
+    const { filters, restore } = useEventFilters()
+    restore(venues)
+    filters.value.searchQuery = 'jazz'
+    // Coming back to the page through a link mounts it again
+    currentQuery = { myEvents: 'recommended' }
+    useEventFilters().restore(venues)
+    expect(filters.value.recommended).toBe(true)
+    expect(filters.value.searchQuery).toBe('')
+  })
+
+  it('does not reread saved filters on a later restore without URL filters', () => {
+    const { filters, restore } = useEventFilters()
+    restore(venues)
+    filters.value.searchQuery = 'blues'
+    localStorage.setItem('eventFilters', JSON.stringify({ searchQuery: 'saved' }))
+    restore(venues)
+    expect(filters.value.searchQuery).toBe('blues')
+  })
+
+  it('auto-selects the detected region once when nothing else is selected', () => {
+    const { filters, autoSelectRegion } = useEventFilters()
+    autoSelectRegion('pioneer-valley')
+    expect(filters.value.selectedRegions).toEqual(['pioneer-valley'])
+    filters.value.selectedRegions = []
+    autoSelectRegion('pioneer-valley')
+    expect(filters.value.selectedRegions).toEqual([])
+  })
+
+  it('does not auto-select a region while venue slugs are pending', () => {
+    currentQuery = { venues: 'iron-horse' }
+    const { filters, restore, autoSelectRegion } = useEventFilters()
+    restore([])
+    autoSelectRegion('pioneer-valley')
+    expect(filters.value.selectedRegions).toEqual([])
+  })
+
+  it('reports whether a region auto-select is still to come', () => {
+    const { filters, canAutoSelectRegion, autoSelectRegion } = useEventFilters()
+    expect(canAutoSelectRegion()).toBe(true)
+    filters.value.selectedCities = ['Northampton']
+    expect(canAutoSelectRegion()).toBe(false)
+    filters.value.selectedCities = []
+    autoSelectRegion('pioneer-valley')
+    expect(canAutoSelectRegion()).toBe(false)
+  })
+})
