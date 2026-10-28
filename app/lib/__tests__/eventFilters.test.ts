@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { CalendarDate } from '@internationalized/date'
-import { defaultFilterState, eventTypesToApi, getDateRange, toApiFilters } from '../eventFilters'
+import {
+  defaultFilterState,
+  eventTypesToApi,
+  filtersToQuery,
+  getDateRange,
+  mergeFilterQuery,
+  parseFiltersFromQuery,
+  parseStoredFilters,
+  serializeFilters,
+  toApiFilters,
+} from '../eventFilters'
 
 describe('eventTypesToApi', () => {
   it('treats no selection as all events', () => expect(eventTypesToApi([])).toEqual({ musicOnly: false }))
@@ -39,5 +49,61 @@ describe('toApiFilters', () => {
   it('sends recommended as myEvents', () => {
     const state = { ...defaultFilterState(), recommended: true, myEvents: 'going' }
     expect(toApiFilters(state, { mapFilteredVenueIds: null, favorites: noFavs }).myEvents).toBe('recommended')
+  })
+})
+
+describe('parseFiltersFromQuery', () => {
+  it('returns null without filter keys', () => expect(parseFiltersFromQuery({ utm_source: 'x' })).toBeNull())
+  it('reads venue slugs for later resolution', () => expect(parseFiltersFromQuery({ venues: 'iron-horse,parlor-room' })?.venueSlugs).toEqual(['iron-horse', 'parlor-room']))
+  it('accepts legacy venueIds', () => expect(parseFiltersFromQuery({ venueIds: 'a,b' })?.filters.selectedVenueIds).toEqual(['a', 'b']))
+  it('accepts legacy eventTypes', () => expect(parseFiltersFromQuery({ eventTypes: 'MUSIC,DJ' })?.filters.selectedEventTypes).toEqual(['MUSIC', 'DJ']))
+  it('maps ALL_EVENTS to no selection', () => expect(parseFiltersFromQuery({ types: 'ALL_EVENTS' })?.filters.selectedEventTypes).toEqual([]))
+  it('drops unknown event types', () => expect(parseFiltersFromQuery({ types: 'MUSIC,BOGUS' })?.filters.selectedEventTypes).toEqual(['MUSIC']))
+  it('reads legacy myEvents=recommended', () => expect(parseFiltersFromQuery({ myEvents: 'recommended' })?.filters).toMatchObject({ recommended: true, myEvents: null }))
+  it('reads a custom range', () => {
+    const f = parseFiltersFromQuery({ dateStart: '2026-11-02', dateEnd: '2026-11-05' })!.filters
+    expect(f.datePreset).toBe('custom')
+    expect(f.customDateRange?.start.toString()).toBe('2026-11-02')
+  })
+  it('ignores an invalid date preset', () => expect(parseFiltersFromQuery({ date: 'someday' })?.filters.datePreset).toBe('all'))
+})
+
+describe('parseStoredFilters', () => {
+  it('returns null for missing or corrupt data', () => {
+    expect(parseStoredFilters(null)).toBeNull()
+    expect(parseStoredFilters('{not json')).toBeNull()
+    expect(parseStoredFilters('"a string"')).toBeNull()
+  })
+  it('maps a sidebar-saved ALL_EVENTS to no selection', () => {
+    expect(parseStoredFilters(JSON.stringify({ selectedEventTypes: ['ALL_EVENTS'], expandedSection: 'date' }))?.selectedEventTypes).toEqual([])
+  })
+  it('unwraps legacy label/value objects', () => {
+    const raw = JSON.stringify({ selectedGenres: [{ label: 'Jazz', value: 'jazz' }], selectedEventTypes: [{ label: 'DJ', value: 'DJ' }] })
+    expect(parseStoredFilters(raw)).toMatchObject({ selectedGenres: ['jazz'], selectedEventTypes: ['DJ'] })
+  })
+  it('round-trips through serializeFilters', () => {
+    const state = { ...defaultFilterState(), searchQuery: 'jazz', datePreset: 'custom', customDateRange: { start: new CalendarDate(2026, 11, 2), end: new CalendarDate(2026, 11, 5) } }
+    const parsed = parseStoredFilters(serializeFilters(state))!
+    expect(parsed.searchQuery).toBe('jazz')
+    expect(parsed.customDateRange?.end.toString()).toBe('2026-11-05')
+  })
+})
+
+describe('filtersToQuery', () => {
+  const venues = [{ id: 'v1', slug: 'iron-horse' }]
+  it('writes nothing for defaults', () => expect(filtersToQuery(defaultFilterState(), venues)).toEqual({}))
+  it('writes venue slugs and types', () => {
+    const state = { ...defaultFilterState(), selectedVenueIds: ['v1'], selectedEventTypes: ['ALL_MUSIC'] }
+    expect(filtersToQuery(state, venues)).toEqual({ venues: 'iron-horse', types: 'ALL_MUSIC' })
+  })
+  it('writes a custom range without date=custom', () => {
+    const state = { ...defaultFilterState(), datePreset: 'custom', customDateRange: { start: new CalendarDate(2026, 11, 2), end: new CalendarDate(2026, 11, 5) } }
+    expect(filtersToQuery(state, venues)).toEqual({ dateStart: '2026-11-02', dateEnd: '2026-11-05' })
+  })
+})
+
+describe('mergeFilterQuery', () => {
+  it('keeps unrelated params and replaces filter params', () => {
+    expect(mergeFilterQuery('?utm_source=mail&venueIds=a&q=old', { q: 'jazz' })).toBe('utm_source=mail&q=jazz')
   })
 })
