@@ -90,13 +90,19 @@ export function useEventFilters() {
 
   // First-time visitors see their detected region; once per session, so clearing it
   // sticks across navigations. Waits while a venue link is still resolving.
-  function autoSelectRegion(slug: string | undefined) {
-    if (!slug || regionAutoSelected.value || pendingVenueSlugs.value.length > 0) return
-    regionAutoSelected.value = true
+  function canAutoSelectRegion() {
     const current = filters.value
-    if (current.selectedRegions.length === 0 && current.selectedCities.length === 0 && current.selectedVenueIds.length === 0) {
-      filters.value = { ...current, selectedRegions: [slug] }
-    }
+    return !regionAutoSelected.value &&
+      pendingVenueSlugs.value.length === 0 &&
+      current.selectedRegions.length === 0 &&
+      current.selectedCities.length === 0 &&
+      current.selectedVenueIds.length === 0
+  }
+
+  function autoSelectRegion(slug: string | undefined) {
+    if (!slug || !canAutoSelectRegion()) return
+    regionAutoSelected.value = true
+    filters.value = { ...filters.value, selectedRegions: [slug] }
   }
 
   function persist(venues: FilterVenue[] | undefined) {
@@ -106,8 +112,11 @@ export function useEventFilters() {
     } catch {
       // Storage can be unavailable
     }
+    const query = filtersToQuery(filters.value, venues ?? [])
+    // Keep a venue link's slugs until the venue list arrives to resolve them
+    if (pendingVenueSlugs.value.length > 0) query.venues = pendingVenueSlugs.value.join(',')
     const url = new URL(window.location.href)
-    url.search = mergeFilterQuery(url.search, filtersToQuery(filters.value, venues ?? []))
+    url.search = mergeFilterQuery(url.search, query)
     // History API directly, since a router navigation resets scroll
     window.history.replaceState(window.history.state, '', url.toString())
   }
@@ -135,10 +144,21 @@ export function useEventFilters() {
     }
   }
 
-  // For the "search all events" hint: drop everything but the search and location
+  // For the "search all events" hint: drop the narrowing filters, keeping the search,
+  // location, and the For You and My Events choices
   function clearFiltersKeepSearch() {
-    const { searchQuery, selectedRegions, selectedCities } = filters.value
-    filters.value = { ...defaultFilterState(), searchQuery, selectedRegions, selectedCities }
+    const { searchQuery, selectedRegions, selectedCities, myEvents, recommended, filterByFavoriteArtists, filterByFavoriteVenues, filterByFavoriteGenres } = filters.value
+    filters.value = {
+      ...defaultFilterState(),
+      searchQuery,
+      selectedRegions,
+      selectedCities,
+      myEvents,
+      recommended,
+      filterByFavoriteArtists,
+      filterByFavoriteVenues,
+      filterByFavoriteGenres,
+    }
     clearMapFilter()
   }
 
@@ -173,6 +193,7 @@ export function useEventFilters() {
     isRestoring,
     restore,
     resolvePendingVenues,
+    canAutoSelectRegion,
     autoSelectRegion,
     persist,
     resetFilters,

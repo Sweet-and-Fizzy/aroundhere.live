@@ -3,7 +3,7 @@ import type { EventFilters } from '~/composables/useEvents'
 
 const { loggedIn, ready: sessionReady } = useUserSession()
 const { favorites, loading: favoritesLoading } = useFavorites()
-const { events, loading, pagination, searchTotalCount, fetchEvents, searchEvents } = useEvents()
+const { events, loading, error: eventsError, pagination, searchTotalCount, fetchEvents, searchEvents } = useEvents()
 const { attendance } = useEventAttendance()
 
 // Fetch user preferences to check for taste profile
@@ -89,6 +89,7 @@ const {
   pendingVenueSlugs,
   restore,
   resolvePendingVenues,
+  canAutoSelectRegion,
   autoSelectRegion,
   persist,
   clearFiltersKeepSearch,
@@ -262,7 +263,10 @@ const facets = computed(() => facetsData.value ?? undefined)
 // computed filters re-evaluate on unrelated changes (favorites loading, restores)
 // Kept across navigations, since the loaded events persist in useState too
 const lastRequestKey = useState('event-filters-last-request', () => '')
+let regionFallback: ReturnType<typeof setTimeout> | undefined
 async function requestEvents(filters: EventFilters) {
+  clearTimeout(regionFallback)
+  regionFallback = undefined
   const key = JSON.stringify(filters)
   if (key === lastRequestKey.value) return
   lastRequestKey.value = key
@@ -271,6 +275,10 @@ async function requestEvents(filters: EventFilters) {
     await searchEvents(filters)
   } else {
     await fetchEvents(filters)
+  }
+  // Let the same filters be tried again after a failure
+  if (eventsError.value && lastRequestKey.value === key) {
+    lastRequestKey.value = ''
   }
 }
 
@@ -307,7 +315,13 @@ onMounted(() => {
   if (events.value.length > 0 && JSON.stringify(apiFilters.value) === lastRequestKey.value) {
     currentFilters.value = apiFilters.value
   } else if (pendingVenueSlugs.value.length === 0) {
-    requestEvents(apiFilters.value)
+    if (canAutoSelectRegion() && !currentRegionLoaded.value) {
+      // First visit: wait briefly for region detection so the first request already
+      // uses the visitor's region, falling back to defaults if detection is slow
+      regionFallback = setTimeout(() => requestEvents(apiFilters.value), 1500)
+    } else {
+      requestEvents(apiFilters.value)
+    }
   }
 
   // Registered after the first request so restoring doesn't fetch twice
@@ -326,8 +340,16 @@ onMounted(() => {
   watch(venues, (list) => resolvePendingVenues(list))
 
   watch(currentRegionLoaded, (loaded) => {
-    if (loaded) autoSelectRegion(currentRegion.value?.slug)
+    if (!loaded) return
+    autoSelectRegion(currentRegion.value?.slug)
+    // Release a first request that was waiting on the region
+    if (regionFallback) requestEvents(apiFilters.value)
   }, { immediate: true })
+})
+
+onUnmounted(() => {
+  clearTimeout(searchTimeout)
+  clearTimeout(regionFallback)
 })
 
 async function loadMore() {

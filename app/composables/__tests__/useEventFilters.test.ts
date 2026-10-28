@@ -80,6 +80,22 @@ describe('useEventFilters', () => {
     expect(filters.value).toMatchObject({ searchQuery: 'jazz', selectedRegions: ['pioneer-valley'], selectedGenres: [], datePreset: 'all' })
   })
 
+  it('clearFiltersKeepSearch keeps For You and My Events', () => {
+    const { filters, clearFiltersKeepSearch } = useEventFilters()
+    Object.assign(filters.value, { recommended: true, myEvents: 'going', filterByFavoriteArtists: true, selectedGenres: ['rock'] })
+    clearFiltersKeepSearch()
+    expect(filters.value).toMatchObject({ recommended: true, myEvents: 'going', filterByFavoriteArtists: true, selectedGenres: [] })
+  })
+
+  it('keeps pending venue slugs in the URL until they resolve', () => {
+    window.history.replaceState({}, '', '/?venues=iron-horse')
+    currentQuery = { venues: 'iron-horse' }
+    const { restore, persist } = useEventFilters()
+    restore([])
+    persist([])
+    expect(window.location.search).toBe('?venues=iron-horse')
+  })
+
   it('persists to storage and keeps unrelated query params', () => {
     window.history.replaceState({}, '', '/?utm_source=mail')
     const { filters, persist } = useEventFilters()
@@ -124,5 +140,15 @@ describe('useEventFilters', () => {
     restore([])
     autoSelectRegion('pioneer-valley')
     expect(filters.value.selectedRegions).toEqual([])
+  })
+
+  it('reports whether a region auto-select is still to come', () => {
+    const { filters, canAutoSelectRegion, autoSelectRegion } = useEventFilters()
+    expect(canAutoSelectRegion()).toBe(true)
+    filters.value.selectedCities = ['Northampton']
+    expect(canAutoSelectRegion()).toBe(false)
+    filters.value.selectedCities = []
+    autoSelectRegion('pioneer-valley')
+    expect(canAutoSelectRegion()).toBe(false)
   })
 })
