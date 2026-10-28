@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { EventFilters } from '~/composables/useEvents'
+
 const { loggedIn, ready: sessionReady } = useUserSession()
 const { favorites, loading: favoritesLoading } = useFavorites()
 const { events, loading, pagination, searchTotalCount, fetchEvents, searchEvents } = useEvents()
@@ -81,8 +83,21 @@ watch(viewMode, (newMode) => {
   localStorage.setItem('eventViewMode', newMode)
 })
 
-// Track current filters for pagination and facets
-const currentFilters = ref<Record<string, any>>({})
+// Shared filter state; the panels edit it and this page fetches when it changes
+const {
+  filters,
+  apiFilters,
+  pendingVenueSlugs,
+  regionAutoSelected,
+  restore,
+  resolvePendingVenues,
+  persist,
+  clearFiltersKeepSearch,
+} = useEventFilters()
+const { updateRegion, region: currentRegion, loaded: currentRegionLoaded } = useCurrentRegion()
+
+// The filters behind the events on screen; facets, paging and the search hints follow these
+const currentFilters = ref<EventFilters>({})
 
 // Refetch when attendance changes and myEvents filter is active
 watch(attendance, () => {
@@ -97,10 +112,6 @@ const sidebarRef = ref<{
   openChatWithMessage: (message: string) => void
 } | null>(null)
 
-// Ref to compact filters component (mobile/tablet)
-const compactFiltersRef = ref<{
-  clearFiltersKeepSearch: () => void
-} | null>(null)
 
 // Both filter panels are rendered at every width and hidden with CSS, so only the
 // one visible at the lg breakpoint applies filters and drives the event list
@@ -265,7 +276,13 @@ watch(facetParams, async (params) => {
 
 const facets = computed(() => facetsData.value ?? undefined)
 
-async function handleFilter(filters: Record<string, any>) {
+// Fetch only when the filters actually differ from the last request, since the
+// computed filters re-evaluate on unrelated changes (favorites loading, restores)
+let lastRequestKey = ''
+async function requestEvents(filters: EventFilters) {
+  const key = JSON.stringify(filters)
+  if (key === lastRequestKey) return
+  lastRequestKey = key
   currentFilters.value = filters
   if (filters.q) {
     await searchEvents(filters)
@@ -276,13 +293,63 @@ async function handleFilter(filters: Record<string, any>) {
 
 // Clear filters and search again (for "search all events" hint)
 function searchAllEvents() {
-  // Clear filters in the visible panel, which applies them and emits a new filter event
-  if (isDesktop.value) {
-    sidebarRef.value?.clearFiltersKeepSearch()
-  } else {
-    compactFiltersRef.value?.clearFiltersKeepSearch()
-  }
+  clearFiltersKeepSearch()
 }
+
+// Saved filters only exist in the browser, so they're applied after mount to keep
+// hydration matching the server render
+let searchTimeout: ReturnType<typeof setTimeout> | undefined
+onMounted(() => {
+  restore(venues.value)
+
+  // Initialize region from saved map bounds or default center
+  try {
+    const savedBounds = localStorage.getItem('mapBounds')
+    if (savedBounds) {
+      const bounds = JSON.parse(savedBounds)
+      updateRegion((bounds.north + bounds.south) / 2, (bounds.east + bounds.west) / 2, true)
+    } else {
+      // Use default center (Northampton area)
+      updateRegion(42.32, -72.63, true)
+    }
+  } catch {
+    updateRegion(42.32, -72.63, true)
+  }
+
+  // Events persist across navigations via useState, so a return trip shows them as-is
+  if (events.value.length > 0) {
+    lastRequestKey = JSON.stringify(apiFilters.value)
+    currentFilters.value = apiFilters.value
+  } else if (pendingVenueSlugs.value.length === 0) {
+    requestEvents(apiFilters.value)
+  }
+
+  // Registered after the first request so restoring doesn't fetch twice
+  watch(apiFilters, (next, prev) => {
+    persist(venues.value)
+    clearTimeout(searchTimeout)
+    // Typing in search waits for a pause; any other change fetches right away
+    const onlySearchChanged = prev && JSON.stringify({ ...next, q: undefined }) === JSON.stringify({ ...prev, q: undefined })
+    if (onlySearchChanged) {
+      searchTimeout = setTimeout(() => requestEvents(apiFilters.value), 300)
+    } else {
+      requestEvents(next)
+    }
+  })
+
+  watch(venues, (list) => resolvePendingVenues(list))
+
+  // First-time visitors see their detected region; once per session, so clearing
+  // the region sticks across navigations
+  watch(currentRegionLoaded, (loaded) => {
+    if (!loaded || regionAutoSelected.value) return
+    regionAutoSelected.value = true
+    const current = filters.value
+    if (currentRegion.value?.slug && current.selectedRegions.length === 0 && current.selectedCities.length === 0 && current.selectedVenueIds.length === 0) {
+      filters.value = { ...current, selectedRegions: [currentRegion.value.slug] }
+    }
+  }, { immediate: true })
+})
 
 async function loadMore() {
   const newOffset = pagination.value.offset + pagination.value.limit
@@ -506,7 +573,6 @@ useHead({
               :facets="facets"
               :result-count="events.length"
               :filters-active="isDesktop"
-              @filter="handleFilter"
               @tab-change="handleTabChange"
             />
           </div>
@@ -546,13 +612,11 @@ useHead({
         <!-- Compact Filters - Mobile/Tablet only -->
         <div class="lg:hidden">
           <EventFilters
-            ref="compactFiltersRef"
             :venues="venues"
             :genres="genres"
             :genre-labels="genreLabels"
             :facets="facets"
             :active="!isDesktop"
-            @filter="handleFilter"
           />
         </div>
 
