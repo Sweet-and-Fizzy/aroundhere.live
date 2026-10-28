@@ -16,11 +16,9 @@ defineProps<{
     nonMusicCount: number
   }
   resultCount?: number
-  filtersActive: boolean
 }>()
 
 const emit = defineEmits<{
-  filter: [filters: Record<string, any>]
   tabChange: [tab: 'filters' | 'chat']
 }>()
 
@@ -71,9 +69,6 @@ watch(activeTab, (newTab) => {
   emit('tabChange', newTab)
 }, { immediate: true })
 
-// Ref to filters component for parent access
-const filtersRef = ref<{ resetFilters: () => void; clearFiltersKeepSearch: () => void } | null>(null)
-
 // Ref to chat component for parent access
 const chatRef = ref<{ sendMessage: (message: string) => void; scrollToBottom: () => void } | null>(null)
 
@@ -90,16 +85,10 @@ function openChatWithMessage(message: string) {
   })
 }
 
-// Expose methods from filters component
+// Expose methods for the page
 defineExpose({
-  resetFilters: () => filtersRef.value?.resetFilters(),
-  clearFiltersKeepSearch: () => filtersRef.value?.clearFiltersKeepSearch(),
   openChatWithMessage,
 })
-
-function handleFilter(filters: Record<string, any>) {
-  emit('filter', filters)
-}
 </script>
 
 <template>
@@ -141,14 +130,11 @@ function handleFilter(filters: Record<string, any>) {
         class="tab-panel"
       >
         <EventFiltersSidebar
-          ref="filtersRef"
           :venues="venues"
           :genres="genres"
           :genre-labels="genreLabels"
           :facets="facets"
           :result-count="resultCount"
-          :active="filtersActive"
-          @filter="handleFilter"
         />
       </div>
 

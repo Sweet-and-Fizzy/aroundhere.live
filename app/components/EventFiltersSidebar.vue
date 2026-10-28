@@ -14,15 +14,11 @@ import LocationFilter from '~/components/filters/LocationFilter.vue'
 
 type CalendarDateRange = DateRange | any
 
-const { updateRegion, region: currentRegion, loaded: regionLoaded } = useCurrentRegion()
+const { region: currentRegion } = useCurrentRegion()
 
 // User session for favorites filter
 const { loggedIn } = useUserSession()
 const { favorites } = useFavorites()
-
-const emit = defineEmits<{
-  filter: [filters: Record<string, any>]
-}>()
 
 const props = defineProps<{
   venues?: { id: string; name: string; slug: string; city?: string | null; latitude?: number | null; longitude?: number | null }[]
@@ -38,22 +34,14 @@ const props = defineProps<{
     nonMusicCount: number
   }
   resultCount?: number
-  // Only the panel visible at the current breakpoint applies filters
-  active: boolean
 }>()
 
 // LocalStorage key for persisting filters
 const {
   filters,
   mapFilteredVenueIds,
-  pendingVenueSlugs,
-  apiFilters,
   isRestoring,
-  restore,
-  resolvePendingVenues,
-  persist,
   resetFilters: resetSharedFilters,
-  clearFiltersKeepSearch: clearSharedFiltersKeepSearch,
   onMapVisibleVenues: setMapVisibleVenues,
   onMapCenterChanged: setMapCenter,
   clearMapFilter,
@@ -175,12 +163,10 @@ const availableGenres = computed(() => {
 
 function onMapVisibleVenues(venueIds: string[]) {
   setMapVisibleVenues(venueIds, venuesWithCoords.value)
-  applyFilters()
 }
 
 function onMapCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
   setMapCenter(center, venuesWithCoords.value)
-  applyFilters()
 }
 
 function resetMap() {
@@ -189,7 +175,6 @@ function resetMap() {
   nextTick(() => {
     showMap.value = true
   })
-  applyFilters()
 }
 
 // Check if any filters are active
@@ -231,7 +216,6 @@ const activeFilterCount = computed(() => {
 function resetFilters() {
   resetSharedFilters(currentRegion.value?.slug)
   showMapModal.value = false
-  applyFilters()
 }
 
 // Music-related event types
@@ -381,10 +365,9 @@ function toggleCity(city: string) {
   }
 }
 
-// Wrapper functions that use the composable and call applyFilters
+// Wrapper functions around the composable's selection toggles
 function toggleCitySelection(city: string) {
   composableToggleCitySelection(city)
-  applyFilters()
 }
 
 // Region-level functions
@@ -398,11 +381,7 @@ function toggleRegion(region: string) {
 
 function toggleRegionSelection(region: string) {
   composableToggleRegionSelection(region)
-  applyFilters()
 }
-
-// Show more venues toggle
-const showAllVenues = ref(false)
 
 // Venue search/autocomplete
 const venueSearchQuery = ref('')
@@ -411,7 +390,7 @@ const showVenueDropdown = ref(false)
 // Use selectedVenueObjects from composable
 const selectedVenueObjects = locationSelectedVenueObjects
 
-async function selectVenueFromSearch(venueId: string) {
+function selectVenueFromSearch(venueId: string) {
   if (!selectedVenueIds.value.includes(venueId)) {
     // Adding a venue - clear region/city filters if this is the first venue selection
     if (selectedVenueIds.value.length === 0) {
@@ -419,9 +398,6 @@ async function selectVenueFromSearch(venueId: string) {
       selectedCities.value = []
     }
     selectedVenueIds.value.push(venueId)
-    // Use nextTick to ensure reactivity has processed the venue selection
-    await nextTick()
-    applyFilters()
   }
   venueSearchQuery.value = ''
   showVenueDropdown.value = false
@@ -431,7 +407,6 @@ function removeVenue(venueId: string) {
   const index = selectedVenueIds.value.indexOf(venueId)
   if (index !== -1) {
     selectedVenueIds.value.splice(index, 1)
-    applyFilters()
   }
 }
 
@@ -449,25 +424,7 @@ function toggleVenue(venueId: string) {
   } else {
     selectedVenueIds.value.splice(index, 1)
   }
-  applyFilters()
 }
-
-// The same filters can be applied twice in a row, so only emit when they change
-let lastEmittedFilters = ''
-
-function applyFilters() {
-  if (!props.active) return
-  persist(props.venues)
-  const key = JSON.stringify(apiFilters.value)
-  if (key === lastEmittedFilters) return
-  lastEmittedFilters = key
-  emit('filter', apiFilters.value)
-}
-
-// Crossing the breakpoint makes this panel the one the list follows
-watch(() => props.active, (active) => {
-  if (active) applyFilters()
-})
 
 // Watch for custom range selection
 watch(customDateRange, (newRange) => {
@@ -475,84 +432,16 @@ watch(customDateRange, (newRange) => {
   if (newRange?.start && newRange?.end) {
     datePreset.value = 'custom'
     showCustomCalendar.value = false
-    applyFilters()
   }
 }, { deep: true })
 
-// Venue links use slugs, which resolve once the venue list is available
-watch(() => props.venues, (venues) => {
-  if (pendingVenueSlugs.value.length === 0) return
-  resolvePendingVenues(venues)
-  if (pendingVenueSlugs.value.length === 0) applyFilters()
-})
-
-// Debounce search input
-let searchTimeout: ReturnType<typeof setTimeout>
-watch(searchQuery, () => {
-  if (isRestoring()) return
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(applyFilters, 300)
-})
-
-// Get events state to check if data already exists
-const { events: existingEvents } = useEvents()
-
+// Which section was open is browser-only state, so restore it after hydration
 onMounted(() => {
-  restore(props.venues)
   try {
     expandedSection.value = localStorage.getItem(SECTION_STORAGE_KEY)
   } catch {
     // Storage can be unavailable
   }
-
-  // Only fetch if no events exist (events persist via useState across navigations)
-  // BUT: Don't fetch yet if we have pending venue slugs that need to be resolved first
-  if (existingEvents.value.length === 0 && pendingVenueSlugs.value.length === 0) {
-    applyFilters()
-  }
-  // If we have pending venue slugs, wait for the watch to resolve them and call applyFilters
-
-  // Initialize region from saved map bounds or default center
-  if (import.meta.client) {
-    try {
-      const savedBounds = localStorage.getItem(MAP_BOUNDS_KEY)
-      if (savedBounds) {
-        const bounds = JSON.parse(savedBounds)
-        // Calculate center from bounds (format: { north, south, east, west })
-        const centerLat = (bounds.north + bounds.south) / 2
-        const centerLng = (bounds.east + bounds.west) / 2
-        updateRegion(centerLat, centerLng, true)
-      } else {
-        // Use default center (Northampton area)
-        updateRegion(42.32, -72.63, true)
-      }
-    } catch {
-      // Fallback to default center
-      updateRegion(42.32, -72.63, true)
-    }
-  }
-})
-
-// Auto-select current region when it's loaded and no region is explicitly selected
-// This ensures first-time users see events from their detected region
-watch(regionLoaded, (loaded) => {
-  if (loaded && currentRegion.value?.slug && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
-    selectedRegions.value = [currentRegion.value.slug]
-    applyFilters()
-  }
-}, { immediate: true })
-
-// Clear filters but keep search query (for "search all events" action)
-function clearFiltersKeepSearch() {
-  clearSharedFiltersKeepSearch()
-  showAllVenues.value = false
-  applyFilters()
-}
-
-// Expose methods for parent component
-defineExpose({
-  resetFilters,
-  clearFiltersKeepSearch,
 })
 </script>
 
@@ -580,7 +469,7 @@ defineExpose({
       <DateRangeFilter
         :model-value="datePreset"
         :custom-range="customDateRange"
-        @update:model-value="val => { datePreset = val; applyFilters() }"
+        @update:model-value="val => { datePreset = val }"
         @update:custom-range="val => { customDateRange = val }"
       />
     </FilterSection>
@@ -737,7 +626,7 @@ defineExpose({
       <EventTypeFilter
         :model-value="selectedEventTypes"
         :facets="facets"
-        @update:model-value="val => { selectedEventTypes = val; applyFilters() }"
+        @update:model-value="val => { selectedEventTypes = val }"
       />
     </FilterSection>
 
@@ -755,7 +644,7 @@ defineExpose({
         :genres="genres"
         :genre-labels="genreLabels"
         :facets="facets"
-        @update:model-value="val => { selectedGenres = val; applyFilters() }"
+        @update:model-value="val => { selectedGenres = val }"
       />
     </FilterSection>
 
@@ -776,10 +665,10 @@ defineExpose({
         :artist-count="favorites.artists.length"
         :venue-count="favorites.venues.length"
         :genre-count="favorites.genres.length"
-        @update:recommended="val => { recommended = val; applyFilters() }"
-        @update:filter-by-artists="val => { filterByFavoriteArtists = val; applyFilters() }"
-        @update:filter-by-venues="val => { filterByFavoriteVenues = val; applyFilters() }"
-        @update:filter-by-genres="val => { filterByFavoriteGenres = val; applyFilters() }"
+        @update:recommended="val => { recommended = val }"
+        @update:filter-by-artists="val => { filterByFavoriteArtists = val }"
+        @update:filter-by-venues="val => { filterByFavoriteVenues = val }"
+        @update:filter-by-genres="val => { filterByFavoriteGenres = val }"
       />
       <NuxtLink
         to="/interests"
@@ -804,7 +693,7 @@ defineExpose({
     >
       <MyEventsFilter
         :model-value="myEvents"
-        @update:model-value="val => { myEvents = val; applyFilters() }"
+        @update:model-value="val => { myEvents = val }"
       />
     </FilterSection>
 

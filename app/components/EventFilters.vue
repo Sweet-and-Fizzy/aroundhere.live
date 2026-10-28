@@ -13,13 +13,9 @@ import GenreFilter from '~/components/filters/GenreFilter.vue'
 
 type CalendarDateRange = DateRange | any
 
-const { updateRegion, region: currentRegion, loaded: regionLoaded } = useCurrentRegion()
+const { region: currentRegion } = useCurrentRegion()
 const { loggedIn } = useUserSession()
 const { favorites } = useFavorites()
-
-const emit = defineEmits<{
-  filter: [filters: Record<string, any>]
-}>()
 
 const props = defineProps<{
   venues?: { id: string; name: string; slug: string; latitude?: number | null; longitude?: number | null; city?: string | null }[]
@@ -35,20 +31,14 @@ const props = defineProps<{
     musicCount: number
     nonMusicCount: number
   }
-  // Only the panel visible at the current breakpoint applies filters
-  active: boolean
 }>()
 
 const {
   filters,
   mapFilteredVenueIds,
   mapCenter,
-  apiFilters,
   isRestoring,
-  restore,
-  persist,
   resetFilters: resetSharedFilters,
-  clearFiltersKeepSearch,
   onMapVisibleVenues: setMapVisibleVenues,
   onMapCenterChanged: setMapCenter,
   clearMapFilter,
@@ -147,7 +137,6 @@ const venuesWithCoords = computed(() =>
 
 function onMapVisibleVenues(venueIds: string[]) {
   setMapVisibleVenues(venueIds, venuesWithCoords.value)
-  applyFilters()
 }
 
 // Track if map has been customized (search, locate, etc.)
@@ -155,7 +144,6 @@ const mapHasCustomCenter = computed(() => mapCenter.value !== null)
 
 function onMapCenterChanged(center: { lat: number; lng: number; radius: number | 'view' }) {
   setMapCenter(center, venuesWithCoords.value)
-  applyFilters()
 }
 
 function resetMap() {
@@ -166,7 +154,6 @@ function resetMap() {
   nextTick(() => {
     mapAccordionOpen.value = wasOpen
   })
-  applyFilters()
 }
 
 // Check if any filters are active (different from defaults)
@@ -188,7 +175,6 @@ const hasActiveFilters = computed(() => {
 // Reset all filters to defaults, keeping the current region
 function resetFilters() {
   resetSharedFilters(currentRegion.value?.slug)
-  applyFilters()
 }
 
 // Date preset labels for display
@@ -262,93 +248,13 @@ const dateDisplayLabel = computed(() => {
   return datePresetLabels[datePreset.value] || 'Select Date'
 })
 
-// The same filters can be applied twice in a row (a watcher plus an explicit call),
-// so only emit when they change
-let lastEmittedFilters = ''
-
-function applyFilters() {
-  if (!props.active) return
-  persist(props.venues)
-  const key = JSON.stringify(apiFilters.value)
-  if (key === lastEmittedFilters) return
-  lastEmittedFilters = key
-  emit('filter', apiFilters.value)
-}
-
-// Crossing the breakpoint makes this panel the one the list follows
-watch(() => props.active, (active) => {
-  if (active) applyFilters()
-})
-
 // Watch for complete range selection (both start and end dates selected)
 watch(customDateRange, (newRange) => {
   if (isRestoring()) return
   if (newRange?.start && newRange?.end) {
     datePreset.value = 'custom'
-    applyFilters()
   }
 }, { deep: true })
-
-
-// Auto-apply on changes
-watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes, myEvents, recommended, filterByFavoriteArtists, filterByFavoriteVenues, filterByFavoriteGenres], () => {
-  if (isRestoring()) return
-  applyFilters()
-}, { deep: true })
-
-// Debounce search input
-let searchTimeout: ReturnType<typeof setTimeout>
-watch(searchQuery, () => {
-  if (isRestoring()) return
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(applyFilters, 300)
-})
-
-// Get events state to check if data already exists
-const { events: existingEvents } = useEvents()
-
-// Initial filter application
-onMounted(() => {
-  restore(props.venues)
-
-  // Only fetch if no events exist (events persist via useState across navigations)
-  if (existingEvents.value.length === 0) {
-    applyFilters()
-  }
-
-  // Initialize region from saved map bounds or default center
-  if (import.meta.client) {
-    try {
-      const savedBounds = localStorage.getItem(MAP_BOUNDS_KEY)
-      if (savedBounds) {
-        const bounds = JSON.parse(savedBounds)
-        // Calculate center from bounds (format: { north, south, east, west })
-        const centerLat = (bounds.north + bounds.south) / 2
-        const centerLng = (bounds.east + bounds.west) / 2
-        updateRegion(centerLat, centerLng, true)
-      } else {
-        // Use default center (Northampton area)
-        updateRegion(42.32, -72.63, true)
-      }
-    } catch {
-      // Fallback to default center
-      updateRegion(42.32, -72.63, true)
-    }
-  }
-})
-
-// Auto-select current region when it's loaded and no region is explicitly selected
-// This ensures first-time users see events from their detected region
-watch(regionLoaded, (loaded) => {
-  if (loaded && currentRegion.value?.slug && selectedRegions.value.length === 0 && selectedCities.value.length === 0 && selectedVenueIds.value.length === 0) {
-    selectedRegions.value = [currentRegion.value.slug]
-    applyFilters()
-  }
-}, { immediate: true })
-
-defineExpose({
-  clearFiltersKeepSearch,
-})
 </script>
 
 <template>
@@ -396,7 +302,7 @@ defineExpose({
               <DateRangeFilter
                 :model-value="datePreset"
                 :custom-range="customDateRange"
-                @update:model-value="datePreset = $event; applyFilters()"
+                @update:model-value="datePreset = $event"
                 @update:custom-range="customDateRange = $event"
               />
             </div>

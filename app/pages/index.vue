@@ -108,26 +108,9 @@ watch(attendance, () => {
 
 // Ref to sidebar component for calling methods (desktop)
 const sidebarRef = ref<{
-  clearFiltersKeepSearch: () => void
   openChatWithMessage: (message: string) => void
 } | null>(null)
 
-
-// Both filter panels are rendered at every width and hidden with CSS, so only the
-// one visible at the lg breakpoint applies filters and drives the event list
-const desktopQuery = '(min-width: 1024px)'
-const isDesktop = ref(import.meta.client && window.matchMedia(desktopQuery).matches)
-let stopDesktopListener: (() => void) | undefined
-onMounted(() => {
-  const media = window.matchMedia(desktopQuery)
-  const update = () => {
-    isDesktop.value = media.matches
-  }
-  update()
-  media.addEventListener('change', update)
-  stopDesktopListener = () => media.removeEventListener('change', update)
-})
-onBeforeUnmount(() => stopDesktopListener?.())
 
 // Ref to floating chat button for calling methods (mobile/tablet)
 const floatingChatRef = ref<{
@@ -315,6 +298,9 @@ onMounted(() => {
   } catch {
     updateRegion(42.32, -72.63, true)
   }
+
+  // Reflect the restored filters in the URL right away, so it can be shared
+  persist(venues.value)
 
   // Events persist across navigations via useState, so a return trip shows them as-is
   if (events.value.length > 0) {
@@ -572,7 +558,6 @@ useHead({
               :genre-labels="genreLabels"
               :facets="facets"
               :result-count="events.length"
-              :filters-active="isDesktop"
               @tab-change="handleTabChange"
             />
           </div>
@@ -616,7 +601,6 @@ useHead({
             :genres="genres"
             :genre-labels="genreLabels"
             :facets="facets"
-            :active="!isDesktop"
           />
         </div>
 
