@@ -179,36 +179,81 @@ function saveFilters() {
   }
 }
 
-const savedFilters = loadSavedFilters()
+// Saved filters come from the URL or localStorage, both read only on the client, so
+// while hydrating start from the defaults the server rendered and restore after mount
+const deferSavedFilters = import.meta.client && useNuxtApp().isHydrating
+const savedFilters = deferSavedFilters ? null : loadSavedFilters()
+let restoringSavedFilters = false
+
+// Normalize saved filters into initial ref values
+function filterState(saved: ReturnType<typeof loadSavedFilters>) {
+  return {
+    datePreset: saved?.datePreset || 'all',
+    customDateRange: (saved?.customDateRange || undefined) as CalendarDateRange | undefined,
+    selectedRegions: (saved?.selectedRegions || []) as string[],
+    selectedCities: (saved?.selectedCities || []) as string[],
+    selectedVenueIds: (saved?.selectedVenueIds || []) as string[],
+    searchQuery: saved?.searchQuery || '',
+    selectedGenres: (saved?.selectedGenres?.map((g: any) => typeof g === 'string' ? g : g.value) || []) as string[],
+    selectedEventTypes: (saved?.selectedEventTypes?.map((t: any) => typeof t === 'string' ? t : t.value) || ['ALL_MUSIC']) as string[],
+    myEvents: (saved?.myEvents || null) as string | null,
+    recommended: saved?.recommended || false,
+    filterByFavoriteArtists: saved?.filterByFavoriteArtists || false,
+    filterByFavoriteVenues: saved?.filterByFavoriteVenues || false,
+    filterByFavoriteGenres: saved?.filterByFavoriteGenres || false,
+  }
+}
+const initial = filterState(savedFilters)
 
 // Date range state - default to 'all' for all upcoming events
-const datePreset = ref(savedFilters?.datePreset || 'all')
-const customDateRange = ref<CalendarDateRange | undefined>(savedFilters?.customDateRange || undefined)
+const datePreset = ref(initial.datePreset)
+const customDateRange = ref<CalendarDateRange | undefined>(initial.customDateRange)
 
 // Location filter - now tracks selections at Region, City, and Venue levels separately
-const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
-const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
-const selectedVenueIds = ref<string[]>(savedFilters?.selectedVenueIds || [])
-const searchQuery = ref(savedFilters?.searchQuery || '')
+const selectedRegions = ref<string[]>(initial.selectedRegions)
+const selectedCities = ref<string[]>(initial.selectedCities)
+const selectedVenueIds = ref<string[]>(initial.selectedVenueIds)
+const searchQuery = ref(initial.searchQuery)
 // Store as plain string arrays for sub-component compatibility
-const selectedGenres = ref<string[]>(
-  savedFilters?.selectedGenres?.map((g: any) => typeof g === 'string' ? g : g.value) || []
-)
+const selectedGenres = ref<string[]>(initial.selectedGenres)
 // Multi-select for event types - default to All Music
-const selectedEventTypes = ref<string[]>(
-  savedFilters?.selectedEventTypes?.map((t: any) => typeof t === 'string' ? t : t.value) || ['ALL_MUSIC']
-)
+const selectedEventTypes = ref<string[]>(initial.selectedEventTypes)
 
 // My Events filter - 'interested', 'going', 'all', or null (disabled)
-const myEvents = ref<string | null>(savedFilters?.myEvents || null)
+const myEvents = ref<string | null>(initial.myEvents)
 
 // Recommended filter (part of "For You" section)
-const recommended = ref(savedFilters?.recommended || false)
+const recommended = ref(initial.recommended)
 
 // Favorites filters - separate toggles for artists, venues, and genres
-const filterByFavoriteArtists = ref(savedFilters?.filterByFavoriteArtists || false)
-const filterByFavoriteVenues = ref(savedFilters?.filterByFavoriteVenues || false)
-const filterByFavoriteGenres = ref(savedFilters?.filterByFavoriteGenres || false)
+const filterByFavoriteArtists = ref(initial.filterByFavoriteArtists)
+const filterByFavoriteVenues = ref(initial.filterByFavoriteVenues)
+const filterByFavoriteGenres = ref(initial.filterByFavoriteGenres)
+
+// Apply saved filters once hydration is done. Watchers that would apply filters on
+// these changes skip until the next tick; onMounted applies once.
+function restoreSavedFilters() {
+  const saved = loadSavedFilters()
+  if (!saved) return
+  const state = filterState(saved)
+  restoringSavedFilters = true
+  datePreset.value = state.datePreset
+  customDateRange.value = state.customDateRange
+  selectedRegions.value = state.selectedRegions
+  selectedCities.value = state.selectedCities
+  selectedVenueIds.value = state.selectedVenueIds
+  searchQuery.value = state.searchQuery
+  selectedGenres.value = state.selectedGenres
+  selectedEventTypes.value = state.selectedEventTypes
+  myEvents.value = state.myEvents
+  recommended.value = state.recommended
+  filterByFavoriteArtists.value = state.filterByFavoriteArtists
+  filterByFavoriteVenues.value = state.filterByFavoriteVenues
+  filterByFavoriteGenres.value = state.filterByFavoriteGenres
+  nextTick(() => {
+    restoringSavedFilters = false
+  })
+}
 
 // Check if user has any favorites
 const hasFavorites = computed(() => {
@@ -660,6 +705,7 @@ function updateUrlFromFilters(filters: Record<string, any>) {
 
 // Watch for complete range selection (both start and end dates selected)
 watch(customDateRange, (newRange) => {
+  if (restoringSavedFilters) return
   if (newRange?.start && newRange?.end) {
     datePreset.value = 'custom'
     applyFilters()
@@ -669,12 +715,14 @@ watch(customDateRange, (newRange) => {
 
 // Auto-apply on changes
 watch([selectedRegions, selectedCities, selectedVenueIds, selectedGenres, selectedEventTypes, myEvents, recommended, filterByFavoriteArtists, filterByFavoriteVenues, filterByFavoriteGenres], () => {
+  if (restoringSavedFilters) return
   applyFilters()
 }, { deep: true })
 
 // Debounce search input
 let searchTimeout: ReturnType<typeof setTimeout>
 watch(searchQuery, () => {
+  if (restoringSavedFilters) return
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(applyFilters, 300)
 })
@@ -684,6 +732,10 @@ const { events: existingEvents } = useEvents()
 
 // Initial filter application
 onMounted(() => {
+  if (deferSavedFilters) {
+    restoreSavedFilters()
+  }
+
   // Only fetch if no events exist (events persist via useState across navigations)
   if (existingEvents.value.length === 0) {
     applyFilters()

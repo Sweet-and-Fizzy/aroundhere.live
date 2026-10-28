@@ -121,12 +121,12 @@ function loadFiltersFromUrl() {
 }
 
 // Load saved filters from localStorage
-function loadSavedFilters() {
+function loadSavedFilters({ skipStorage = false } = {}) {
   // URL params take priority
   const urlFilters = loadFiltersFromUrl()
   if (urlFilters) return urlFilters
 
-  if (import.meta.client) {
+  if (import.meta.client && !skipStorage) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
@@ -257,12 +257,35 @@ function updateUrl() {
   window.history.replaceState({}, '', url.toString())
 }
 
-const savedFilters = loadSavedFilters()
+// The server can't see localStorage, so while hydrating start from the same state
+// it rendered and restore the saved filters after mount
+const deferStoredFilters = import.meta.client && useNuxtApp().isHydrating
+const savedFilters = loadSavedFilters({ skipStorage: deferStoredFilters })
+let restoringStoredFilters = false
+
+// Normalize saved filters (URL or localStorage) into initial ref values
+function filterState(saved: ReturnType<typeof loadSavedFilters>) {
+  return {
+    expandedSection: (saved?.expandedSection || null) as string | null,
+    datePreset: saved?.datePreset || 'all',
+    customDateRange: (saved?.customDateRange || undefined) as CalendarDateRange | undefined,
+    selectedVenueIds: (saved?.selectedVenueIds || saved?.selectedVenues?.map((v: any) => v.value || v) || []) as string[],
+    searchQuery: saved?.searchQuery || '',
+    selectedGenres: (saved?.selectedGenres?.map((g: any) => g.value || g) || []) as string[],
+    selectedEventTypes: (saved?.selectedEventTypes?.map((e: any) => e.value || e) || ['ALL_MUSIC']) as string[],
+    selectedRegions: (saved?.selectedRegions || []) as string[],
+    selectedCities: (saved?.selectedCities || []) as string[],
+    filterByFavoriteArtists: saved?.filterByFavoriteArtists || false,
+    filterByFavoriteVenues: saved?.filterByFavoriteVenues || false,
+    filterByFavoriteGenres: saved?.filterByFavoriteGenres || false,
+    myEvents: (saved?.myEvents || null) as string | null,
+    recommended: saved?.recommended || false,
+  }
+}
+const initial = filterState(savedFilters)
 
 // Collapsible sections state - accordion style (only one section open at a time)
-const expandedSection = ref<string | null>(
-  savedFilters?.expandedSection || null
-)
+const expandedSection = ref<string | null>(initial.expandedSection)
 
 function toggleSection(section: string) {
   // Accordion: clicking expanded section collapses it, clicking collapsed expands it (and collapses others)
@@ -279,42 +302,60 @@ function isSectionExpanded(section: string) {
 }
 
 // Date range state - default to 'all' since we have pagination
-const datePreset = ref(savedFilters?.datePreset || 'all')
-const customDateRange = ref<CalendarDateRange | undefined>(savedFilters?.customDateRange || undefined)
+const datePreset = ref(initial.datePreset)
+const customDateRange = ref<CalendarDateRange | undefined>(initial.customDateRange)
 const showCustomCalendar = ref(false)
 
 // Track if we have pending URL venue slugs to resolve
 const pendingVenueSlugs = ref<string[]>(savedFilters?.venueSlug || [])
 
 // Multi-select for venues - now stored as string array of IDs
-const selectedVenueIds = ref<string[]>(
-  savedFilters?.selectedVenueIds ||
-  savedFilters?.selectedVenues?.map((v: any) => v.value || v) ||
-  []
-)
-const searchQuery = ref(savedFilters?.searchQuery || '')
-const selectedGenres = ref<string[]>(
-  savedFilters?.selectedGenres?.map((g: any) => g.value || g) || []
-)
+const selectedVenueIds = ref<string[]>(initial.selectedVenueIds)
+const searchQuery = ref(initial.searchQuery)
+const selectedGenres = ref<string[]>(initial.selectedGenres)
 // Event types as simple string array for checkboxes
-const selectedEventTypes = ref<string[]>(
-  savedFilters?.selectedEventTypes?.map((e: any) => e.value || e) || ['ALL_MUSIC']
-)
+const selectedEventTypes = ref<string[]>(initial.selectedEventTypes)
 
 // Location filters: regions and cities
-const selectedRegions = ref<string[]>(savedFilters?.selectedRegions || [])
-const selectedCities = ref<string[]>(savedFilters?.selectedCities || [])
+const selectedRegions = ref<string[]>(initial.selectedRegions)
+const selectedCities = ref<string[]>(initial.selectedCities)
 
 // Favorites filters
-const filterByFavoriteArtists = ref(savedFilters?.filterByFavoriteArtists || false)
-const filterByFavoriteVenues = ref(savedFilters?.filterByFavoriteVenues || false)
-const filterByFavoriteGenres = ref(savedFilters?.filterByFavoriteGenres || false)
+const filterByFavoriteArtists = ref(initial.filterByFavoriteArtists)
+const filterByFavoriteVenues = ref(initial.filterByFavoriteVenues)
+const filterByFavoriteGenres = ref(initial.filterByFavoriteGenres)
 
 // My Events filter - 'interested', 'going', 'all', or null (disabled)
-const myEvents = ref<string | null>(savedFilters?.myEvents || null)
+const myEvents = ref<string | null>(initial.myEvents)
 
 // Recommended filter (part of "For You" section)
-const recommended = ref(savedFilters?.recommended || false)
+const recommended = ref(initial.recommended)
+
+// Apply filters saved in localStorage once hydration is done. Watchers that would
+// apply filters on these changes skip until the next tick; onMounted applies once.
+function restoreStoredFilters() {
+  const saved = loadSavedFilters()
+  if (!saved) return
+  const state = filterState(saved)
+  restoringStoredFilters = true
+  expandedSection.value = state.expandedSection
+  datePreset.value = state.datePreset
+  customDateRange.value = state.customDateRange
+  selectedVenueIds.value = state.selectedVenueIds
+  searchQuery.value = state.searchQuery
+  selectedGenres.value = state.selectedGenres
+  selectedEventTypes.value = state.selectedEventTypes
+  selectedRegions.value = state.selectedRegions
+  selectedCities.value = state.selectedCities
+  filterByFavoriteArtists.value = state.filterByFavoriteArtists
+  filterByFavoriteVenues.value = state.filterByFavoriteVenues
+  filterByFavoriteGenres.value = state.filterByFavoriteGenres
+  myEvents.value = state.myEvents
+  recommended.value = state.recommended
+  nextTick(() => {
+    restoringStoredFilters = false
+  })
+}
 
 // Use location filter composable for hierarchical filtering
 const {
@@ -849,6 +890,7 @@ function applyFilters() {
 
 // Watch for custom range selection
 watch(customDateRange, (newRange) => {
+  if (restoringStoredFilters) return
   if (newRange?.start && newRange?.end) {
     datePreset.value = 'custom'
     showCustomCalendar.value = false
@@ -873,6 +915,7 @@ watch(() => props.venues, (venues) => {
 // Debounce search input
 let searchTimeout: ReturnType<typeof setTimeout>
 watch(searchQuery, () => {
+  if (restoringStoredFilters) return
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(applyFilters, 300)
 })
@@ -881,6 +924,10 @@ watch(searchQuery, () => {
 const { events: existingEvents } = useEvents()
 
 onMounted(() => {
+  if (deferStoredFilters) {
+    restoreStoredFilters()
+  }
+
   // Only fetch if no events exist (events persist via useState across navigations)
   // BUT: Don't fetch yet if we have pending venue slugs that need to be resolved first
   if (existingEvents.value.length === 0 && pendingVenueSlugs.value.length === 0) {

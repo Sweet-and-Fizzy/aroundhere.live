@@ -32,6 +32,7 @@ const nuxtGlobals = {
   useHead: 'readonly',
   useSeoMeta: 'readonly',
   useRuntimeConfig: 'readonly',
+  useNuxtApp: 'readonly',
   useState: 'readonly',
   navigateTo: 'readonly',
   $fetch: 'readonly',
