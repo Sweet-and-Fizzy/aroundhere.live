@@ -7,9 +7,12 @@
 
     # Reverse proxy to Nuxt app
     reverse_proxy app:3000 {
-        # Health check
-        health_uri /api/health
-        health_interval 30s
+        # The app is down for a few seconds while a deploy swaps it, so hold requests
+        # and retry until it's back rather than answering 503. Active health checks
+        # are left off: with one upstream they only keep it marked down until the
+        # next check, long after it has recovered.
+        lb_try_duration 30s
+        lb_try_interval 250ms
 
         # Headers
         header_up X-Real-IP {remote_host}
