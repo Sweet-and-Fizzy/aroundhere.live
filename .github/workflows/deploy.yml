@@ -91,22 +91,25 @@ jobs:
             # Pull latest image
             docker compose -f docker-compose.prod.yml pull
 
-            # Migrate with the new image before swapping the app, so it restarts only
-            # once (the Prisma client is generated at build time and needs no restart).
-            # Fail the deploy if migrations fail, leaving the old app running.
-            echo "Running database migrations..."
-            docker compose -f docker-compose.prod.yml run --rm --no-deps -T app npx prisma migrate deploy --config prisma/prisma.config.ts
-
-            # Swap in the new app; Caddy holds requests while it boots
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-
-            # The Caddyfile is a single-file bind mount like the crontab, so Caddy only
-            # sees a replaced file once recreated; otherwise reload it in place
+            # Apply Caddy changes before the app swap, so the swap runs under the new
+            # proxy settings. The Caddyfile is a single-file bind mount like the crontab,
+            # so Caddy only sees a replaced file once recreated; otherwise reload it in place
             if ! docker compose -f docker-compose.prod.yml exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - Caddyfile; then
               docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps caddy
             else
               docker compose -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
             fi
+
+            # Migrate with the new image before swapping the app, so it restarts only
+            # once (the Prisma client is generated at build time and needs no restart).
+            # Fail the deploy if migrations fail, leaving the old app running. The old app
+            # serves on the new schema until the swap, so drop or rename columns in a
+            # later deploy than the code that stops using them.
+            echo "Running database migrations..."
+            docker compose -f docker-compose.prod.yml run --rm --no-deps -T app npx prisma migrate deploy --config prisma/prisma.config.ts
+
+            # Swap in the new app; Caddy holds requests while it boots
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # The crontab is a single-file bind mount installed at container start, and scp
             # replaces the file, so the running cron container keeps the old schedule until recreated
