@@ -1,6 +1,9 @@
 import type { Prisma } from '@prisma/client'
 import prisma from '../../utils/prisma'
 import { setCacheHeaders } from '../../utils/cache'
+import { parseEventListQuery, eventFilterConditions, type EventFacet } from '../../utils/event-query'
+
+const DEFAULT_TIMEZONE = 'America/New_York'
 
 /**
  * Get faceted counts for event filters
@@ -11,21 +14,17 @@ export default defineEventHandler(async (event) => {
 
   const query = getQuery(event)
 
-  // Parse current filter parameters
+  // Same filters as the events list, so the counts match what each option shows
+  const filters = parseEventListQuery(query, DEFAULT_TIMEZONE)
+  if (filters.regions?.length) {
+    const regionRecords = await prisma.region.findMany({
+      where: { slug: { in: filters.regions } },
+      select: { id: true },
+    })
+    filters.regionIds = regionRecords.map(r => r.id)
+  }
+
   const q = (query.q as string)?.trim()
-  // Parse date strings as local dates (YYYY-MM-DD format)
-  // Appending T00:00:00 ensures the date is parsed as local time, not UTC
-  const startDate = query.startDate
-    ? new Date(`${query.startDate}T00:00:00`)
-    : new Date()
-  const endDate = query.endDate
-    ? new Date(`${query.endDate}T23:59:59.999`)
-    : undefined
-  const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
-  const genres = query.genres ? (query.genres as string).split(',') : undefined
-  const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
-  const cities = query.cities ? (query.cities as string).split(',') : undefined
-  const musicOnly = query.musicOnly !== 'false'
 
   // Text search condition (same as search API)
   const textSearchCondition: Prisma.EventWhereInput | undefined = q
@@ -51,43 +50,17 @@ export default defineEventHandler(async (event) => {
       }
     : undefined
 
-  // Base where clause without the facet being counted
-  const baseWhere: Prisma.EventWhereInput = {
-    startsAt: {
-      gte: startDate,
-      ...(endDate && { lte: endDate }),
-    },
-    reviewStatus: 'APPROVED',
-    isCancelled: false,
-    ...textSearchCondition,
+  // Every filter except the one being counted
+  function whereWithout(facet: EventFacet): Prisma.EventWhereInput {
+    const conditions = eventFilterConditions(filters, facet)
+    if (textSearchCondition) conditions.push(textSearchCondition)
+    return { AND: conditions }
   }
-
-  // Helper to build where clause with proper AND combination (to avoid OR conflicts)
-  function buildWhereClause(additionalConditions: Prisma.EventWhereInput[]): Prisma.EventWhereInput {
-    const conditions = [baseWhere, ...additionalConditions]
-    return conditions.length === 1 ? conditions[0]! : { AND: conditions }
-  }
-
-  // Music filter condition (used in multiple places)
-  // Only include classified events (exclude isMusic: null)
-  const musicCondition: Prisma.EventWhereInput = { isMusic: true }
 
   // Get venue counts (without venue filter applied)
-  const venueConditions: Prisma.EventWhereInput[] = []
-  if (musicOnly) venueConditions.push(musicCondition)
-  if (eventTypes && eventTypes.length > 0) {
-    venueConditions.push({ eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } })
-  }
-  if (genres && genres.length > 0) {
-    venueConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
-  }
-  if (cities && cities.length > 0) {
-    venueConditions.push({ venue: { city: { in: cities } } })
-  }
-
   const venueCountsRaw = await prisma.event.groupBy({
     by: ['venueId'],
-    where: buildWhereClause(venueConditions),
+    where: whereWithout('venue'),
     _count: { id: true },
   })
 
@@ -99,22 +72,9 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get genre counts (without genre filter applied)
-  const genreConditions: Prisma.EventWhereInput[] = []
-  if (musicOnly) genreConditions.push(musicCondition)
-  if (eventTypes && eventTypes.length > 0) {
-    genreConditions.push({ eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } })
-  }
-  if (venueIds && venueIds.length > 0) {
-    genreConditions.push({ venueId: { in: venueIds } })
-  }
-  if (cities && cities.length > 0) {
-    genreConditions.push({ venue: { city: { in: cities } } })
-  }
+  const genreWhereClause = whereWithout('genre')
 
   // For genres, use PostgreSQL unnest to count array elements efficiently
-  // Build the WHERE clause conditions for raw SQL
-  const genreWhereClause = buildWhereClause(genreConditions)
-
   // Use Prisma's findMany to get IDs matching the filter, then use raw SQL to count genres
   const matchingEventIds = await prisma.event.findMany({
     where: genreWhereClause,
@@ -135,22 +95,12 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Get event type counts (without eventType filter applied)
-  const typeConditions: Prisma.EventWhereInput[] = []
-  if (venueIds && venueIds.length > 0) {
-    typeConditions.push({ venueId: { in: venueIds } })
-  }
-  if (genres && genres.length > 0) {
-    typeConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
-  }
-  if (cities && cities.length > 0) {
-    typeConditions.push({ venue: { city: { in: cities } } })
-  }
-  const typeWhereForTypes = buildWhereClause(typeConditions)
+  // Get event type counts (without the music/type filter applied)
+  const typeWhere = whereWithout('type')
 
   const typeCountsRaw = await prisma.event.groupBy({
     by: ['eventType'],
-    where: typeWhereForTypes,
+    where: typeWhere,
     _count: { id: true },
   })
 
@@ -161,32 +111,19 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Count music vs non-music (use AND to properly combine with search)
+  // Count music vs non-music
   const musicCount = await prisma.event.count({
-    where: buildWhereClause([...typeConditions, musicCondition]),
+    where: { AND: [typeWhere, { isMusic: true }] },
   })
 
   const nonMusicCount = await prisma.event.count({
-    where: buildWhereClause([...typeConditions, { isMusic: false }]),
+    where: { AND: [typeWhere, { isMusic: false }] },
   })
 
-  // Get city counts (without city filter applied)
-  // We need to fetch events with venues and count by city manually
-  const cityConditions: Prisma.EventWhereInput[] = []
-  if (musicOnly) cityConditions.push(musicCondition)
-  if (eventTypes && eventTypes.length > 0) {
-    cityConditions.push({ eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } })
-  }
-  if (venueIds && venueIds.length > 0) {
-    cityConditions.push({ venueId: { in: venueIds } })
-  }
-  if (genres && genres.length > 0) {
-    cityConditions.push({ canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) } })
-  }
-
+  // Get city counts (without the city or region filter applied)
   // Get city counts using raw SQL with proper JOINs for efficiency
   const cityMatchingEventIds = await prisma.event.findMany({
-    where: buildWhereClause(cityConditions),
+    where: whereWithout('city'),
     select: { id: true },
   })
 

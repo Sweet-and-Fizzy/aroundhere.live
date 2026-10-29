@@ -233,6 +233,11 @@ const facetParams = computed(() => {
   if (currentFilters.value.cities?.length) params.cities = currentFilters.value.cities.join(',')
   if (currentFilters.value.eventTypes?.length) params.eventTypes = currentFilters.value.eventTypes.join(',')
   if (currentFilters.value.musicOnly !== undefined) params.musicOnly = String(currentFilters.value.musicOnly)
+  if (currentFilters.value.nonMusicOnly) params.nonMusicOnly = 'true'
+  if (currentFilters.value.regions?.length) params.regions = currentFilters.value.regions.join(',')
+  if (currentFilters.value.favoriteArtistIds?.length) params.favoriteArtistIds = currentFilters.value.favoriteArtistIds.join(',')
+  if (currentFilters.value.favoriteVenueIds?.length) params.favoriteVenueIds = currentFilters.value.favoriteVenueIds.join(',')
+  if (currentFilters.value.favoriteGenres?.length) params.favoriteGenres = currentFilters.value.favoriteGenres.join(',')
   return params
 })
 
