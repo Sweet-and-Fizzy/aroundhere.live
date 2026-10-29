@@ -3,6 +3,7 @@ import prisma from '../../utils/prisma'
 import { setCacheHeaders } from '../../utils/cache'
 import { fromZonedTime } from 'date-fns-tz'
 import { getUserProfile, findCandidateEvents, scoreEventsForUser } from '../../services/recommendations'
+import { parseEventListQuery, eventFilterConditions } from '../../utils/event-query'
 
 const DEFAULT_TIMEZONE = 'America/New_York'
 
@@ -21,19 +22,8 @@ export default defineEventHandler(async (event) => {
     setCacheHeaders(event)
   }
 
-  // Parse query parameters
+  // Look up region timezone if regionId is provided, so dates are whole days there
   const regionId = query.regionId as string | undefined
-  const regions = query.regions ? (query.regions as string).split(',') : undefined
-  // Support both single venueId and multiple venueIds
-  const venueId = query.venueId as string | undefined
-  const venueIds = query.venueIds ? (query.venueIds as string).split(',') : undefined
-
-  // Favorites filters
-  const favoriteArtistIds = query.favoriteArtistIds ? (query.favoriteArtistIds as string).split(',') : undefined
-  const favoriteVenueIds = query.favoriteVenueIds ? (query.favoriteVenueIds as string).split(',') : undefined
-  const favoriteGenres = query.favoriteGenres ? (query.favoriteGenres as string).split(',') : undefined
-
-  // Look up region timezone if regionId is provided
   let timezone = DEFAULT_TIMEZONE
   if (regionId) {
     const region = await prisma.region.findUnique({
@@ -45,38 +35,10 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Parse date strings as local dates in the region's timezone
-  // This ensures "today" means today in the region's time, not UTC
-  const startDate = query.startDate
-    ? fromZonedTime(`${query.startDate}T00:00:00`, timezone)
-    : (() => {
-        // Get current date in region's timezone
-        const now = new Date()
-        const localDate = now.toLocaleDateString('en-CA', { timeZone: timezone }) // YYYY-MM-DD format
-        return fromZonedTime(`${localDate}T00:00:00`, timezone)
-      })()
-  // Set endDate to end of day in region's timezone to include all events on that date
-  const endDate = query.endDate
-    ? fromZonedTime(`${query.endDate}T23:59:59.999`, timezone)
-    : undefined
-  const genres = query.genres ? (query.genres as string).split(',') : undefined
+  const filters = parseEventListQuery(query, timezone)
+  const { startDate, endDate } = filters
   const limit = Math.min(parseInt(query.limit as string) || 50, 100)
   const offset = parseInt(query.offset as string) || 0
-
-  // Geographic filters (filter by venue location)
-  const state = query.state as string | undefined
-  const city = query.city as string | undefined
-  const cities = query.cities ? (query.cities as string).split(',') : undefined
-
-  // Classification filters
-  // By default, only show music events (isMusic=true or null for unclassified)
-  // Pass musicOnly=false to include non-music events
-  // Pass nonMusicOnly=true to show only non-music events
-  const musicOnly = query.musicOnly !== 'false'
-  const nonMusicOnly = query.nonMusicOnly === 'true'
-  // Support both single eventType and multiple eventTypes
-  const eventType = query.eventType as string | undefined
-  const eventTypes = query.eventTypes ? (query.eventTypes as string).split(',') : undefined
 
   console.log('[Events API] myEvents filter:', myEvents, 'userId:', userId)
 
@@ -157,73 +119,18 @@ export default defineEventHandler(async (event) => {
   }
 
   // If regions are specified, look up region IDs from region slugs
-  let regionIds: string[] | undefined
-  if (regions && regions.length > 0) {
+  if (filters.regions?.length) {
     const regionRecords = await prisma.region.findMany({
-      where: {
-        slug: {
-          in: regions,
-        }
-      },
+      where: { slug: { in: filters.regions } },
       select: { id: true },
     })
-    regionIds = regionRecords.map(r => r.id)
+    filters.regionIds = regionRecords.map(r => r.id)
   }
 
-  // Build where clause with proper Prisma types
-  const where: Prisma.EventWhereInput = {
-    startsAt: {
-      gte: startDate,
-      ...(endDate && { lte: endDate }),
-    },
-    reviewStatus: 'APPROVED',
-    isCancelled: false,
-    // Filter by music/non-music
-    // musicOnly=true (default): only isMusic=true
-    // nonMusicOnly=true: only isMusic=false (non-music events)
-    // musicOnly=false: show all classified events (music AND non-music)
-    // If specific event types are requested, don't filter by isMusic
-    ...(!eventType && !eventTypes && nonMusicOnly && {
-      isMusic: false,
-      // Exclude PRIVATE events, but allow null eventType
-      OR: [
-        { eventType: { not: 'PRIVATE' as const } },
-        { eventType: null }
-      ]
-    }),
-    ...(!eventType && !eventTypes && musicOnly && !nonMusicOnly && {
-      isMusic: true,
-      // Exclude PRIVATE events, but allow null eventType
-      OR: [
-        { eventType: { not: 'PRIVATE' as const } },
-        { eventType: null }
-      ]
-    }),
-    ...(!eventType && !eventTypes && !musicOnly && !nonMusicOnly && {
-      isMusic: { not: null }, // Only show classified events
-      OR: [
-        { eventType: { not: 'PRIVATE' as const } },
-        { eventType: null }
-      ]
-    }),
-    // Filter by specific event type(s)
-    ...(eventTypes && eventTypes.length > 0 && { eventType: { in: eventTypes as Prisma.EnumEventTypeNullableFilter['in'] } }),
-    ...(eventType && !eventTypes && { eventType: eventType as Prisma.EnumEventTypeNullableFilter }),
-    // Filter by region/venue(s)
-    ...(regionIds && regionIds.length > 0 && { regionId: { in: regionIds } }),
-    ...(regionId && !regionIds && { regionId }),
-    ...(venueIds && venueIds.length > 0 && { venueId: { in: venueIds } }),
-    ...(venueId && !venueIds && { venueId }),
-    // Filter by genre - check canonicalGenres array (case-insensitive)
-    ...(genres && genres.length > 0 && {
-      canonicalGenres: { hasSome: genres.map(g => g.toLowerCase()) },
-    }),
-    // Filter by venue state/city
-    ...(state && { venue: { state: { equals: state, mode: 'insensitive' } } }),
-    ...(cities && cities.length > 0 && { venue: { city: { in: cities } } }),
-    ...(city && !cities && { venue: { city: { contains: city, mode: 'insensitive' } } }),
-    // Filter by user's attendance status
-    ...(myEvents && userId && {
+  const conditions = eventFilterConditions(filters)
+  // Filter by user's attendance status
+  if (myEvents && userId) {
+    conditions.push({
       userAttendance: {
         some: {
           userId,
@@ -232,43 +139,9 @@ export default defineEventHandler(async (event) => {
           }),
         },
       },
-    }),
-  }
-
-  // Add favorites filters with OR logic (show events matching ANY favorite type)
-  const favoriteConditions: Prisma.EventWhereInput[] = []
-
-  if (favoriteArtistIds && favoriteArtistIds.length > 0) {
-    favoriteConditions.push({
-      eventArtists: {
-        some: {
-          artistId: { in: favoriteArtistIds },
-        },
-      },
     })
   }
-
-  if (favoriteVenueIds && favoriteVenueIds.length > 0) {
-    favoriteConditions.push({
-      venueId: { in: favoriteVenueIds },
-    })
-  }
-
-  if (favoriteGenres && favoriteGenres.length > 0) {
-    favoriteConditions.push({
-      canonicalGenres: { hasSome: favoriteGenres.map(g => g.toLowerCase()) },
-    })
-  }
-
-  // Combine base where with favorites (using OR for favorites)
-  const finalWhere: Prisma.EventWhereInput = favoriteConditions.length > 0
-    ? {
-        AND: [
-          where,
-          { OR: favoriteConditions },
-        ],
-      }
-    : where
+  const finalWhere: Prisma.EventWhereInput = { AND: conditions }
 
   // Fetch events with related data
   // First get the initial batch
