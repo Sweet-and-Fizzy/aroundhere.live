@@ -1,2 +1,12 @@
+# SEO tools and crawlers that can't help anyone find a show. Search engines, AI
+# assistants and AI search indexes stay allowed.
+User-Agent: AhrefsBot
+User-Agent: SemrushBot
+User-Agent: MJ12bot
+User-Agent: DotBot
+User-Agent: PetalBot
+User-Agent: Bytespider
+Disallow: /
+
 User-Agent: *
 Disallow:
