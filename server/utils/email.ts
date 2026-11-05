@@ -2,6 +2,8 @@ import { Resend } from 'resend'
 import { createCheckedSend } from './email-send'
 import { reportEmailFailure } from '../services/alerting'
 import { eventLocationName, eventLocationCity } from '../../shared/utils/eventLocation'
+import { firstEmailIntro, interestsNoteText, regionNoteText, weeklyEmailBlocks } from './email-weekly-blocks'
+import { createUnsubscribeToken } from './unsubscribe-token'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const sendEmail = createCheckedSend(options => resend.emails.send(options), reportEmailFailure)
@@ -678,6 +680,11 @@ interface RecommendationEmailData {
   comingUpPicks: RecommendationEvent[]
   upcomingAttendanceEvents?: UpcomingAttendanceEvent[]
   fullWeekendListings?: WeekendDayListings[]
+  userId: string
+  isFirstEmail?: boolean
+  listingRegionName?: string
+  inferredRegionName?: string
+  hasTasteProfile: boolean
 }
 
 /**
@@ -743,9 +750,12 @@ export async function sendRecommendationEmail(
 
   // Generate HTML for full weekend listings
   const fullListingsHtml = renderWeekendListings(fullWeekendListings || [], baseUrl)
+  const blocks = weeklyEmailBlocks(data, totalListingEvents > 0, baseUrl)
 
   // Generate plain text version
-  const plainText = generateRecommendationPlainText(data, baseUrl)
+  const unsubscribeToken = createUnsubscribeToken(data.userId, process.env.NUXT_SESSION_PASSWORD ?? '')
+  const unsubscribePageUrl = `${baseUrl}/unsubscribe?token=${unsubscribeToken}`
+  const plainText = generateRecommendationPlainText(data, baseUrl, unsubscribePageUrl)
 
   // Log for local development
   if (process.dev) {
@@ -793,6 +803,8 @@ export async function sendRecommendationEmail(
       html: emailLayout({
         logoUrl,
         content: `
+          ${blocks.intro}
+
           <h2 style="color: #111827; margin-top: 0; font-size: 22px; font-weight: 600;">
             Your Weekly Roundup
           </h2>
@@ -805,6 +817,8 @@ export async function sendRecommendationEmail(
           ${favoriteArtistsHtml}
           ${weekendPicksHtml}
           ${comingUpHtml}
+          ${blocks.interestsNote}
+          ${blocks.regionNote}
           ${fullListingsHtml}
 
           <div style="text-align: center; margin: 32px 0;">
@@ -828,11 +842,15 @@ export async function sendRecommendationEmail(
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
             <a href="${baseUrl}/settings" style="color: #6b7280; text-decoration: underline;">Manage preferences</a>
             &nbsp;•&nbsp;
-            <a href="${baseUrl}/settings" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+            <a href="${unsubscribePageUrl}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
           </p>
         `,
       }),
       text: plainText,
+      headers: {
+        'List-Unsubscribe': `<${baseUrl}/api/unsubscribe?token=${unsubscribeToken}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
     })
 
     return { success: true }
@@ -1092,7 +1110,8 @@ function renderWeekendListings(
  */
 function generateRecommendationPlainText(
   data: RecommendationEmailData,
-  baseUrl: string
+  baseUrl: string,
+  unsubscribeUrl: string
 ): string {
   const { favoriteArtistEvents, weekendPicks, comingUpPicks, upcomingAttendanceEvents, fullWeekendListings } = data
   const sections: string[] = []
@@ -1172,6 +1191,10 @@ function generateRecommendationPlainText(
     sections.push(`COMING UP\n${events}`)
   }
 
+  sections.push(interestsNoteText(data.hasTasteProfile, baseUrl))
+
+  const hasListings = !!fullWeekendListings && fullWeekendListings.length > 0
+
   // Full weekend listings with attendance indicators (Time, Title, Venue order)
   if (fullWeekendListings && fullWeekendListings.length > 0) {
     const daysText = fullWeekendListings.map(day => {
@@ -1183,7 +1206,8 @@ function generateRecommendationPlainText(
         .join('\n')
       return `${day.dayLabel.toUpperCase()}\n${eventsText}`
     }).join('\n\n')
-    sections.push(`THIS WEEK'S FULL LISTINGS\n\n${daysText}`)
+    const regionNote = data.inferredRegionName ? `${regionNoteText(data.inferredRegionName, baseUrl)}\n\n` : ''
+    sections.push(`THIS WEEK'S FULL LISTINGS\n\n${regionNote}${daysText}`)
   }
 
   const hasPersonalized = favoriteArtistEvents.length > 0 || weekendPicks.length > 0 || comingUpPicks.length > 0
@@ -1191,8 +1215,12 @@ function generateRecommendationPlainText(
     ? 'Here are shows we think you\'ll love, plus the full week\'s listings for your area.'
     : 'Here\'s what\'s happening this week in your area.'
 
+  const welcome = data.isFirstEmail
+    ? `${firstEmailIntro(hasListings ? data.listingRegionName ?? null : null)}\n\n`
+    : ''
+
   return `
-Your Weekly Roundup
+${welcome}Your Weekly Roundup
 
 ${intro}
 
@@ -1204,6 +1232,7 @@ Always check the venue website before heading out to confirm times and details.
 
 Browse all events: ${baseUrl}/
 Manage preferences: ${baseUrl}/settings
+Unsubscribe: ${unsubscribeUrl}
   `.trim()
 }
 

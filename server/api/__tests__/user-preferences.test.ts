@@ -152,15 +152,13 @@ describe('Email Change API', () => {
   })
 })
 
-describe('Auth Verify with Region', () => {
-  it('sets default region from IP on login', () => {
-    const authVerify = readFileSync(
-      join(__dirname, '../auth/verify.get.ts'),
-      'utf-8'
-    )
-
-    expect(authVerify).toContain('getLocationFromIp')
-    expect(authVerify).toContain('regionId')
-    expect(authVerify).toContain('findNearestRegion')
+describe('Region assignment at login', () => {
+  it.each([
+    '../auth/verify.get.ts',
+    '../auth/login.post.ts',
+    '../auth/register.post.ts',
+    '../../routes/auth/google.get.ts',
+  ])('%s assigns a region', (path) => {
+    expect(readFileSync(join(__dirname, path), 'utf-8')).toContain('assignRegionFromRequest')
   })
 })

@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import { prisma } from '../../utils/prisma'
+import { assignRegionFromRequest } from '../../utils/assign-user-region'
 
 const BCRYPT_ROUNDS = 12
 const MIN_PASSWORD_LENGTH = 8
@@ -66,6 +67,8 @@ export default defineEventHandler(async (event) => {
         },
       })
     }
+
+    await assignRegionFromRequest(prisma, event, user)
 
     // Auto-login: set user session
     await setUserSession(event, {

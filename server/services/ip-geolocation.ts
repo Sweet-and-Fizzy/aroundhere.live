@@ -20,7 +20,9 @@ export async function getLocationFromIp(ip: string): Promise<IpGeoResult | null>
   try {
     // ip-api.com is free and doesn't require an API key
     // Limit: 45 requests per minute
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city,regionName,country`)
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city,regionName,country`, {
+      signal: AbortSignal.timeout(2000),
+    })
 
     if (!response.ok) {
       console.warn(`IP geolocation failed for ${ip}: ${response.status}`)

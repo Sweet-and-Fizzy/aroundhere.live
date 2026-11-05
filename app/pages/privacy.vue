@@ -37,7 +37,7 @@ useSeoMeta({
         <ul class="list-disc list-inside space-y-2 text-gray-700">
           <li>Sending you magic link emails to log in</li>
           <li>Notifying you about events matching your favorites (if you opt in)</li>
-          <li>Sending weekly personalized recommendations (if you opt in)</li>
+          <li>Sending a weekly roundup of local events and personalized picks (on by default, turn it off any time in Settings)</li>
           <li>Showing you events in your region</li>
           <li>Improving the app based on how it's used</li>
         </ul>
