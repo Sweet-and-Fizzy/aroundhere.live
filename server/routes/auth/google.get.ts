@@ -1,5 +1,6 @@
 import { sendRedirect, getQuery } from 'h3'
 import { prisma } from '../../utils/prisma'
+import { assignRegionFromRequest } from '../../utils/assign-user-region'
 
 export default defineOAuthGoogleEventHandler({
   config: {
@@ -73,6 +74,8 @@ export default defineOAuthGoogleEventHandler({
       if (!user.isActive) {
         return sendRedirect(event, '/login?error=account_disabled')
       }
+
+      await assignRegionFromRequest(prisma, event, user)
 
       // Set user session
       await setUserSession(event, {

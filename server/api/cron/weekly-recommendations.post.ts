@@ -26,6 +26,7 @@
 
 import { verifyCronAuth } from '../../utils/cron-auth'
 import { sendRecommendationEmail } from '../../utils/email'
+import { describeRun, pauseBetweenSends, weeklyRecipientWhere } from '../../utils/email-weekly-blocks'
 import { prisma } from '../../utils/prisma'
 import {
   getUserProfile,
@@ -35,6 +36,7 @@ import {
   findFavoriteArtistEvents,
 } from '../../services/recommendations'
 import { curateMultipleSections, type CuratedEvent } from '../../services/recommendations/ai-curator'
+import { findBusiestRegion, listableEventWhere, resolveListingRegion } from '../../services/recommendations/listing-region'
 
 interface WeekendListingEvent {
   time: string
@@ -110,20 +112,9 @@ export default defineEventHandler(async (event) => {
     console.log(`  Coming up: ${comingUpStart.toDateString()} - ${comingUpEnd.toDateString()}`)
 
     // Get users who want recommendations
-    const userWhere: Record<string, unknown> = {
-      enableRecommendations: true,
-    }
-
-    if (targetUserId) {
-      userWhere.id = targetUserId
-    } else {
-      // Only send to users we haven't emailed in the past 6 days
-      const sixDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
-      userWhere.OR = [
-        { lastRecommendationSent: null },
-        { lastRecommendationSent: { lt: sixDaysAgo } },
-      ]
-    }
+    const userWhere = targetUserId
+      ? { enableRecommendations: true, id: targetUserId }
+      : weeklyRecipientWhere(now)
 
     const users = await prisma.user.findMany({
       where: userWhere,
@@ -131,15 +122,24 @@ export default defineEventHandler(async (event) => {
         id: true,
         email: true,
         interestDescription: true,
-        regionId: true,
+        lastRecommendationSent: true,
         region: {
           select: {
+            id: true,
+            name: true,
             timezone: true,
           },
         },
       },
       take: limit,
     })
+
+    // Listings run through the next 7 days
+    const weekListingEnd = new Date(now)
+    weekListingEnd.setDate(weekListingEnd.getDate() + 7)
+    weekListingEnd.setHours(23, 59, 59, 999)
+
+    const fallbackRegion = await findBusiestRegion(prisma, now, weekListingEnd)
 
     console.log(`[Weekly Recommendations] Processing ${users.length} users`)
 
@@ -174,6 +174,7 @@ export default defineEventHandler(async (event) => {
         // Section 2 & 3: Get and score candidate events
         let weekendPicks: CuratedEvent[] = []
         let comingUpPicks: CuratedEvent[] = []
+        let rankedCount = 0
 
         // Only do AI curation if user has a taste profile
         if (userProfile.tasteProfileEmbedding) {
@@ -207,6 +208,7 @@ export default defineEventHandler(async (event) => {
 
           const scoredComingUp = await scoreEventsForUser(comingUpCandidates, userProfile)
           const rankedComingUp = rankRecommendations(scoredComingUp)
+          rankedCount = rankedWeekend.length + rankedComingUp.length
 
           // AI curate both sections
           if (rankedWeekend.length > 0 || rankedComingUp.length > 0) {
@@ -283,30 +285,21 @@ export default defineEventHandler(async (event) => {
           status: a.status,
         }))
 
-        // Section 4: Full week listings for user's region
+        // Section 4: Full week listings for the user's region, or our best guess at one
         // Shows all events from today through next 7 days
+        const listingRegion = await resolveListingRegion(prisma, user, fallbackRegion, { from: now, to: weekListingEnd })
         let fullWeekendListings: WeekendDayListings[] = []
-        if (user.regionId) {
-          const weekListingEnd = new Date(now)
-          weekListingEnd.setDate(weekListingEnd.getDate() + 7)
-          weekListingEnd.setHours(23, 59, 59, 999)
-
+        if (listingRegion) {
           // Fetch all events for the user's region for the next week
           // Use 'now' to exclude events that have already started
           const allWeekendEvents = await prisma.event.findMany({
             where: {
-              regionId: user.regionId,
+              ...listableEventWhere,
+              regionId: listingRegion.id,
               startsAt: {
                 gte: now,
                 lte: weekListingEnd,
               },
-              isCancelled: false,
-              reviewStatus: 'APPROVED',
-              // Only include music events
-              OR: [
-                { isMusic: true },
-                { isMusic: null, eventType: null }, // Unclassified, might be music
-              ],
             },
             select: {
               id: true,
@@ -327,7 +320,7 @@ export default defineEventHandler(async (event) => {
 
           // Group events by day using the region's timezone
           // Events are stored in UTC but should be displayed in local event time
-          const timezone = user.region?.timezone || 'America/New_York'
+          const timezone = listingRegion.timezone
           const eventsByDay = new Map<string, { sortKey: number; events: typeof allWeekendEvents }>()
           for (const event of allWeekendEvents) {
             // Format date in region timezone to get the correct local date
@@ -381,14 +374,16 @@ export default defineEventHandler(async (event) => {
         const totalRecs = favoriteArtistEvents.length + weekendPicks.length + comingUpPicks.length
         const totalListings = fullWeekendListings.reduce((sum, day) => sum + day.events.length, 0)
         const totalAttendance = upcomingAttendanceEvents.length
+        const hasTasteProfile = !!userProfile.tasteProfileEmbedding
+        const runSummary = describeRun({ hasTaste: hasTasteProfile, ranked: rankedCount, region: listingRegion, listings: totalListings })
         if (totalRecs === 0 && totalListings === 0) {
-          console.log(`[Weekly Recommendations] User ${user.email}: No recommendations or listings, skipping (${totalAttendance} attendance events)`)
+          console.log(`[Weekly Recommendations] User ${user.email}: skipped, ${runSummary} (${totalAttendance} attendance events)`)
           results.usersSkipped++
           continue
         }
 
         console.log(
-          `[Weekly Recommendations] User ${user.email}: ${favoriteArtistEvents.length} favorites, ${weekendPicks.length} weekend, ${comingUpPicks.length} coming up, ${totalAttendance} attending, ${totalListings} listings`
+          `[Weekly Recommendations] User ${user.email}: ${favoriteArtistEvents.length} favorites, ${weekendPicks.length} weekend, ${comingUpPicks.length} coming up, ${totalAttendance} attending, ${runSummary}`
         )
 
         if (dryRun) {
@@ -397,12 +392,18 @@ export default defineEventHandler(async (event) => {
         } else {
           // Send the recommendation email
           const emailResult = await sendRecommendationEmail(user.email, {
+            userId: user.id,
             favoriteArtistEvents,
             weekendPicks,
             comingUpPicks,
             upcomingAttendanceEvents,
             fullWeekendListings,
+            isFirstEmail: !user.lastRecommendationSent,
+            listingRegionName: listingRegion?.name,
+            inferredRegionName: listingRegion && listingRegion.source !== 'user' ? listingRegion.name : undefined,
+            hasTasteProfile,
           })
+          await pauseBetweenSends()
 
           if (emailResult.success) {
             results.emailsSent++

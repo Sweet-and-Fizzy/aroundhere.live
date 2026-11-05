@@ -57,7 +57,8 @@ describe('IP Geolocation Service', () => {
       country: 'United States',
     })
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://ip-api.com/json/8.8.8.8?fields=status,lat,lon,city,regionName,country'
+      'http://ip-api.com/json/8.8.8.8?fields=status,lat,lon,city,regionName,country',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
   })
 

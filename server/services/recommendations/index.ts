@@ -223,6 +223,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     try {
       embedding = JSON.parse(user[0].tasteProfileEmbedding)
     } catch {
+      console.warn(`[Recommendations] Could not parse taste profile for user ${userId}`)
       embedding = null
     }
   }

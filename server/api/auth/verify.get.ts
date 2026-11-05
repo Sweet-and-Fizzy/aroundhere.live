@@ -1,7 +1,5 @@
 import { prisma } from '../../utils/prisma'
-import { getRequestIP } from 'h3'
-import { getLocationFromIp } from '../../services/ip-geolocation'
-import { findNearestRegion } from '../../utils/find-nearest-region'
+import { assignRegionFromRequest } from '../../utils/assign-user-region'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -93,28 +91,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Set default region based on IP if user doesn't have one
-    if (!user.regionId) {
-      try {
-        const ip = getRequestIP(event, { xForwardedFor: true })
-        if (ip) {
-          const location = await getLocationFromIp(ip)
-          if (location) {
-            const nearest = await findNearestRegion(prisma, location.lat, location.lng)
-            // Only set region if within reasonable distance (e.g., 100 miles)
-            if (nearest && nearest.distance <= 100) {
-              user = await prisma.user.update({
-                where: { id: user.id },
-                data: { regionId: nearest.region.id },
-              })
-            }
-          }
-        }
-      } catch (geoError) {
-        // Don't fail login if geolocation fails
-        console.error('Failed to set default region from IP:', geoError)
-      }
-    }
+    await assignRegionFromRequest(prisma, event, user)
 
     // Create session
     await setUserSession(event, {

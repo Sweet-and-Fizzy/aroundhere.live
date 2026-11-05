@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import { prisma } from '../../utils/prisma'
+import { assignRegionFromRequest } from '../../utils/assign-user-region'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ email: string; password: string }>(event)
@@ -60,6 +61,8 @@ export default defineEventHandler(async (event) => {
         message: 'Invalid email or password',
       })
     }
+
+    await assignRegionFromRequest(prisma, event, user)
 
     // Set user session
     await setUserSession(event, {
