@@ -152,6 +152,16 @@ describe('Email Change API', () => {
   })
 })
 
+describe('Rate limiting on auth routes that send mail', () => {
+  it.each([
+    '../auth/send-magic-link.post.ts',
+    '../auth/forgot-password.post.ts',
+    '../auth/register.post.ts',
+  ])('%s is rate limited', (path) => {
+    expect(readFileSync(join(__dirname, path), 'utf-8')).toContain('enforceAuthRateLimit')
+  })
+})
+
 describe('Region assignment at login', () => {
   it.each([
     '../auth/verify.get.ts',

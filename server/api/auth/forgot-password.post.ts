@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto'
 import { prisma } from '../../utils/prisma'
+import { enforceAuthRateLimit } from '../../utils/auth-rate-limit'
 import { sendPasswordResetEmail } from '../../utils/email'
 
 export default defineEventHandler(async (event) => {
@@ -13,6 +14,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const email = body.email.toLowerCase().trim()
+  enforceAuthRateLimit(event, 'password-reset', email)
 
   try {
     // Find user by email
