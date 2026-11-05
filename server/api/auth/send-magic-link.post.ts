@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto'
 import { prisma } from '../../utils/prisma'
+import { enforceAuthRateLimit } from '../../utils/auth-rate-limit'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ email: string; redirect?: string }>(event)
@@ -12,6 +13,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const email = body.email.toLowerCase().trim()
+  enforceAuthRateLimit(event, 'magic-link', email)
 
   try {
     // Generate a secure random token

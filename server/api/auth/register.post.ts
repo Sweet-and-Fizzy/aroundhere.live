@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import { prisma } from '../../utils/prisma'
+import { enforceAuthRateLimit } from '../../utils/auth-rate-limit'
 import { assignRegionFromRequest } from '../../utils/assign-user-region'
 
 const BCRYPT_ROUNDS = 12
@@ -25,6 +26,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const email = body.email.toLowerCase().trim()
+  enforceAuthRateLimit(event, 'register', email)
 
   try {
     // Hash the password
